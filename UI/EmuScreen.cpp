@@ -57,6 +57,7 @@
 #include "Core/SaveState.h"
 #include "Core/MIPS/MIPS.h"
 #include "Core/HLE/__sceAudio.h"
+#include "Core/HLE/proAdhoc.h"
 
 #include "UI/ui_atlas.h"
 #include "UI/BackgroundAudio.h"
@@ -73,6 +74,7 @@
 #include "UI/GameSettingsScreen.h"
 #include "UI/InstallZipScreen.h"
 #include "UI/ProfilerDraw.h"
+#include "UI/ChatScreen.h"
 
 #if defined(_WIN32) && !PPSSPP_PLATFORM(UWP)
 #include "Windows/MainWindow.h"
@@ -818,6 +820,8 @@ void EmuScreen::CreateViews() {
 	if (g_Config.bShowDeveloperMenu) {
 		root_->Add(new Button(dev->T("DevMenu")))->OnClick.Handle(this, &EmuScreen::OnDevTools);
 	}
+	// TODO add options in networking menu checkbox enable chat
+	root_->Add(new Button("Chat", new AnchorLayoutParams(50, NONE, NONE, 50, true)))->OnClick.Handle(this, &EmuScreen::OnChat);
 	saveStatePreview_ = new AsyncImageFileView("", IS_FIXED, nullptr, new AnchorLayoutParams(bounds.centerX(), 100, NONE, NONE, true));
 	saveStatePreview_->SetFixedSize(160, 90);
 	saveStatePreview_->SetColor(0x90FFFFFF);
@@ -841,6 +845,14 @@ UI::EventReturn EmuScreen::OnDevTools(UI::EventParams &params) {
 	if (params.v)
 		devMenu->SetPopupOrigin(params.v);
 	screenManager()->push(devMenu);
+	return UI::EVENT_DONE;
+}
+
+UI::EventReturn EmuScreen::OnChat(UI::EventParams &params) {
+	releaseButtons();
+	ChatMenu* ch = new ChatMenu();
+	setChatPointer(ch);
+	screenManager()->push(ch);
 	return UI::EVENT_DONE;
 }
 
