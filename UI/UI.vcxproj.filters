@@ -69,6 +69,9 @@
     <ClCompile Include="RemoteISOScreen.cpp">
       <Filter>Screens</Filter>
     </ClCompile>
+    <ClCompile Include="ChatScreen.cpp">
+      <Filter>Screens</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameInfoCache.h" />
@@ -137,6 +140,9 @@
     <ClInclude Include="DisplayLayoutEditor.h" />
     <ClInclude Include="HostTypes.h" />
     <ClInclude Include="RemoteISOScreen.h">
+      <Filter>Screens</Filter>
+    </ClInclude>
+    <ClInclude Include="ChatScreen.h">
       <Filter>Screens</Filter>
     </ClInclude>
   </ItemGroup>

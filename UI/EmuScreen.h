@@ -49,6 +49,7 @@ public:
 protected:
 	void CreateViews() override;
 	UI::EventReturn OnDevTools(UI::EventParams &params);
+	UI::EventReturn OnChat(UI::EventParams &params);
 
 private:
 	void bootGame(const std::string &filename);
