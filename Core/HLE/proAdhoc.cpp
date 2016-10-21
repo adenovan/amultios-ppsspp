@@ -63,6 +63,7 @@ bool chatScreenVisible = false;
 bool updateChatScreen = false;
 int newChat = 0;
 
+
 int isLocalMAC(const SceNetEtherAddr * addr) {
 	SceNetEtherAddr saddr;
 	getLocalMac(&saddr);
@@ -1024,6 +1025,7 @@ std::vector<std::string> getChatLog() {
 		//erase the first 40 element limit the chatlog size
 		chatLog.erase(chatLog.begin(), chatLog.begin() + 40);
 	}
+
 	return chatLog;
 }
 
