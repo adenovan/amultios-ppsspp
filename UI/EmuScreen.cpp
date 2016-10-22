@@ -83,7 +83,6 @@ AVIDump avi;
 static bool frameStep_;
 static int lastNumFlips;
 static bool startDumping;
-
 static void __EmuScreenVblank()
 {
 	if (frameStep_ && lastNumFlips != gpuStats.numFlips)
@@ -763,8 +762,9 @@ void EmuScreen::CreateViews() {
 	if (g_Config.bShowDeveloperMenu) {
 		root_->Add(new Button("DevMenu"))->OnClick.Handle(this, &EmuScreen::OnDevTools);
 	}
-	if (g_Config.bEnableNetworkChat)
+	if (g_Config.bEnableNetworkChat) {
 		root_->Add(new Button(sc->T("Chat"), new AnchorLayoutParams(50, NONE, NONE, 50, true)))->OnClick.Handle(this, &EmuScreen::OnChat);
+	}
 	saveStatePreview_ = new AsyncImageFileView("", IS_FIXED, nullptr, new AnchorLayoutParams(bounds.centerX(), 100, NONE, NONE, true));
 	saveStatePreview_->SetFixedSize(160, 90);
 	saveStatePreview_->SetColor(0x90FFFFFF);
@@ -782,7 +782,7 @@ UI::EventReturn EmuScreen::OnDevTools(UI::EventParams &params) {
 
 UI::EventReturn EmuScreen::OnChat(UI::EventParams &params) {
 	releaseButtons();
-	ChatMenu* ch = new ChatMenu();
+	ChatMenu * ch = new ChatMenu(); // memory leak or not?
 	setChatPointer(ch);
 	screenManager()->push(ch);
 	return UI::EVENT_DONE;
