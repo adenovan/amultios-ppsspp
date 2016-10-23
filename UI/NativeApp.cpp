@@ -78,6 +78,7 @@
 #include "Core/System.h"
 #include "Core/HLE/__sceAudio.h"
 #include "Core/HLE/sceCtrl.h"
+#include "Core/HLE/proAdhoc.h"
 #include "Core/Util/GameManager.h"
 #include "Core/Util/AudioFormat.h"
 #include "GPU/GPUInterface.h"
@@ -767,6 +768,8 @@ void HandleGlobalMessage(const std::string &msg, const std::string &value) {
 			g_Config.proAdhocServer = setString;
 		if (inputboxValue[0] == "nickname")
 			g_Config.sNickName = setString;
+		if (inputboxValue[0] == "Chat")
+			sendChat(setString);
 		inputboxValue.clear();
 	}
 	if (msg == "savestate_displayslot") {
