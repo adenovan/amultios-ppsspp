@@ -82,6 +82,7 @@
 #include "Core/HLE/sceCtrl.h"
 #include "Core/HLE/sceUsbCam.h"
 #include "Core/HLE/sceUsbGps.h"
+#include "Core/HLE/proAdhoc.h"
 #include "Core/Util/GameManager.h"
 #include "Core/Util/AudioFormat.h"
 #include "GPU/GPUInterface.h"
@@ -902,6 +903,8 @@ void HandleGlobalMessage(const std::string &msg, const std::string &value) {
 			g_Config.sRemoteISOSubdir = setString;
 		else if (inputboxValue[0] == "remoteiso_server")
 			g_Config.sLastRemoteISOServer = setString;
+		if (inputboxValue[0] == "Chat")
+			sendChat(setString);
 		inputboxValue.clear();
 	}
 	if (msg == "bgImage_updated") {
