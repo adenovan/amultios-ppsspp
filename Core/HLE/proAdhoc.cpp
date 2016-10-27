@@ -998,6 +998,7 @@ void setChatPointer(ChatMenu * chatmenu) {
 
 void sendChat(std::string chatString) {
 	SceNetAdhocctlChatPacketC2S chat;
+	I18NCategory *n = GetI18NCategory("Networking");
 	chat.base.opcode = OPCODE_CHAT;
 	//TODO check network inited, check send success or not, chatlog.pushback error on failed send, pushback error on not connected
 	if (friendFinderRunning)
@@ -1018,7 +1019,7 @@ void sendChat(std::string chatString) {
 		}
 	}
 	else {
-		chatLog.push_back("You're in Offline Mode, go to lobby or online hall"); //need translation
+		chatLog.push_back(n->T("You're in Offline Mode, go to lobby or online hall"));
 		if (ch) {
 			ch->UpdateChat();
 		}
