@@ -23,7 +23,7 @@
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
 #include "Core/Config.h"
-#include "Core/CwCheat.h"
+//#include "Core/CwCheat.h"
 #include "Core/Loaders.h"
 #include "Core/SaveState.h"
 #include "Core/System.h"
@@ -450,6 +450,7 @@ namespace Reporting
 
 	bool IsSupported()
 	{
+		return false;
 		// Disabled when using certain hacks, because they make for poor reports.
 		if (g_Config.iRenderingMode >= 2) // FBO_READFBOMEMORY_MIN
 			return false;

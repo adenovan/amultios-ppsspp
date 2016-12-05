@@ -36,7 +36,7 @@ enum GlobalUIState {
 
 // Use these in conjunction with GetSysDirectory.
 enum PSPDirectories {
-	DIRECTORY_CHEATS,
+	//DIRECTORY_CHEATS,
 	DIRECTORY_SCREENSHOT,
 	DIRECTORY_SYSTEM,
 	DIRECTORY_GAME,

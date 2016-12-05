@@ -348,7 +348,7 @@ namespace MainWindow {
 		TranslateMenuItem(menu, ID_OPTIONS_VERTEXCACHE);
 		TranslateMenuItem(menu, ID_OPTIONS_SHOWFPS);
 		TranslateMenuItem(menu, ID_EMULATION_SOUND);
-		TranslateMenuItem(menu, ID_EMULATION_CHEATS, L"\tCtrl+T");
+		//TranslateMenuItem(menu, ID_EMULATION_CHEATS, L"\tCtrl+T");
 		TranslateMenuItem(menu, ID_EMULATION_CHAT, L"\tCtrl+C");
 
 		// Help menu: it's translated in CreateHelpMenu.
@@ -563,9 +563,9 @@ namespace MainWindow {
 		osm.Show(messageStream.str());
 	}
 
-	static void enableCheats(bool cheats) {
+	/*static void enableCheats(bool cheats) {
 		g_Config.bEnableCheats = cheats;
-	}
+	}*/
 
 	static void setDisplayOptions(int options) {
 		g_Config.iSmallDisplayZoomType = options;
@@ -650,10 +650,10 @@ namespace MainWindow {
 		case ID_EMULATION_ROTATION_H_R:               setScreenRotation(ROTATION_LOCKED_HORIZONTAL180); break;
 		case ID_EMULATION_ROTATION_V_R:               setScreenRotation(ROTATION_LOCKED_VERTICAL180); break;
 
-		case ID_EMULATION_CHEATS:
+		/*case ID_EMULATION_CHEATS:
 			g_Config.bEnableCheats = !g_Config.bEnableCheats;
 			osm.ShowOnOff(gr->T("Cheats"), g_Config.bEnableCheats);
-			break;
+			break;*/
 		case ID_EMULATION_CHAT:
 			if (GetUIState() == UISTATE_INGAME) {
 				NativeMessageReceived("chat screen", "");
@@ -1078,7 +1078,7 @@ namespace MainWindow {
 		CHECKITEM(ID_OPTIONS_PAUSE_FOCUS, g_Config.bPauseOnLostFocus);
 		CHECKITEM(ID_EMULATION_SOUND, g_Config.bEnableSound);
 		CHECKITEM(ID_TEXTURESCALING_DEPOSTERIZE, g_Config.bTexDeposterize);
-		CHECKITEM(ID_EMULATION_CHEATS, g_Config.bEnableCheats);
+		//CHECKITEM(ID_EMULATION_CHEATS, g_Config.bEnableCheats);
 		CHECKITEM(ID_OPTIONS_IGNOREWINKEY, g_Config.bIgnoreWindowsKey);
 		CHECKITEM(ID_FILE_DUMPFRAMES, g_Config.bDumpFrames);
 		CHECKITEM(ID_FILE_USEFFV1, g_Config.bUseFFV1);

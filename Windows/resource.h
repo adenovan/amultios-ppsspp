@@ -259,7 +259,7 @@
 #define ID_DISASM_ASSEMBLE               40091
 #define ID_DISASM_ADDNEWBREAKPOINT       40092
 #define ID_DISASM_EDITBREAKPOINT         40093
-#define ID_EMULATION_CHEATS              40096
+//#define ID_EMULATION_CHEATS              40096
 #define ID_HELP_CHINESE_FORUM            40097
 #define ID_OPTIONS_MORE_SETTINGS         40098
 #define ID_FILE_SAVESTATE_SLOT_1         40099

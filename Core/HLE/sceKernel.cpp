@@ -17,7 +17,7 @@
 
 #include "Core/Core.h"
 #include "Core/Config.h"
-#include "Core/CwCheat.h"
+//#include "Core/CwCheat.h"
 #include "Core/MemMapHelpers.h"
 #include "Core/HLE/HLE.h"
 #include "Core/HLE/FunctionWrappers.h"
@@ -137,7 +137,7 @@ void __KernelInit()
 	__NetInit();
 	__NetAdhocInit();
 	__VaudioInit();
-	__CheatInit();
+	//__CheatInit();
 	__HeapInit();
 	__DmacInit();
 	__AudioCodecInit();
@@ -190,7 +190,7 @@ void __KernelShutdown()
 	__KernelThreadingShutdown();
 	__KernelMemoryShutdown();
 	__InterruptsShutdown();
-	__CheatShutdown();
+	//__CheatShutdown();
 	__KernelModuleShutdown();
 
 	CoreTiming::ClearPendingEvents();
@@ -267,7 +267,7 @@ void __KernelDoState(PointerWrap &p)
 		__HeapDoState(p);
 
 		__PPGeDoState(p);
-		__CheatDoState(p);
+		//__CheatDoState(p);
 		__sceAudiocodecDoState(p);
 		__VideoPmpDoState(p);
 		__AACDoState(p);

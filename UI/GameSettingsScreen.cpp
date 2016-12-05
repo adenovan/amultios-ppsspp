@@ -762,8 +762,8 @@ void GameSettingsScreen::CreateViews() {
 #endif
 
 //#ifndef __ANDROID__
-	systemSettings->Add(new ItemHeader(sy->T("Cheats", "Cheats (experimental, see forums)")));
-	systemSettings->Add(new CheckBox(&g_Config.bEnableCheats, sy->T("Enable Cheats")));
+	//systemSettings->Add(new ItemHeader(sy->T("Cheats", "Cheats (experimental, see forums)")));
+	//systemSettings->Add(new CheckBox(&g_Config.bEnableCheats, sy->T("Enable Cheats")));
 //#endif
 	systemSettings->SetSpacing(0);
 
@@ -976,6 +976,14 @@ UI::EventReturn GameSettingsScreen::OnChangeBackground(UI::EventParams &e) {
 	return UI::EVENT_DONE;
 }
 
+
+/*UI::EventReturn GameSettingsScreen::OnReloadCheats(UI::EventParams &e) {
+	// Hmm, strange mechanism.
+	g_Config.bReloadCheats = true;
+	return UI::EVENT_DONE;
+}*/
+
+>>>>>>> No Cheat Commit
 UI::EventReturn GameSettingsScreen::OnFullscreenChange(UI::EventParams &e) {
 	System_SendMessage("toggle_fullscreen", g_Config.bFullScreen ? "1" : "0");
 	return UI::EVENT_DONE;

@@ -469,9 +469,6 @@
     <ClCompile Include="MIPS\JitCommon\JitBlockCache.cpp">
       <Filter>MIPS\JitCommon</Filter>
     </ClCompile>
-    <ClCompile Include="Cwcheat.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="HW\MpegDemux.cpp">
       <Filter>HW</Filter>
     </ClCompile>
@@ -1056,9 +1053,6 @@
     </ClInclude>
     <ClInclude Include="MIPS\JitCommon\JitBlockCache.h">
       <Filter>MIPS\JitCommon</Filter>
-    </ClInclude>
-    <ClInclude Include="Cwcheat.h">
-      <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="HW\MpegDemux.h">
       <Filter>HW</Filter>

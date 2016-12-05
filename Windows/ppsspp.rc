@@ -67,7 +67,7 @@ BEGIN
     "O",            ID_FILE_LOAD,           VIRTKEY, CONTROL, NOINVERT
     "W",            ID_EMULATION_STOP,      VIRTKEY, CONTROL, NOINVERT
     "B",            ID_EMULATION_RESET,     VIRTKEY, CONTROL, NOINVERT
-    "T",            ID_EMULATION_CHEATS,    VIRTKEY, CONTROL, NOINVERT
+    //"T",            ID_EMULATION_CHEATS,    VIRTKEY, CONTROL, NOINVERT
 	"C",            ID_EMULATION_CHAT,      VIRTKEY, CONTROL, NOINVERT
     "D",            ID_DEBUG_DISASSEMBLY,   VIRTKEY, CONTROL, NOINVERT
     "G",            ID_DEBUG_GEDEBUGGER,    VIRTKEY, CONTROL, NOINVERT
@@ -559,7 +559,7 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "Enable Sound",                        ID_EMULATION_SOUND, CHECKED
         MENUITEM SEPARATOR
-        MENUITEM "Enable Cheats",                       ID_EMULATION_CHEATS
+        //MENUITEM "Enable Cheats",                       ID_EMULATION_CHEATS
 		MENUITEM "Enable Chat",                         ID_EMULATION_CHAT
     END
 END

@@ -31,7 +31,7 @@
 #include "Core/Host.h"
 #include "Core/Config.h"
 #include "Core/System.h"
-#include "UI/CwCheatScreen.h"
+//#include "UI/CwCheatScreen.h"
 #include "UI/EmuScreen.h"
 #include "UI/GameScreen.h"
 #include "UI/GameSettingsScreen.h"
@@ -137,9 +137,9 @@ void GameScreen::CreateViews() {
 #ifdef _WIN32
 	rightColumnItems->Add(AddOtherChoice(new Choice(ga->T("Show In Folder"))))->OnClick.Handle(this, &GameScreen::OnShowInFolder);
 #endif
-	if (g_Config.bEnableCheats) {
-		rightColumnItems->Add(AddOtherChoice(new Choice(pa->T("Cheats"))))->OnClick.Handle(this, &GameScreen::OnCwCheat);
-	}
+	//if (g_Config.bEnableCheats) {
+	//	rightColumnItems->Add(AddOtherChoice(new Choice(pa->T("Cheats"))))->OnClick.Handle(this, &GameScreen::OnCwCheat);
+	//}
 
 	btnSetBackground_ = rightColumnItems->Add(new Choice(ga->T("Use UI background")));
 	btnSetBackground_->OnClick.Handle(this, &GameScreen::OnSetBackground);
@@ -268,10 +268,10 @@ UI::EventReturn GameScreen::OnShowInFolder(UI::EventParams &e) {
 	return UI::EVENT_DONE;
 }
 
-UI::EventReturn GameScreen::OnCwCheat(UI::EventParams &e) {
+/*UI::EventReturn GameScreen::OnCwCheat(UI::EventParams &e) {
 	screenManager()->push(new CwCheatScreen(gamePath_));
 	return UI::EVENT_DONE;
-}
+}*/
 
 UI::EventReturn GameScreen::OnSwitchBack(UI::EventParams &e) {
 	TriggerFinish(DR_OK);

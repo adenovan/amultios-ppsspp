@@ -216,9 +216,9 @@ public:
 	int iCurrentStateSlot;
 	int iRewindFlipFrequency;
 	bool bEnableAutoLoad;
-	bool bEnableCheats;
-	bool bReloadCheats;
-	int iCwCheatRefreshRate;
+	//bool bEnableCheats;
+	//bool bReloadCheats;
+	//int iCwCheatRefreshRate;
 	bool bDisableStencilTest;
 	int iBloomHack; //0 = off, 1 = safe, 2 = balanced, 3 = aggressive
 	bool bTimerHack;
