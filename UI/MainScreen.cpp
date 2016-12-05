@@ -852,6 +852,9 @@ void MainScreen::CreateViews() {
 	rightColumnItems->Add(new Choice(mm->T("Load","Load...")))->OnClick.Handle(this, &MainScreen::OnLoadFile);
 #endif
 	rightColumnItems->Add(new Choice(mm->T("Game Settings", "Settings")))->OnClick.Handle(this, &MainScreen::OnGameSettings);
+	rightColumnItems->Add(new Choice(mm->T("Online Status")))->OnClick.Handle(this, &MainScreen::OnProIndonesia);
+	rightColumnItems->Add(new Choice(mm->T("Online Faqs ")))->OnClick.Handle(this, &MainScreen::OnProIndonesiaFaqs);
+	rightColumnItems->Add(new Choice(mm->T("Support Server")))->OnClick.Handle(this, &MainScreen::OnProIndonesiaSupport);
 	rightColumnItems->Add(new Choice(mm->T("Credits")))->OnClick.Handle(this, &MainScreen::OnCredits);
 	rightColumnItems->Add(new Choice(mm->T("www.ppsspp.org")))->OnClick.Handle(this, &MainScreen::OnPPSSPPOrg);
 	if (!System_GetPropertyBool(SYSPROP_APP_GOLD)) {
@@ -1112,6 +1115,21 @@ UI::EventReturn MainScreen::OnCredits(UI::EventParams &e) {
 
 UI::EventReturn MainScreen::OnHomebrewStore(UI::EventParams &e) {
 	screenManager()->push(new StoreScreen());
+	return UI::EVENT_DONE;
+}
+
+UI::EventReturn MainScreen::OnProIndonesia(UI::EventParams &e) {
+	LaunchBrowser("http://proindovpn.net/status/international");
+	return UI::EVENT_DONE;
+}
+
+UI::EventReturn MainScreen::OnProIndonesiaFaqs(UI::EventParams &e) {
+	LaunchBrowser("http://proindovpn.net/faqs/international");
+	return UI::EVENT_DONE;
+}
+
+UI::EventReturn MainScreen::OnProIndonesiaSupport(UI::EventParams &e) {
+	LaunchBrowser("http://proindovpn.net/donation");
 	return UI::EVENT_DONE;
 }
 

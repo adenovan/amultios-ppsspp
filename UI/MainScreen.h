@@ -96,6 +96,9 @@ protected:
 	UI::EventReturn OnLoadFile(UI::EventParams &e);
 	UI::EventReturn OnGameSettings(UI::EventParams &e);
 	UI::EventReturn OnRecentChange(UI::EventParams &e);
+	UI::EventReturn OnProIndonesia(UI::EventParams &e);
+	UI::EventReturn OnProIndonesiaFaqs(UI::EventParams &e);
+	UI::EventReturn OnProIndonesiaSupport(UI::EventParams &e);
 	UI::EventReturn OnCredits(UI::EventParams &e);
 	UI::EventReturn OnSupport(UI::EventParams &e);
 	UI::EventReturn OnPPSSPPOrg(UI::EventParams &e);
