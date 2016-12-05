@@ -1157,16 +1157,7 @@ int friendFinder(){
 
 					// Add User
 					addFriend(packet);
-					incoming = "";
-					incoming.append((char *)packet->name.data);
-					incoming.append(" Joined ");
-					//do we need ip?
-					//joined.append((char *)packet->ip);
-					chatLog.push_back(incoming);
-					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					if (chatScreenVisible) {
-						updateChatScreen = true;
-					}
+
 					// Update HUD User Count
 #ifdef LOCALHOST_AS_PEER
 					setUserCount(getActivePeerCount());
@@ -1308,7 +1299,9 @@ int friendFinder(){
 					// Cast Packet
 					SceNetAdhocctlOpenVPNPacketS2C * packet = (SceNetAdhocctlOpenVPNPacketS2C *)rx;
 					incoming = "";
+					incoming.append("[");
 					incoming.append((char *)packet->ovpnID);
+					incoming.append("]");
 					incoming.append(" Joined as ");
 					std::string nickNames = (char *)packet->name.data;
 					incoming.append(nickNames.substr(0, 8));
