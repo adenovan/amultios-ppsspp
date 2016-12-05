@@ -42,9 +42,9 @@ private:
 	UI::EventReturn OnExitToMenu(UI::EventParams &e);
 	UI::EventReturn OnReportFeedback(UI::EventParams &e);
 
-	UI::EventReturn OnRewind(UI::EventParams &e);
+	//UI::EventReturn OnRewind(UI::EventParams &e);
 
-	UI::EventReturn OnScreenshotClicked(UI::EventParams &e);
+	//UI::EventReturn OnScreenshotClicked(UI::EventParams &e);
 	//UI::EventReturn OnCwCheat(UI::EventParams &e);
 
 	UI::EventReturn OnCreateConfig(UI::EventParams &e);
@@ -52,6 +52,9 @@ private:
 
 	UI::EventReturn OnSwitchUMD(UI::EventParams &e);
 	UI::EventReturn OnState(UI::EventParams &e);
+
+	//UI::Choice *saveStateButton_;
+	//UI::Choice *loadStateButton_;
 
 	// hack
 	bool finishNextFrame_ = false;

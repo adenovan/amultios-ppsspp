@@ -141,7 +141,7 @@ private:
 	int slot_;
 };
 
-class SaveSlotView : public UI::LinearLayout {
+/*class SaveSlotView : public UI::LinearLayout {
 public:
 	SaveSlotView(const std::string &gamePath, int slot, UI::LayoutParams *layoutParams = nullptr);
 
@@ -168,9 +168,9 @@ public:
 	UI::Event OnScreenshotClicked;
 
 private:
-	UI::EventReturn OnScreenshotClick(UI::EventParams &e);
-	UI::EventReturn OnSaveState(UI::EventParams &e);
-	UI::EventReturn OnLoadState(UI::EventParams &e);
+	//UI::EventReturn OnScreenshotClick(UI::EventParams &e);
+	//UI::EventReturn OnSaveState(UI::EventParams &e);
+	//UI::EventReturn OnLoadState(UI::EventParams &e);
 
 	UI::Button *saveStateButton_ = nullptr;
 	UI::Button *loadStateButton_ = nullptr;
@@ -257,7 +257,7 @@ UI::EventReturn SaveSlotView::OnScreenshotClick(UI::EventParams &e) {
 	e2.v = this;
 	OnScreenshotClicked.Trigger(e2);
 	return UI::EVENT_DONE;
-}
+}*/
 
 void GamePauseScreen::update() {
 	UpdateUIState(UISTATE_PAUSEMENU);
@@ -286,13 +286,13 @@ void GamePauseScreen::CreateViews() {
 
 	ViewGroup *leftColumn = new ScrollView(ORIENT_VERTICAL, new LinearLayoutParams(1.0, scrollMargins));
 	root_->Add(leftColumn);
-
+	
 	LinearLayout *leftColumnItems = new LinearLayout(ORIENT_VERTICAL, new LayoutParams(FILL_PARENT, WRAP_CONTENT));
 	leftColumn->Add(leftColumnItems);
 
 	leftColumnItems->Add(new Spacer(0.0));
 	leftColumnItems->SetSpacing(10.0);
-	for (int i = 0; i < NUM_SAVESLOTS; i++) {
+	/*for (int i = 0; i < NUM_SAVESLOTS; i++) {
 		SaveSlotView *slot = leftColumnItems->Add(new SaveSlotView(gamePath_, i, new LayoutParams(FILL_PARENT, WRAP_CONTENT)));
 		slot->OnStateLoaded.Handle(this, &GamePauseScreen::OnState);
 		slot->OnStateSaved.Handle(this, &GamePauseScreen::OnState);
@@ -304,7 +304,7 @@ void GamePauseScreen::CreateViews() {
 		UI::Choice *rewindButton = leftColumnItems->Add(new Choice(pa->T("Rewind")));
 		rewindButton->SetEnabled(SaveState::CanRewind());
 		rewindButton->OnClick.Handle(this, &GamePauseScreen::OnRewind);
-	}
+	}*/
 
 	ViewGroup *rightColumn = new ScrollView(ORIENT_VERTICAL, new LinearLayoutParams(300, FILL_PARENT, actionMenuMargins));
 	root_->Add(rightColumn);
@@ -367,7 +367,7 @@ void GamePauseScreen::dialogFinished(const Screen *dialog, DialogResult dr) {
 	}
 }
 
-UI::EventReturn GamePauseScreen::OnScreenshotClicked(UI::EventParams &e) {
+/*UI::EventReturn GamePauseScreen::OnScreenshotClicked(UI::EventParams &e) {
 	SaveSlotView *v = static_cast<SaveSlotView *>(e.v);
 	int slot = v->GetSlot();
 	g_Config.iCurrentStateSlot = v->GetSlot();
@@ -379,7 +379,7 @@ UI::EventReturn GamePauseScreen::OnScreenshotClicked(UI::EventParams &e) {
 		screenManager()->push(screen);
 	}
 	return UI::EVENT_DONE;
-}
+}*/
 
 UI::EventReturn GamePauseScreen::OnExitToMenu(UI::EventParams &e) {
 	TriggerFinish(DR_OK);
@@ -391,12 +391,12 @@ UI::EventReturn GamePauseScreen::OnReportFeedback(UI::EventParams &e) {
 	return UI::EVENT_DONE;
 }
 
-UI::EventReturn GamePauseScreen::OnRewind(UI::EventParams &e) {
+/*UI::EventReturn GamePauseScreen::OnRewind(UI::EventParams &e) {
 	SaveState::Rewind(&AfterSaveStateAction);
 
 	TriggerFinish(DR_CANCEL);
 	return UI::EVENT_DONE;
-}
+}*/
 
 /*UI::EventReturn GamePauseScreen::OnCwCheat(UI::EventParams &e) {
 	screenManager()->push(new CwCheatScreen(gamePath_));

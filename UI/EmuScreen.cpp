@@ -241,7 +241,7 @@ void EmuScreen::bootComplete() {
 	g_gameInfoCache->FlushBGs();
 
 	NOTICE_LOG(BOOT, "Loading %s...", PSP_CoreParameter().fileToStart.c_str());
-	autoLoad();
+	//autoLoad();
 
 	I18NCategory *sc = GetI18NCategory("Screen");
 
@@ -311,7 +311,7 @@ void EmuScreen::dialogFinished(const Screen *dialog, DialogResult result) {
 	RecreateViews();
 }
 
-static void AfterSaveStateAction(bool success, const std::string &message, void *) {
+/*static void AfterSaveStateAction(bool success, const std::string &message, void *) {
 	if (!message.empty()) {
 		osm.Show(message, 2.0);
 	}
@@ -321,7 +321,7 @@ static void AfterStateBoot(bool success, const std::string &message, void *ignor
 	AfterSaveStateAction(success, message, ignored);
 	Core_EnableStepping(false);
 	host->UpdateDisassembly();
-}
+}*/
 
 void EmuScreen::sendMessage(const char *message, const char *value) {
 	// External commands, like from the Windows UI.
@@ -351,7 +351,7 @@ void EmuScreen::sendMessage(const char *message, const char *value) {
 			System_SendMessage("event", "failstartgame");
 			return;
 		}
-	} else if (!strcmp(message, "boot")) {
+	} /*else if (!strcmp(message, "boot")) {
 		const char *ext = strrchr(value, '.');
 		if (ext != nullptr && !strcmp(ext, ".ppst")) {
 			SaveState::Load(value, &AfterStateBoot);
@@ -359,7 +359,7 @@ void EmuScreen::sendMessage(const char *message, const char *value) {
 			PSP_Shutdown();
 			bootPending_ = true;
 			gamePath_ = value;
-		}
+		}*/
 	} else if (!strcmp(message, "config_loaded")) {
 		// In case we need to position touch controls differently.
 		RecreateViews();
@@ -544,7 +544,7 @@ void EmuScreen::onVKeyDown(int virtualKeyCode) {
 		setVKeyAnalogY(CTRL_STICK_RIGHT, VIRTKEY_AXIS_RIGHT_Y_MIN, VIRTKEY_AXIS_RIGHT_Y_MAX);
 		break;
 
-	case VIRTKEY_REWIND:
+	/*case VIRTKEY_REWIND:
 		if (SaveState::CanRewind()) {
 			SaveState::Rewind(&AfterSaveStateAction);
 		} else {
@@ -560,7 +560,7 @@ void EmuScreen::onVKeyDown(int virtualKeyCode) {
 	case VIRTKEY_NEXT_SLOT:
 		SaveState::NextSlot();
 		NativeMessageReceived("savestate_displayslot", "");
-		break;
+		break;*/
 	case VIRTKEY_TOGGLE_FULLSCREEN:
 		System_SendMessage("toggle_fullscreen", "");
 		break;
@@ -1237,14 +1237,14 @@ void EmuScreen::renderUI() {
 	screenManager()->getUIContext()->End();
 }
 
-void EmuScreen::autoLoad() {
+/*void EmuScreen::autoLoad() {
 	//check if save state has save, if so, load
 	int lastSlot = SaveState::GetNewestSlot(gamePath_);
 	if (g_Config.bEnableAutoLoad && lastSlot != -1) {
 		SaveState::LoadSlot(gamePath_, lastSlot, &AfterSaveStateAction);
 		g_Config.iCurrentStateSlot = lastSlot;
 	}
-}
+}*/
 
 // TODO: Add generic loss-of-focus handling for Screens, use this.
 void EmuScreen::releaseButtons() {

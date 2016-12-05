@@ -67,7 +67,7 @@ private:
 
 	void releaseButtons();
 
-	void autoLoad();
+	//void autoLoad();
 	void checkPowerDown();
 
 	UI::Event OnDevMenu;

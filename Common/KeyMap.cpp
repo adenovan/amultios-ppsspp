@@ -74,7 +74,7 @@ static const DefMappingStruct defaultQwertyKeyboardKeyMap[] = {
 	{VIRTKEY_UNTHROTTLE, NKCODE_TAB},
 	{VIRTKEY_SPEED_TOGGLE, NKCODE_GRAVE},
 	{VIRTKEY_PAUSE       , NKCODE_ESCAPE},
-	{VIRTKEY_REWIND      , NKCODE_DEL},
+	//{VIRTKEY_REWIND      , NKCODE_DEL},
 	{VIRTKEY_ANALOG_LIGHTLY, NKCODE_SHIFT_RIGHT},
 };
 
@@ -104,7 +104,7 @@ static const DefMappingStruct defaultAzertyKeyboardKeyMap[] = {
 	{VIRTKEY_UNTHROTTLE, NKCODE_TAB},
 	{VIRTKEY_SPEED_TOGGLE, NKCODE_GRAVE},
 	{VIRTKEY_PAUSE       , NKCODE_ESCAPE},
-	{VIRTKEY_REWIND      , NKCODE_DEL},
+	//{VIRTKEY_REWIND      , NKCODE_DEL},
 	{VIRTKEY_ANALOG_LIGHTLY, NKCODE_SHIFT_RIGHT},
 };
 
@@ -134,7 +134,7 @@ static const DefMappingStruct defaultQwertzKeyboardKeyMap[] = {
 	{VIRTKEY_UNTHROTTLE, NKCODE_TAB},
 	{VIRTKEY_SPEED_TOGGLE, NKCODE_GRAVE},
 	{VIRTKEY_PAUSE       , NKCODE_ESCAPE},
-	{VIRTKEY_REWIND      , NKCODE_DEL},
+	//{VIRTKEY_REWIND      , NKCODE_DEL},
 	{VIRTKEY_ANALOG_LIGHTLY, NKCODE_SHIFT_RIGHT},
 };
 
@@ -648,12 +648,12 @@ const KeyMap_IntStrPair psp_button_names[] = {
 	{VIRTKEY_PAUSE, "Pause"},
 #ifndef MOBILE_DEVICE
 	{VIRTKEY_FRAME_ADVANCE, "Frame Advance"},
-	{VIRTKEY_REWIND, "Rewind"},
+	// {VIRTKEY_REWIND, "Rewind"},
 	{VIRTKEY_RECORD, "Audio/Video Recording" },
 #endif
-	{VIRTKEY_SAVE_STATE, "Save State"},
-	{VIRTKEY_LOAD_STATE, "Load State"},
-	{VIRTKEY_NEXT_SLOT,  "Next Slot"},
+	//{VIRTKEY_SAVE_STATE, "Save State"},
+	//{VIRTKEY_LOAD_STATE, "Load State"},
+	//{VIRTKEY_NEXT_SLOT,  "Next Slot"},
 #if !defined(_WIN32) && !defined(MOBILE_DEVICE)
 	{VIRTKEY_TOGGLE_FULLSCREEN, "Toggle Fullscreen"},
 #endif

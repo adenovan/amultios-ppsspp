@@ -178,7 +178,7 @@ void MainWindow::closeAct()
 	SetGameTitle("");
 }
 
-void SaveStateActionFinished(bool result, const std::string &message, void *userdata)
+/*void SaveStateActionFinished(bool result, const std::string &message, void *userdata)
 {
 	// TODO: Improve messaging?
 	if (!result)
@@ -231,7 +231,7 @@ void MainWindow::sstateAct()
 		QStringList fileNames = dialog.selectedFiles();
 		SaveState::Save(fileNames[0].toStdString(), SaveStateActionFinished, this);
 	}
-}
+}*/
 
 void MainWindow::exitAct()
 {

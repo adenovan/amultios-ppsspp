@@ -74,9 +74,9 @@ BEGIN
     "L",            ID_DEBUG_LOG,           VIRTKEY, CONTROL, NOINVERT
     "M",            ID_DEBUG_MEMORYVIEW,    VIRTKEY, CONTROL, NOINVERT
     "R",            ID_DEBUG_REGISTERS,     VIRTKEY, CONTROL, NOINVERT
-    VK_F3,          ID_FILE_SAVESTATE_NEXT_SLOT_HC, VIRTKEY, NOINVERT
-    VK_F2,          ID_FILE_QUICKSAVESTATE_HC, VIRTKEY, NOINVERT
-    VK_F4,          ID_FILE_QUICKLOADSTATE_HC, VIRTKEY, NOINVERT
+	//VK_F3,          ID_FILE_SAVESTATE_NEXT_SLOT_HC, VIRTKEY, NOINVERT
+    //VK_F2,          ID_FILE_QUICKSAVESTATE_HC, VIRTKEY, NOINVERT
+    //VK_F4,          ID_FILE_QUICKLOADSTATE_HC, VIRTKEY, NOINVERT
     "1",            ID_OPTIONS_RESOLUTIONDUMMY,    VIRTKEY, CONTROL, NOINVERT
     VK_F7,          ID_OPTIONS_FRAMESKIPDUMMY, VIRTKEY, NOINVERT
     VK_F12,         ID_DEBUG_TAKESCREENSHOT,  VIRTKEY, NOINVERT
@@ -399,7 +399,7 @@ BEGIN
         MENUITEM "Open Memory Stick",                       ID_FILE_MEMSTICK
         MENUITEM SEPARATOR
 
-        POPUP "Savestate Slot"
+        /*POPUP "Savestate Slot"
         BEGIN
             MENUITEM "&1",                                  ID_FILE_SAVESTATE_SLOT_1
             MENUITEM "&2",                                  ID_FILE_SAVESTATE_SLOT_2
@@ -410,7 +410,7 @@ BEGIN
         MENUITEM "Load State",                              ID_FILE_QUICKLOADSTATE
         MENUITEM "Save State",                              ID_FILE_QUICKSAVESTATE
         MENUITEM "Load State File...",                      ID_FILE_LOADSTATEFILE
-        MENUITEM "Save State File...",                      ID_FILE_SAVESTATEFILE
+        MENUITEM "Save State File...",                      ID_FILE_SAVESTATEFILE*/
 
         POPUP "Record"
         BEGIN

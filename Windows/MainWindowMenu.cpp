@@ -56,10 +56,10 @@ namespace MainWindow {
 		UINT menuEnable = state == UISTATE_INGAME ? MF_ENABLED : MF_GRAYED;
 		UINT umdSwitchEnable = state == UISTATE_INGAME && getUMDReplacePermit() ? MF_ENABLED : MF_GRAYED;
 
-		EnableMenuItem(menu, ID_FILE_SAVESTATEFILE, menuEnable);
-		EnableMenuItem(menu, ID_FILE_LOADSTATEFILE, menuEnable);
-		EnableMenuItem(menu, ID_FILE_QUICKSAVESTATE, menuEnable);
-		EnableMenuItem(menu, ID_FILE_QUICKLOADSTATE, menuEnable);
+		//EnableMenuItem(menu, ID_FILE_SAVESTATEFILE, menuEnable);
+		//EnableMenuItem(menu, ID_FILE_LOADSTATEFILE, menuEnable);
+		//EnableMenuItem(menu, ID_FILE_QUICKSAVESTATE, menuEnable);
+		//EnableMenuItem(menu, ID_FILE_QUICKLOADSTATE, menuEnable);
 		EnableMenuItem(menu, ID_TOGGLE_PAUSE, menuEnable);
 		EnableMenuItem(menu, ID_EMULATION_STOP, menuEnable);
 		EnableMenuItem(menu, ID_EMULATION_RESET, menuEnable);
@@ -256,11 +256,11 @@ namespace MainWindow {
 		TranslateMenuItem(menu, ID_FILE_LOAD_DIR);
 		TranslateMenuItem(menu, ID_FILE_LOAD_MEMSTICK);
 		TranslateMenuItem(menu, ID_FILE_MEMSTICK);
-		TranslateSubMenu(menu, "Savestate Slot", MENU_FILE, SUBMENU_FILE_SAVESTATE_SLOT, L"\tF3");
-		TranslateMenuItem(menu, ID_FILE_QUICKLOADSTATE, L"\tF4");
-		TranslateMenuItem(menu, ID_FILE_QUICKSAVESTATE, L"\tF2");
-		TranslateMenuItem(menu, ID_FILE_LOADSTATEFILE);
-		TranslateMenuItem(menu, ID_FILE_SAVESTATEFILE);
+		//TranslateSubMenu(menu, "Savestate Slot", MENU_FILE, SUBMENU_FILE_SAVESTATE_SLOT, L"\tF3");
+		//TranslateMenuItem(menu, ID_FILE_QUICKLOADSTATE, L"\tF4");
+		//TranslateMenuItem(menu, ID_FILE_QUICKSAVESTATE, L"\tF2");
+		//TranslateMenuItem(menu, ID_FILE_LOADSTATEFILE);
+		//TranslateMenuItem(menu, ID_FILE_SAVESTATEFILE);
 		TranslateSubMenu(menu, "Record", MENU_FILE, SUBMENU_FILE_RECORD);
 		TranslateMenuItem(menu, ID_FILE_EXIT, L"\tAlt+F4");
 
@@ -659,7 +659,7 @@ namespace MainWindow {
 				NativeMessageReceived("chat screen", "");
 			}
 			break;
-		case ID_FILE_LOADSTATEFILE:
+		/*case ID_FILE_LOADSTATEFILE:
 			if (W32Util::BrowseForFileName(true, hWnd, L"Load state", 0, L"Save States (*.ppst)\0*.ppst\0All files\0*.*\0\0", L"ppst", fn)) {
 				SetCursor(LoadCursor(0, IDC_WAIT));
 				SaveState::Load(fn, SaveStateActionFinished);
@@ -727,7 +727,7 @@ namespace MainWindow {
 				SaveState::SaveSlot(PSP_CoreParameter().fileToStart, g_Config.iCurrentStateSlot, SaveStateActionFinished);
 				break;
 			}
-		}
+		}*/
 
 		case ID_OPTIONS_LANGUAGE:
 			NativeMessageReceived("language screen", "");
@@ -1256,7 +1256,7 @@ namespace MainWindow {
 			CheckMenuItem(menu, frameskipping[i], MF_BYCOMMAND | ((i == g_Config.iFrameSkip) ? MF_CHECKED : MF_UNCHECKED));
 		}
 
-		static const int savestateSlot[] = {
+		/*static const int savestateSlot[] = {
 			ID_FILE_SAVESTATE_SLOT_1,
 			ID_FILE_SAVESTATE_SLOT_2,
 			ID_FILE_SAVESTATE_SLOT_3,
@@ -1272,7 +1272,7 @@ namespace MainWindow {
 
 		for (int i = 0; i < ARRAY_SIZE(savestateSlot); i++) {
 			CheckMenuItem(menu, savestateSlot[i], MF_BYCOMMAND | ((i == g_Config.iCurrentStateSlot) ? MF_CHECKED : MF_UNCHECKED));
-		}
+		}*/
 
 		switch (g_Config.iGPUBackend) {
 		case GPU_BACKEND_DIRECT3D9:
