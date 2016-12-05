@@ -1681,7 +1681,7 @@ int proAdhocServerThread(int port) // (int argc, char * argv[])
 	if(server != -1)
 	{
 		// Notify User
-		INFO_LOG(SCENET, "AdhocServer: Listening for Connections on TCP Port %u", port); //SERVER_PORT
+		//INFO_LOG(SCENET, "AdhocServer: Listening for Connections on TCP Port %u", port); //SERVER_PORT
 
 		// Enter Server Loop
 		result = server_loop(server);

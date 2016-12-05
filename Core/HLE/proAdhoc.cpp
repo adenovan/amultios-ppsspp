@@ -1467,7 +1467,7 @@ int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 	}
 	struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(SERVER_PORT); //27312 // Maybe read this from config too
+	server_addr.sin_port = htons(g_Config.iServerChannel); //27312 // Maybe read this from config too
 
 	// Resolve dns
 	addrinfo * resultAddr;
@@ -1499,7 +1499,7 @@ int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 	if (iResult == SOCKET_ERROR) {
 		uint8_t * sip = (uint8_t *)&server_addr.sin_addr.s_addr;
 		char buffer[512];
-		snprintf(buffer, sizeof(buffer), "Socket error (%i) when connecting to %s/%u.%u.%u.%u:%u", errno, g_Config.proAdhocServer.c_str(), sip[0], sip[1], sip[2], sip[3], ntohs(server_addr.sin_port));
+		snprintf(buffer, sizeof(buffer), "Socket error (%i) when connecting", errno);
 		ERROR_LOG(SCENET, "%s", buffer);
 		host->NotifyUserMessage(buffer, 8.0f);
 		return iResult;

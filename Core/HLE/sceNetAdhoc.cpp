@@ -155,7 +155,7 @@ void __NetAdhocInit() {
 	// Create built-in AdhocServer Thread
 	if (g_Config.bEnableWlan && g_Config.bEnableAdhocServer) {
 		adhocServerRunning = true;
-		adhocServerThread = std::thread(proAdhocServerThread, SERVER_PORT);
+		adhocServerThread = std::thread(proAdhocServerThread, g_Config.iServerChannel);
 	}
 }
 

@@ -77,6 +77,14 @@ enum IOTimingMethods {
 	IOTIMING_REALISTIC = 2,
 };
 
+enum ServerChannels {
+	CHANNEL_1 = 27201,
+	CHANNEL_2 = 27202,
+	CHANNEL_3 = 27203,
+	CHANNEL_4 = 27204,
+	CHANNEL_5 = 27205,
+};
+
 enum ChatPositions {
 	BOTTOM_LEFT = 0,
 	BOTTOM_CENTER = 1,
@@ -442,7 +450,8 @@ public:
 	//for chat position , moveable buttons is better than this 
 	int iChatButtonPosition;
 	int iChatScreenPosition;
-	
+	int iServerChannel;
+
 	int iPSPModel;
 	int iFirmwareVersion;
 	// TODO: Make this work with your platform, too!
