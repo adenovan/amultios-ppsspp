@@ -1300,7 +1300,33 @@ int friendFinder(){
 				// Fix RX Buffer Length
 				rxpos -= 1;
 			}
+			//Openvpn Get id packet 
+			else if (rx[0] == OPCODE_OVPN) {
+				//enough data available
+				if (rxpos >= (int)sizeof(SceNetAdhocctlOpenVPNPacketS2C)) {
+					INFO_LOG(SCENET, "FriendFinder: Incoming OP_CODE_OVPN");
+					// Cast Packet
+					SceNetAdhocctlOpenVPNPacketS2C * packet = (SceNetAdhocctlOpenVPNPacketS2C *)rx;
+					incoming = "";
+					incoming.append((char *)packet->ovpnID);
+					incoming.append(" Joined as ");
+					std::string nickNames = (char *)packet->name.data;
+					incoming.append(nickNames.substr(0, 8));
+					chatLog.push_back(incoming);
+					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
+					if (chatScreenVisible) {
+						updateChatScreen = true;
+					}
+					// Move RX Buffer
+					memmove(rx, rx + sizeof(SceNetAdhocctlOpenVPNPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlOpenVPNPacketS2C));
+
+					// Fix RX Buffer Length
+					rxpos -= sizeof(SceNetAdhocctlOpenVPNPacketS2C);
+				}
+			}
 		}
+
+
 		// Original value was 10 ms, I think 100 is just fine
 		sleep_ms(1); // Using 1ms for faster response just like AdhocServer
 
