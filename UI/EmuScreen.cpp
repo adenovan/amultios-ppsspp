@@ -447,11 +447,11 @@ void EmuScreen::onVKeyDown(int virtualKeyCode) {
 
 	switch (virtualKeyCode) {
 	case VIRTKEY_UNTHROTTLE:
-		PSP_CoreParameter().unthrottle = true;
+		if(!friendFinderRunning) PSP_CoreParameter().unthrottle = true;
 		break;
 
 	case VIRTKEY_SPEED_TOGGLE:
-		if (PSP_CoreParameter().fpsLimit == 0) {
+		if (PSP_CoreParameter().fpsLimit == 0 && !friendFinderRunning) {
 			PSP_CoreParameter().fpsLimit = 1;
 			osm.Show(sc->T("fixed", "Speed: alternate"), 1.0);
 		}

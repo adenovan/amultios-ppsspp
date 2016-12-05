@@ -1456,6 +1456,8 @@ int getPTPSocketCount(void) {
 }
 
 int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
+	//disable alt speed
+	if(PSP_CoreParameter().fpsLimit == 1)PSP_CoreParameter().fpsLimit = 0;
 	int iResult = 0;
 	metasocket = (int)INVALID_SOCKET;
 	metasocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);

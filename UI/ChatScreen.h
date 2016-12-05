@@ -1,7 +1,6 @@
 #pragma once
 #include "file/file_util.h"
 #include "ui/ui_screen.h"
-
 class ChatMenu : public PopupScreen {
 public:
 	ChatMenu() : PopupScreen("Chat") , toBottom_(false) {}

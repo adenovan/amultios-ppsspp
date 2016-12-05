@@ -12,7 +12,6 @@
 #include <ctype.h>
 #include "util/text/utf8.h"
 
-
 void ChatMenu::CreatePopupContents(UI::ViewGroup *parent) {
 	using namespace UI;
 	I18NCategory *n = GetI18NCategory("Networking");
@@ -203,6 +202,7 @@ void ChatMenu::update() {
 		}
 	}
 }
+
 
 ChatMenu::~ChatMenu() {
 	chatScreenVisible = false;
