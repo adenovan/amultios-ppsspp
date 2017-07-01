@@ -97,6 +97,7 @@ protected:
 	UI::EventReturn OnGameSettings(UI::EventParams &e);
 	UI::EventReturn OnRecentChange(UI::EventParams &e);
 	UI::EventReturn OnProIndonesia(UI::EventParams &e);
+	UI::EventReturn OnProIndonesiaTutorial(UI::EventParams &e);
 	UI::EventReturn OnProIndonesiaFaqs(UI::EventParams &e);
 	UI::EventReturn OnProIndonesiaSupport(UI::EventParams &e);
 	UI::EventReturn OnCredits(UI::EventParams &e);
