@@ -903,6 +903,16 @@ void HandleGlobalMessage(const std::string &msg, const std::string &value) {
 			g_Config.sRemoteISOSubdir = setString;
 		else if (inputboxValue[0] == "remoteiso_server")
 			g_Config.sLastRemoteISOServer = setString;
+		else if (inputboxValue[0] == "quickchat0")
+			g_Config.sQuickChat0 = setString;
+		else if (inputboxValue[0] == "quickchat1")
+			g_Config.sQuickChat1 = setString;
+		else if (inputboxValue[0] == "quickchat2")
+			g_Config.sQuickChat2 = setString;
+		else if (inputboxValue[0] == "quickchat3")
+			g_Config.sQuickChat3 = setString;
+		else if (inputboxValue[0] == "quickchat4")
+			g_Config.sQuickChat4 = setString;
 		else if (inputboxValue[0] == "Chat") {
 			if (inputboxValue.size() > 2) 
 			{

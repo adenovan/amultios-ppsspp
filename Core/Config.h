@@ -451,6 +451,13 @@ public:
 	int iChatButtonPosition;
 	int iChatScreenPosition;
 	int iServerChannel;
+	
+	bool bEnableQuickChat;
+	std::string sQuickChat0;
+	std::string sQuickChat1;
+	std::string sQuickChat2;
+	std::string sQuickChat3;
+	std::string sQuickChat4;
 
 	int iPSPModel;
 	int iFirmwareVersion;
