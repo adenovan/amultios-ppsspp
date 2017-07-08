@@ -3,7 +3,7 @@
 #include "ui/ui_screen.h"
 class ChatMenu : public PopupScreen {
 public:
-	ChatMenu() : PopupScreen("Chat") , toBottom_(false) {}
+	ChatMenu() : PopupScreen("Chat") , toBottom_(true) {}
 	~ChatMenu();
 	void CreatePopupContents(UI::ViewGroup *parent) override;
 	void CreateViews() override;
@@ -11,6 +11,7 @@ public:
 	bool touch(const TouchInput &touch) override;
 	void update() override;
 	void UpdateChat();
+	bool toBottom_;
 private:
 	UI::EventReturn OnSubmit(UI::EventParams &e);
 	UI::EventReturn OnQuickChat1(UI::EventParams &e);
@@ -22,5 +23,4 @@ private:
 	UI::ScrollView *scroll_;
 	UI::LinearLayout *chatVert_;
 	UI::ViewGroup *box_;
-	bool toBottom_;
 };
