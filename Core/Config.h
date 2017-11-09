@@ -78,11 +78,11 @@ enum IOTimingMethods {
 };
 
 enum ServerChannels {
-	CHANNEL_1 = 27201,
-	CHANNEL_2 = 27202,
-	CHANNEL_3 = 27203,
-	CHANNEL_4 = 27204,
-	CHANNEL_5 = 27205,
+	CHANNEL_1 = 27313,
+	CHANNEL_2 = 27314,
+	CHANNEL_3 = 27315,
+	CHANNEL_4 = 27316,
+	CHANNEL_5 = 27317,
 };
 
 enum ChatPositions {

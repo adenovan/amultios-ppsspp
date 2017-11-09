@@ -859,6 +859,7 @@ bool TextEdit::Key(const KeyInput &input) {
 	if (!HasFocus())
 		return false;
 	bool textChanged = false;
+
 	// Process navigation keys. These aren't chars.
 	if (input.flags & KEY_DOWN) {
 		switch (input.keyCode) {
@@ -909,6 +910,9 @@ bool TextEdit::Key(const KeyInput &input) {
 			}
 		case NKCODE_BACK:
 		case NKCODE_ESCAPE:
+		case NKCODE_BUTTON_CIRCLE:
+		case NKCODE_BUTTON_B:
+		case NKCODE_BUTTON_2:
 			return false;
 		}
 

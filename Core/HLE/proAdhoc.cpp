@@ -29,6 +29,7 @@
 #include "Core/HLE/sceKernelThread.h"
 #include "Core/HLE/sceKernelMemory.h"
 #include "proAdhoc.h" 
+#include "AmultiosChatClient.h"
 #include "i18n/i18n.h"
 
 uint16_t portOffset = g_Config.iPortOffset;
@@ -40,6 +41,10 @@ SceNetAdhocctlPeerInfo * friends      = NULL;
 SceNetAdhocctlScanInfo * networks     = NULL;
 SceNetAdhocctlScanInfo * newnetworks  = NULL;
 int threadStatus                      = ADHOCCTL_STATE_DISCONNECTED;
+
+// user state on the ctl server
+int ctlServerStatus					  = CTL_SERVER_DISCONNECTED;
+
 
 bool IsAdhocctlInCB = false;
 int actionAfterMatchingMipsCall;
@@ -55,13 +60,7 @@ std::recursive_mutex peerlock;
 SceNetAdhocPdpStat * pdp[255];
 SceNetAdhocPtpStat * ptp[255];
 uint32_t localip;
-std::vector<std::string> chatLog;
-std::string name = "";
-std::string incoming = "";
-std::string message = "";
-bool chatScreenVisible = false;
-bool updateChatScreen = false;
-int newChat = 0;
+
 
 
 int isLocalMAC(const SceNetEtherAddr * addr) {
@@ -989,45 +988,6 @@ void freeFriendsRecursive(SceNetAdhocctlPeerInfo * node) {
 	free(node);
 }
 
-void sendChat(std::string chatString) {
-	SceNetAdhocctlChatPacketC2S chat;
-	I18NCategory *n = GetI18NCategory("Networking");
-	chat.base.opcode = OPCODE_CHAT;
-	//TODO check network inited, check send success or not, chatlog.pushback error on failed send, pushback error on not connected
-	if (friendFinderRunning)
-	{
-		// Send Chat to Server 
-		if (!chatString.empty()) {
-		//maximum char allowed is 64 character for compability with original server (pro.coldbird.net)
-		message = chatString.substr(0, 60); // 64 return chat variable corrupted is it out of memory?
-		strcpy(chat.message, message.c_str());
-		//Send Chat Messages
-		int chatResult = send(metasocket, (const char *)&chat, sizeof(chat), 0);
-		NOTICE_LOG(SCENET, "Send Chat %s to Adhoc Server", chat.message);
-		name = g_Config.sNickName.c_str();
-		chatLog.push_back(name.substr(0, 8) + ": " + chat.message);
-			if (chatScreenVisible) {
-				updateChatScreen = true;
-			}
-		}
-	}
-	else {
-		chatLog.push_back(n->T("You're in Offline Mode, go to lobby or online hall"));
-		if (chatScreenVisible) {
-			updateChatScreen = true;
-		}
-	}
-}
-
-std::vector<std::string> getChatLog() {
-	// this log used by chat screen
-	if (chatLog.size() > 50) {
-		//erase the first 40 element limit the chatlog size
-		chatLog.erase(chatLog.begin(), chatLog.begin() + 40);
-	}
-
-	return chatLog;
-}
 
 int friendFinder(){
 	// Receive Buffer
@@ -1112,38 +1072,6 @@ int friendFinder(){
 				}
 			}
 
-			// Chat Packet
-			else if (rx[0] == OPCODE_CHAT) {
-				INFO_LOG(SCENET, "FriendFinder: Incoming OPCODE_CHAT");
-				// Enough Data available
-				if (rxpos >= (int)sizeof(SceNetAdhocctlChatPacketS2C)) {
-					// Cast Packet
-					SceNetAdhocctlChatPacketS2C * packet = (SceNetAdhocctlChatPacketS2C *)rx;
-					// Add Incoming Chat to HUD
-					NOTICE_LOG(SCENET, "Received chat message %s", packet->base.message);
-					incoming = "";
-					name = (char *)packet->name.data;
-					incoming.append(name.substr(0, 8));
-					incoming.append(": ");
-					incoming.append((char *)packet->base.message);
-					chatLog.push_back(incoming);
-					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					if (chatScreenVisible) {
-						updateChatScreen = true;
-					}
-					else {
-						if (newChat < 50) {
-							newChat += 1;
-						}
-					}
-					// Move RX Buffer
-					memmove(rx, rx + sizeof(SceNetAdhocctlChatPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlChatPacketS2C));
-
-					// Fix RX Buffer Length
-					rxpos -= sizeof(SceNetAdhocctlChatPacketS2C);
-				}
-			}
-
 			// Connect Packet
 			else if (rx[0] == OPCODE_CONNECT) {
 				DEBUG_LOG(SCENET, "FriendFinder: OPCODE_CONNECT");
@@ -1158,6 +1086,16 @@ int friendFinder(){
 					// Add User
 					addFriend(packet);
 
+					std::string incoming = "";
+					std::string name = (char *)packet->name.data;
+					incoming.append(name);
+					incoming.append(" Joined ");
+					GroupChatLog.push_back(incoming);
+					AllChatLog.push_back(incoming);
+					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
+					if (chatScreenVisible && chatGuiStatus == CHAT_GUI_GROUP) {
+						updateChatScreen = true;
+					}
 					// Update HUD User Count
 #ifdef LOCALHOST_AS_PEER
 					setUserCount(getActivePeerCount());
@@ -1183,7 +1121,7 @@ int friendFinder(){
 
 					// Cast Packet
 					SceNetAdhocctlDisconnectPacketS2C * packet = (SceNetAdhocctlDisconnectPacketS2C *)rx;
-
+	
 					// Delete User by IP, should delete by MAC since IP can be shared (behind NAT) isn't?
 					deleteFriendByIP(packet->ip);
 
@@ -1291,30 +1229,44 @@ int friendFinder(){
 				// Fix RX Buffer Length
 				rxpos -= 1;
 			}
-			//Openvpn Get id packet 
-			else if (rx[0] == OPCODE_OVPN) {
-				//enough data available
-				if (rxpos >= (int)sizeof(SceNetAdhocctlOpenVPNPacketS2C)) {
-					INFO_LOG(SCENET, "FriendFinder: Incoming OP_CODE_OVPN");
+			else if (rx[0] == OPCODE_AMULTIOS_LOGIN_SUCCESS) {
+				DEBUG_LOG(SCENET, "FriendFinder: OPCODE_LOGIN_SUCCESS");
+				if (rxpos >= (int)sizeof(SceNetAdhocctlNotifyPacketS2C)) {
 					// Cast Packet
-					SceNetAdhocctlOpenVPNPacketS2C * packet = (SceNetAdhocctlOpenVPNPacketS2C *)rx;
-					incoming = "";
-					incoming.append("[");
-					incoming.append((char *)packet->ovpnID);
-					incoming.append("]");
-					incoming.append(" Joined as ");
-					std::string nickNames = (char *)packet->name.data;
-					incoming.append(nickNames.substr(0, 8));
-					chatLog.push_back(incoming);
-					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					if (chatScreenVisible) {
-						updateChatScreen = true;
+					SceNetAdhocctlNotifyPacketS2C * packet = (SceNetAdhocctlNotifyPacketS2C *)rx;
+					// Add Incoming Chat to HUD
+					NOTICE_LOG(SCENET, "Received rejected message %s", packet->reason);
+					I18NCategory *n = GetI18NCategory("Networking");
+					host->NotifyUserMessage(n->T(packet->reason), 2.0);
+					if (ctlServerStatus == CTL_SERVER_WAITING) {
+						ctlServerStatus = CTL_SERVER_LOGEDIN;
 					}
 					// Move RX Buffer
-					memmove(rx, rx + sizeof(SceNetAdhocctlOpenVPNPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlOpenVPNPacketS2C));
+					memmove(rx, rx + sizeof(SceNetAdhocctlNotifyPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlNotifyPacketS2C));
 
 					// Fix RX Buffer Length
-					rxpos -= sizeof(SceNetAdhocctlOpenVPNPacketS2C);
+					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
+				}
+			}
+			else if (rx[0] == OPCODE_AMULTIOS_LOGIN_FAILED) {
+				DEBUG_LOG(SCENET, "FriendFinder: OPCODE_REJECTED");
+				if (rxpos >= (int)sizeof(SceNetAdhocctlNotifyPacketS2C)) {
+					// Cast Packet
+					SceNetAdhocctlNotifyPacketS2C * packet = (SceNetAdhocctlNotifyPacketS2C *)rx;
+					// Add Incoming Chat to HUD
+					NOTICE_LOG(SCENET, "Received rejected message %s", packet->reason);
+					I18NCategory *n = GetI18NCategory("Networking");
+					host->NotifyUserMessage(n->T(packet->reason), 2.0);
+					ctlServerStatus = CTL_SERVER_DISCONNECTED;
+
+					// Change State
+					threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+
+					// Move RX Buffer
+					memmove(rx, rx + sizeof(SceNetAdhocctlNotifyPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlNotifyPacketS2C));
+
+					// Fix RX Buffer Length
+					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
 				}
 			}
 		}
@@ -1332,6 +1284,7 @@ int friendFinder(){
 	// Prevent the games from having trouble to reInitiate Adhoc (the next NetInit -> PdpCreate after NetTerm)
 	threadStatus = ADHOCCTL_STATE_DISCONNECTED;
 
+	ctlServerStatus = CTL_SERVER_DISCONNECTED;
 	// Log Shutdown
 	INFO_LOG(SCENET, "FriendFinder: End of Friend Finder Thread");
 
@@ -1527,18 +1480,20 @@ int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 	localip = getLocalIp(metasocket);
 
 	// Prepare Login Packet
-	SceNetAdhocctlLoginPacketC2S packet;
-	packet.base.opcode = OPCODE_LOGIN;
+	SceNetAdhocctlLoginPacketAmultiosC2S packet;
+	packet.base.opcode = OPCODE_AMULTIOS_LOGIN;
 	SceNetEtherAddr addres;
 	getLocalMac(&addres);
 	packet.mac = addres;
 	strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
 	memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
+	strcpy((char *)packet.pin, "021414");
 	int sent = send(metasocket, (char*)&packet, sizeof(packet), 0);
 	changeBlockingMode(metasocket, 1); // Change to non-blocking
 	if (sent > 0) {
 		I18NCategory *n = GetI18NCategory("Networking");
-		host->NotifyUserMessage(n->T("Network Initialized"), 1.0);
+		host->NotifyUserMessage(n->T("Connecting to Amultios Network "), 1.0);
+		ctlServerStatus = CTL_SERVER_WAITING;
 		return 0;
 	}
 	else{

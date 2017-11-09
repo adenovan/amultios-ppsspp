@@ -847,4 +847,85 @@ void ChoiceWithValueDisplay::Draw(UIContext &dc) {
 	dc.DrawText(valueText.str().c_str(), bounds_.x2() - paddingX, bounds_.centerY(), style.fgColor, ALIGN_RIGHT | ALIGN_VCENTER);
 }
 
+void ChoiceDynamicValue::Draw(UIContext &dc) {
+	Style style = dc.theme->itemStyle;
+	if (!IsEnabled()) {
+		style = dc.theme->itemDisabledStyle;
+	}
+	int paddingX = 4;
+	std::ostringstream valueText;
+	if (sValue_ != nullptr) {
+		valueText << *sValue_;
+	}
+	dc.SetFontStyle(dc.theme->uiFont);
+	ClickableItem::Draw(dc);
+	dc.DrawText(valueText.str().c_str(), bounds_.x + paddingX, bounds_.centerY(), style.fgColor, ALIGN_LEFT | ALIGN_VCENTER);
+}
+
+void ChatTextEdit::Draw(UIContext &dc) {
+	dc.PushScissor(bounds_);
+	dc.SetFontStyle(dc.theme->uiFont);
+	dc.FillRect(HasFocus() ? UI::Drawable(0x80000000) : UI::Drawable(0x30000000), bounds_);
+
+	uint32_t textColor = hasTextColor_ ? textColor_ : dc.theme->infoStyle.fgColor;
+	float textX = bounds_.x;
+	float w, h;
+
+	Bounds textBounds = bounds_;
+	textBounds.x = textX;
+	std::string draw;
+	int subcount = 0;
+
+	if (text_.empty()) {
+		if (placeholderText_.size()) {
+			uint32_t c = textColor & 0x50FFFFFF;
+			dc.DrawTextRect(placeholderText_.c_str(), bounds_, c, ALIGN_CENTER);
+		}
+		maxTextDisplay_ = 0;
+	}
+	else {
+		// scroll left if exceed width
+		if (maxTextDisplay_ != 0 && caret_ >= maxTextDisplay_) {
+			draw = text_.substr(text_.length() - maxTextDisplay_, text_.length());
+			dc.DrawTextRect(draw.c_str(), textBounds, textColor, ALIGN_VCENTER | ALIGN_LEFT);
+			subcount += 1;
+		}
+		else {
+			//reset the scroll
+			maxTextDisplay_ = 0;
+			subcount = 0;
+			dc.DrawTextRect(text_.c_str(), textBounds, textColor, ALIGN_VCENTER | ALIGN_LEFT);
+		}
+
+	}
+
+	if (HasFocus()) {
+
+		if (maxTextDisplay_ != 0 && caret_ >= maxTextDisplay_) {
+			// measure by minus substring count
+			dc.MeasureTextCount(dc.theme->uiFont, 1.0f, 1.0f, text_.c_str(), caret_ - subcount, &w, &h, ALIGN_VCENTER | ALIGN_LEFT);
+		}
+		else {
+			// Hack to find the caret position. Might want to find a better way..
+			dc.MeasureTextCount(dc.theme->uiFont, 1.0f, 1.0f, text_.c_str(), caret_, &w, &h, ALIGN_VCENTER | ALIGN_LEFT);
+		}
+		float caretX = w;
+		caretX += textX;
+
+		if (w >= bounds_.w) {
+			// Scroll text to the left if the caret won't fit. Not ideal but looks better than not scrolling it.
+			//textX -= caretX - bounds_.w;
+
+			// store the caret max position
+			if (maxTextDisplay_ == 0) {
+				maxTextDisplay_ = caret_;
+			}
+
+			// decrement the caret position when exceed bounds
+			//caretX -= textX;
+		}
+		dc.FillRect(UI::Drawable(textColor), Bounds(caretX - 1, bounds_.y + 2, 3, bounds_.h - 4));
+	}
+	dc.PopScissor();
+}
 }  // namespace UI

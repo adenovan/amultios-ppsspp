@@ -800,13 +800,7 @@ public:
 	Event OnTextChange;
 	Event OnEnter;
 
-private:
-	void InsertAtCaret(const char *text);
-
 	std::string text_;
-	std::string undo_;
-	std::string placeholderText_;
-	uint32_t textColor_;
 	bool hasTextColor_ = false;
 	int caret_;
 	int scrollPos_ = 0;

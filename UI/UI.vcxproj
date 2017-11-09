@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BackgroundAudio.cpp" />
+    <ClCompile Include="ChatOnScreen.cpp" />
     <ClCompile Include="ChatScreen.cpp" />
     <ClCompile Include="ComboKeyMappingScreen.cpp" />
     <ClCompile Include="ControlMappingScreen.cpp" />
@@ -51,6 +52,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BackgroundAudio.h" />
+    <ClInclude Include="ChatOnScreen.h" />
     <ClInclude Include="ChatScreen.h" />
     <ClInclude Include="ComboKeyMappingScreen.h" />
     <ClInclude Include="ControlMappingScreen.h" />
@@ -84,7 +86,8 @@
     <ProjectGuid>{004B8D11-2BE3-4BD9-AB40-2BE04CF2096F}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>UI</RootNamespace>
-    <WindowsTargetPlatformVersion></WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>
+    </WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

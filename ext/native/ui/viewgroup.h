@@ -223,7 +223,9 @@ private:
 class ScrollView : public ViewGroup {
 public:
 	ScrollView(Orientation orientation, LayoutParams *layoutParams = 0)
-		: ViewGroup(layoutParams), orientation_(orientation) {}
+		: ViewGroup(layoutParams), orientation_(orientation) {
+		bobColor = 0x80FFFFFF;
+	}
 
 	void Measure(const UIContext &dc, MeasureSpec horiz, MeasureSpec vert) override;
 	void Layout() override;
@@ -246,7 +248,7 @@ public:
 
 	// Quick hack to prevent scrolling to top in some lists
 	void SetScrollToTop(bool t) { scrollToTopOnSizeChange_ = t; }
-
+	void setBobColor(uint32_t color) { bobColor = color; }
 private:
 	float ClampedScrollPos(float pos);
 
@@ -261,6 +263,7 @@ private:
 	float pull_ = 0.0f;
 	float lastViewSize_ = 0.0f;
 	bool scrollToTopOnSizeChange_ = false;
+	uint32_t bobColor;
 };
 
 class ViewPager : public ScrollView {

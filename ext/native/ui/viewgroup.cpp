@@ -794,7 +794,7 @@ void ScrollView::Draw(UIContext &dc) {
 		float bobOffset = (ClampedScrollPos(scrollPos_) / scrollMax) * (bounds_.h - bobHeight);
 
 		Bounds bob(bounds_.x2() - bobWidth, bounds_.y + bobOffset, bobWidth, bobHeight);
-		dc.FillRect(Drawable(0x80FFFFFF), bob);
+		dc.FillRect(Drawable(bobColor), bob);
 	}
 }
 

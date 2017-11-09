@@ -1,156 +1,67 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="BackgroundAudio.cpp" />
+    <ClCompile Include="ChatScreen.cpp" />
+    <ClCompile Include="ComboKeyMappingScreen.cpp" />
+    <ClCompile Include="ControlMappingScreen.cpp" />
+    <ClCompile Include="DevScreens.cpp" />
+    <ClCompile Include="DisplayLayoutEditor.cpp" />
+    <ClCompile Include="DisplayLayoutScreen.cpp" />
+    <ClCompile Include="EmuScreen.cpp" />
     <ClCompile Include="GameInfoCache.cpp" />
     <ClCompile Include="GamepadEmu.cpp" />
+    <ClCompile Include="GameScreen.cpp" />
+    <ClCompile Include="GameSettingsScreen.cpp" />
+    <ClCompile Include="MainScreen.cpp" />
+    <ClCompile Include="MiscScreens.cpp" />
     <ClCompile Include="NativeApp.cpp" />
-    <ClCompile Include="ui_atlas.cpp" />
     <ClCompile Include="OnScreenDisplay.cpp" />
-    <ClCompile Include="EmuScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="GameScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="GameSettingsScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="MainScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="MiscScreens.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="ControlMappingScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="DevScreens.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="TouchControlLayoutScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="TouchControlVisibilityScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="TiltAnalogSettingsScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="TiltEventProcessor.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="InstallZipScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
+    <ClCompile Include="PauseScreen.cpp" />
+    <ClCompile Include="ProfilerDraw.cpp" />
+    <ClCompile Include="RemoteISOScreen.cpp" />
+    <ClCompile Include="ReportScreen.cpp" />
+    <ClCompile Include="SavedataScreen.cpp" />
     <ClCompile Include="Store.cpp" />
-    <ClCompile Include="BackgroundAudio.cpp" />
-    <ClCompile Include="ReportScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="PauseScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="SavedataScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="ProfilerDraw.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="ComboKeyMappingScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="DisplayLayoutScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-    <ClCompile Include="DisplayLayoutEditor.cpp" />
-    <ClCompile Include="RemoteISOScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
-<<<<<<< HEAD
     <ClCompile Include="TextureUtil.cpp" />
-=======
->>>>>>> 0adafc38f... PPSSPP early chat feature rebranched
-    <ClCompile Include="ChatScreen.cpp">
-      <Filter>Screens</Filter>
-    </ClCompile>
+    <ClCompile Include="TiltAnalogSettingsScreen.cpp" />
+    <ClCompile Include="TiltEventProcessor.cpp" />
+    <ClCompile Include="TouchControlLayoutScreen.cpp" />
+    <ClCompile Include="TouchControlVisibilityScreen.cpp" />
+    <ClCompile Include="InstallZipScreen.cpp" />
+    <ClCompile Include="ui_atlas.cpp" />
+    <ClCompile Include="ChatOnScreen.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BackgroundAudio.h" />
+    <ClInclude Include="ChatScreen.h" />
+    <ClInclude Include="ComboKeyMappingScreen.h" />
+    <ClInclude Include="ControlMappingScreen.h" />
+    <ClInclude Include="DevScreens.h" />
+    <ClInclude Include="DisplayLayoutEditor.h" />
+    <ClInclude Include="DisplayLayoutScreen.h" />
+    <ClInclude Include="EmuScreen.h" />
     <ClInclude Include="GameInfoCache.h" />
     <ClInclude Include="GamepadEmu.h" />
-    <ClInclude Include="ui_atlas.h" />
-    <ClInclude Include="OnScreenDisplay.h" />
-    <ClInclude Include="EmuScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="GameScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="GameSettingsScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="MainScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="MiscScreens.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="ControlMappingScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="DevScreens.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="TouchControlLayoutScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="TouchControlVisibilityScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="TiltAnalogSettingsScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="TiltEventProcessor.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="InstallZipScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="Store.h" />
-    <ClInclude Include="BackgroundAudio.h" />
-    <ClInclude Include="ReportScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="PauseScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="SavedataScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="ProfilerDraw.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="ComboKeyMappingScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="DisplayLayoutScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-    <ClInclude Include="DisplayLayoutEditor.h" />
+    <ClInclude Include="GameScreen.h" />
+    <ClInclude Include="GameSettingsScreen.h" />
     <ClInclude Include="HostTypes.h" />
-    <ClInclude Include="RemoteISOScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-<<<<<<< HEAD
+    <ClInclude Include="MainScreen.h" />
+    <ClInclude Include="MiscScreens.h" />
+    <ClInclude Include="OnScreenDisplay.h" />
+    <ClInclude Include="PauseScreen.h" />
+    <ClInclude Include="ProfilerDraw.h" />
+    <ClInclude Include="RemoteISOScreen.h" />
+    <ClInclude Include="ReportScreen.h" />
+    <ClInclude Include="SavedataScreen.h" />
+    <ClInclude Include="Store.h" />
     <ClInclude Include="TextureUtil.h" />
-=======
->>>>>>> 0adafc38f... PPSSPP early chat feature rebranched
-    <ClInclude Include="ChatScreen.h">
-      <Filter>Screens</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Filter Include="Screens">
-      <UniqueIdentifier>{faee5dce-633b-4ba6-b19d-ea70ee3c1c38}</UniqueIdentifier>
-    </Filter>
+    <ClInclude Include="TiltAnalogSettingsScreen.h" />
+    <ClInclude Include="TiltEventProcessor.h" />
+    <ClInclude Include="TouchControlLayoutScreen.h" />
+    <ClInclude Include="TouchControlVisibilityScreen.h" />
+    <ClInclude Include="InstallZipScreen.h" />
+    <ClInclude Include="ui_atlas.h" />
+    <ClInclude Include="ChatOnScreen.h" />
   </ItemGroup>
 </Project>

@@ -35,6 +35,7 @@
 #include "Core/HLE/sceKernelInterrupt.h"
 #include "Core/HLE/proAdhoc.h"
 #include "Core/HLE/sceNet.h"
+#include "Core/HLE/AmultiosChatClient.h"
 #include "Core/HLE/proAdhocServer.h"
 
 // shared in sceNetAdhoc.h since it need to be used from sceNet.cpp also
@@ -72,6 +73,9 @@ void __NetAdhocShutdown() {
 			adhocServerThread.join();
 		}
 	}
+	//terminate chat thread;
+	TerminateChat();
+
 	// Checks to avoid confusing logspam
 	if (netAdhocMatchingInited) {
 		sceNetAdhocMatchingTerm();
@@ -157,6 +161,8 @@ void __NetAdhocInit() {
 		adhocServerRunning = true;
 		adhocServerThread = std::thread(proAdhocServerThread, g_Config.iServerChannel);
 	}
+
+	InitChat();
 }
 
 u32 sceNetAdhocInit() {
@@ -188,12 +194,16 @@ u32 sceNetAdhocInit() {
 
 static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr) {
 	INFO_LOG(SCENET, "sceNetAdhocctlInit(%i, %i, %08x) at %08x", stackSize, prio, productAddr, currentMIPS->pc);
-	
+
 	if (netAdhocctlInited)
 		return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
 	
 	if(g_Config.bEnableWlan) {
 		if (initNetwork((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == 0) {
+
+			if (ChatClientRunning) {
+				connectChatGame((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr));
+			}
 			if (!friendFinderRunning) {
 				friendFinderRunning = true;
 				friendFinderThread = std::thread(friendFinder);
@@ -202,6 +212,7 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr) {
 		} else {
 			WARN_LOG(SCENET, "sceNetAdhocctlInit: Failed to init the network but faking success");
 			networkInited = false;  // TODO: What needs to check this? Pretty much everything? Maybe we should just set netAdhocctlInited to false..
+			//return ERROR_NET_ADHOCCTL_WLAN_SWITCH_OFF;
 		}
 	}
 
@@ -893,6 +904,13 @@ static int sceNetAdhocctlScan() {
 				while ((threadStatus == ADHOCCTL_STATE_SCANNING) && (cnt < 5000)) {
 					sleep_ms(1);
 					cnt++;
+
+					if (ctlServerStatus == CTL_SERVER_LOGEDIN || CTL_SERVER_DISCONNECTED) break;
+				}
+
+				//dropped from server
+				if ((ctlServerStatus == CTL_SERVER_DISCONNECTED)) {
+					return ERROR_NET_ADHOCCTL_DISCONNECTED;
 				}
 			}
 
@@ -1072,6 +1090,8 @@ static u32 sceNetAdhocctlDisconnect() {
 			if (iResult == SOCKET_ERROR) {
 				ERROR_LOG(SCENET, "Socket error (%i) when sending", errno);
 			}
+
+			disconnectChatGroup();
 
 			// Free Network Lock
 			//_freeNetworkLock();
@@ -1363,9 +1383,13 @@ int sceNetAdhocctlCreate(const char *groupName) {
 					while ((threadStatus != ADHOCCTL_STATE_CONNECTED) && (cnt < 5000)) {
 						sleep_ms(1);
 						cnt++;
+
+						//status logged in on the server
+						if (ctlServerStatus == CTL_SERVER_LOGEDIN) break;
 					}
 				}
 
+				connectChatGroup(groupName);
 				// Return Success
 				return 0;
 			}
@@ -2565,7 +2589,7 @@ int sceNetAdhocMatchingDelete(int matchingId) {
 
 int sceNetAdhocMatchingInit(u32 memsize) {
 	WARN_LOG(SCENET, "sceNetAdhocMatchingInit(%d) at %08x", memsize, currentMIPS->pc);
-	
+
 	// Uninitialized Library
 	if (netAdhocMatchingInited) return ERROR_NET_ADHOC_MATCHING_ALREADY_INITIALIZED;
 		

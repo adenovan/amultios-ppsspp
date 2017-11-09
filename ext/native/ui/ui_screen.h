@@ -366,4 +366,23 @@ private:
 	const char *category_;
 };
 
+class ChoiceDynamicValue : public UI::ClickableItem{
+public :
+	ChoiceDynamicValue(std::string *value, LayoutParams *layoutparams = 0)
+		: ClickableItem(layoutparams), sValue_(value) {};
+	virtual void Draw(UIContext &dc) override;
+	private :
+		Padding textPadding_;
+		std::string *sValue_;
+};
+
+class ChatTextEdit : public UI::TextEdit {
+	public:
+		ChatTextEdit(const std::string &text, const std::string &placeholderText, LayoutParams *layoutParams = 0) :
+			TextEdit(text,placeholderText,layoutParams) {};
+		void Draw(UIContext &dc) override;
+	private:
+		int maxTextDisplay_;
+
+};
 }  // namespace UI

@@ -611,7 +611,7 @@ void GameSettingsScreen::CreateViews() {
 
 	networkingSettings->Add(new ItemHeader(ms->T("Networking")));
 
-	networkingSettings->Add(new Choice(n->T("Pro Indonesia Online Multiplayer Tutorial")))->OnClick.Handle(this, &GameSettingsScreen::OnAdhocGuides);
+	networkingSettings->Add(new Choice(n->T("Visit Amultios Net Guide")))->OnClick.Handle(this, &GameSettingsScreen::OnAdhocGuides);
 
 	networkingSettings->Add(new CheckBox(&g_Config.bEnableWlan, n->T("Enable networking", "Enable networking/wlan (beta)")));
 	networkingSettings->Add(new CheckBox(&g_Config.bEnableAdhocServer, n->T("Enable built-in PRO Adhoc Server", "Enable built-in PRO Adhoc Server")));
@@ -624,8 +624,8 @@ void GameSettingsScreen::CreateViews() {
 #else
 	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
 #endif
-	static const char *serverChannels[] = { "International", "Indonesia","Thailand","Malaysia","Philippines" };
-	networkingSettings->Add(new PopupMultiChoice(&g_Config.iServerChannel, "Server Channel", serverChannels, 27201, ARRAY_SIZE(serverChannels), "Server Channel", screenManager()));
+	static const char *serverChannels[] = { "Midgard", "Asgard","Vanaheim","Alfheim","Helheim" };
+	networkingSettings->Add(new PopupMultiChoice(&g_Config.iServerChannel, "Server Channel", serverChannels, 27313, ARRAY_SIZE(serverChannels), "Server Channel", screenManager()));
 	networkingSettings->Add(new PopupSliderChoice(&g_Config.iPortOffset, 0, 60000, n->T("Port offset", "Port offset(0 = PSP compatibility)"), 100, screenManager()));
 	networkingSettings->Add(new ItemHeader(sy->T("Chat Feature")));
 	networkingSettings->Add(new CheckBox(&g_Config.bEnableNetworkChat, n->T("Enable network chat", "Enable network chat")));

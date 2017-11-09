@@ -117,6 +117,7 @@ inline bool connectInProgress(int errcode){ return (errcode == EINPROGRESS || er
 #define ADHOCCTL_STATE_SCANNING 2
 #define ADHOCCTL_STATE_GAMEMODE 3
 
+
 // Kernel Utility Netconf Adhoc Types
 #define UTILITY_NETCONF_TYPE_CONNECT_ADHOC 2
 #define UTILITY_NETCONF_TYPE_CREATE_ADHOC 4
@@ -665,6 +666,13 @@ enum {
 #define PSP_ADHOC_MATCHING_PACKET_DEATH			8
 #define PSP_ADHOC_MATCHING_PACKET_BYE			9
 
+
+// used on server
+#define CTL_SERVER_DISCONNECTED 0
+#define CTL_SERVER_WAITING 1
+#define CTL_SERVER_LOGEDIN 2
+
+
 // Pro Adhoc Server Packets Opcodes
 #define OPCODE_PING 0
 #define OPCODE_LOGIN 1
@@ -674,10 +682,14 @@ enum {
 #define OPCODE_SCAN_COMPLETE 5
 #define OPCODE_CONNECT_BSSID 6
 #define OPCODE_CHAT 7
-#define OPCODE_OVPN 8
+#define OPCODE_GLOBAL_CHAT 8
+#define OPCODE_AMULTIOS_LOGIN 9
+#define OPCODE_AMULTIOS_LOGIN_SUCCESS 10
+#define OPCODE_AMULTIOS_LOGIN_FAILED 11
 
 // PSP Product Code
 #define PRODUCT_CODE_LENGTH 9
+#define PIN_LENGTH 6
 
 #ifdef _MSC_VER 
 #pragma pack(push,1) 
@@ -700,6 +712,16 @@ typedef struct {
   SceNetAdhocctlNickname name;
   SceNetAdhocctlProductCode game;
 } PACK SceNetAdhocctlLoginPacketC2S;
+
+// C2S Login Packet
+typedef struct {
+	SceNetAdhocctlPacketBase base;
+	SceNetEtherAddr mac;
+	SceNetAdhocctlNickname name;
+	SceNetAdhocctlProductCode game;
+	char pin[PIN_LENGTH];
+} PACK SceNetAdhocctlLoginPacketAmultiosC2S;
+
 
 // C2S Connect Packet
 typedef struct {
@@ -746,17 +768,11 @@ typedef struct {
   SceNetAdhocctlNickname name;
 } PACK SceNetAdhocctlChatPacketS2C;
 
-// C2S OpenVPN Packet
+// S2C Notify Packet
 typedef struct {
 	SceNetAdhocctlPacketBase base;
-} PACK SceNetAdhocctlOpenVPNPacketC2S;
-
-// S2C OpenVPN Packet
-typedef struct {
-	SceNetAdhocctlPacketBase base;
-	SceNetAdhocctlNickname name;
-	char ovpnID[32];
-} PACK SceNetAdhocctlOpenVPNPacketS2C;
+	char reason[64];
+} PACK SceNetAdhocctlNotifyPacketS2C;
 
 // P2P Packet
 typedef struct {
@@ -820,6 +836,7 @@ extern bool friendFinderRunning;
 extern SceNetAdhocctlPeerInfo * friends;
 extern SceNetAdhocctlScanInfo * networks; 
 extern int threadStatus;
+extern int ctlServerStatus;
 // End of Aux vars
 
 // Check if Matching callback is running
@@ -865,12 +882,6 @@ void addFriend(SceNetAdhocctlConnectPacketS2C * packet);
 * Send chat or get that
 * @param std::string ChatString 
 */
-
-void sendChat(std::string chatString);
-std::vector<std::string> getChatLog();
-extern bool chatScreenVisible;
-extern bool updateChatScreen;
-extern int newChat;
 
 
 /*

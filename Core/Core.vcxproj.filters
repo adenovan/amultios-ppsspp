@@ -683,6 +683,7 @@
     <ClCompile Include="HLE\sceUsbCam.cpp">
       <Filter>HLE\Libraries</Filter>
     </ClCompile>
+    <ClCompile Include="HLE\AmultiosChatClient.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ELF\ElfReader.h">
@@ -1256,6 +1257,7 @@
     <ClInclude Include="HLE\sceUsbCam.h">
       <Filter>HLE\Libraries</Filter>
     </ClInclude>
+    <ClInclude Include="HLE\AmultiosChatClient.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CMakeLists.txt" />
