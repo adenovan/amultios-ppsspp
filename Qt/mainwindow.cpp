@@ -453,7 +453,7 @@ void MainWindow::SetWindowScale(int zoom) {
 
 void MainWindow::SetGameTitle(QString text)
 {
-	QString title = QString("PPSSPP %1").arg(PPSSPP_GIT_VERSION);
+	QString title = QString("Amultios %1").arg(PPSSPP_GIT_VERSION);
 	if (text != "")
 		title += QString(" - %1").arg(text);
 
@@ -484,15 +484,15 @@ void MainWindow::createMenus()
 		->addEnableState(UISTATE_MENU);
 	fileMenu->add(new MenuAction(this, SLOT(closeAct()),      QT_TR_NOOP("&Close"), QKeySequence::Close))
 		->addDisableState(UISTATE_MENU);
-	fileMenu->addSeparator();
-	fileMenu->add(new MenuAction(this, SLOT(qlstateAct()),    QT_TR_NOOP("Quickload State"), Qt::Key_F4))
-		->addDisableState(UISTATE_MENU);
-	fileMenu->add(new MenuAction(this, SLOT(qsstateAct()),    QT_TR_NOOP("Quicksave State"), Qt::Key_F2))
-		->addDisableState(UISTATE_MENU);
-	fileMenu->add(new MenuAction(this, SLOT(lstateAct()),     QT_TR_NOOP("&Load State File...")))
-		->addDisableState(UISTATE_MENU);
-	fileMenu->add(new MenuAction(this, SLOT(sstateAct()),     QT_TR_NOOP("&Save State File...")))
-		->addDisableState(UISTATE_MENU);
+	// fileMenu->addSeparator();
+	// fileMenu->add(new MenuAction(this, SLOT(qlstateAct()),    QT_TR_NOOP("Quickload State"), Qt::Key_F4))
+	// 	->addDisableState(UISTATE_MENU);
+	// fileMenu->add(new MenuAction(this, SLOT(qsstateAct()),    QT_TR_NOOP("Quicksave State"), Qt::Key_F2))
+	// 	->addDisableState(UISTATE_MENU);
+	// fileMenu->add(new MenuAction(this, SLOT(lstateAct()),     QT_TR_NOOP("&Load State File...")))
+	// 	->addDisableState(UISTATE_MENU);
+	// fileMenu->add(new MenuAction(this, SLOT(sstateAct()),     QT_TR_NOOP("&Save State File...")))
+	// 	->addDisableState(UISTATE_MENU);
 	fileMenu->addSeparator();
 	fileMenu->add(new MenuAction(this, SLOT(exitAct()),       QT_TR_NOOP("E&xit"), QKeySequence::Quit));
 

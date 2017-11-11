@@ -61,10 +61,10 @@ private slots:
 	// File
 	void openAct();
 	void closeAct();
-	void qlstateAct();
-	void qsstateAct();
-	void lstateAct();
-	void sstateAct();
+	//void qlstateAct();
+	//void qsstateAct();
+	//void lstateAct();
+	//void sstateAct();
 	void exitAct();
 
 	// Emulation

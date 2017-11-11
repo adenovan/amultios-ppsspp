@@ -41,6 +41,8 @@ UWP/.vs
 
 # For Mac
 .DS_Store
+CMakeFiles
+*.a
 
 # For ppsspp.ini, etc.
 ppsspp.ini

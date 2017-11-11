@@ -637,7 +637,7 @@ std::vector<std::string> Split(const std::string& str)
 	return ret;
 }
 
-bool isPlayer(std::string& pname, std::string& logname) {
+bool isPlayer(std::string pname, std::string logname) {
 
 	if (pname == logname) return true;
 	if (pname == logname.substr(8, 16)) return true;

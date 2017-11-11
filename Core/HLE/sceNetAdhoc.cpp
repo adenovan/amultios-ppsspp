@@ -909,7 +909,7 @@ static int sceNetAdhocctlScan() {
 				}
 
 				//dropped from server
-				if ((ctlServerStatus == CTL_SERVER_DISCONNECTED)) {
+				if (ctlServerStatus == CTL_SERVER_DISCONNECTED) {
 					return ERROR_NET_ADHOCCTL_DISCONNECTED;
 				}
 			}

@@ -81,4 +81,4 @@ extern std::vector<std::string> GroupChatLog;
 extern std::vector<std::string> AllChatLog;
 
 std::vector<std::string> Split(const std::string& str);
-bool isPlayer(std::string& pname, std::string& logname);
+bool isPlayer(std::string pname, std::string logname);
