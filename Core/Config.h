@@ -451,6 +451,7 @@ public:
 	int iChatButtonPosition;
 	int iChatScreenPosition;
 	int iServerChannel;
+	std::string sAmultiosPin;
 	
 	bool bEnableQuickChat;
 	std::string sQuickChat0;

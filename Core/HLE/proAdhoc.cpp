@@ -1488,12 +1488,12 @@ int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 	packet.mac = addres;
 	strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
 	memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
-	strcpy((char *)packet.pin, "021414");
+	strcpy((char *)packet.pin, g_Config.sAmultiosPin.c_str());
 	int sent = send(metasocket, (char*)&packet, sizeof(packet), 0);
 	changeBlockingMode(metasocket, 1); // Change to non-blocking
 	if (sent > 0) {
 		I18NCategory *n = GetI18NCategory("Networking");
-		host->NotifyUserMessage(n->T("Connecting to Amultios Network "), 1.0);
+		host->NotifyUserMessage(n->T("Joining Adhoc Group Lobby "), 1.0);
 		ctlServerStatus = CTL_SERVER_WAITING;
 		return 0;
 	}

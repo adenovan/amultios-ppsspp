@@ -80,7 +80,7 @@ void InitChat() {
 	getLocalMac(&addres);
 	packet.mac = addres;
 	strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
-	strcpy((char *)packet.pin, "021414");
+	strcpy((char *)packet.pin, g_Config.sAmultiosPin.c_str());
 	getServerName(packet.server);
 	int sent = send(chatsocket, (char*)&packet, sizeof(packet), 0);
 	changeBlockingMode(chatsocket, 1); // Change to non-blocking
@@ -212,7 +212,7 @@ int ChatClient(int port) {
 					GroupChatLog.push_back(incoming);
 					AllChatLog.push_back("[Group] " + incoming);
 					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					if (chatScreenVisible && chatGuiStatus == CHAT_GUI_GROUP) {
+					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_GROUP || chatGuiStatus == CHAT_GUI_ALL) ) {
 						updateChatScreen = true;
 					}
 					else {
@@ -245,7 +245,7 @@ int ChatClient(int port) {
 					GlobalChatLog.push_back(incoming);
 					AllChatLog.push_back(incoming);
 					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					if (chatScreenVisible && chatGuiStatus == CHAT_GUI_GLOBAL) {
+					if (chatScreenVisible &&( chatGuiStatus == CHAT_GUI_GLOBAL || chatGuiStatus == CHAT_GUI_ALL)) {
 						updateChatScreen = true;
 					}
 					else {
@@ -309,7 +309,7 @@ int ChatClient(int port) {
 					// Fix RX Buffer Length
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
 					AllChatLog.push_back("Connected to Amultios Chat Server");
-					if (chatScreenVisible && chatGuiStatus == CHAT_GUI_GLOBAL) {
+					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_GLOBAL || chatGuiStatus == CHAT_GUI_ALL)) {
 						updateChatScreen = true;
 					}
 				}
@@ -331,7 +331,7 @@ int ChatClient(int port) {
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
 					std::string info = "Cannot Connect To Amultios Server Login Failed ";
 					AllChatLog.push_back(info);
-					if (chatScreenVisible && chatGuiStatus == CHAT_GUI_GLOBAL) {
+					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_GLOBAL || chatGuiStatus == CHAT_GUI_ALL)) {
 						updateChatScreen = true;
 					}
 					break;
@@ -647,9 +647,10 @@ std::vector<std::string> Split(const std::string& str)
 
 bool isPlayer(std::string pname, std::string logname) {
 
+	if (logname == "") return false;
 	if (pname == logname) return true;
-	if (pname == logname.substr(8, 16)) return true;
-	if (pname == logname.substr(7, 15)) return true;
+	if (logname.length() >= 16 && pname == logname.substr(8, 16)) return true;
+	if (logname.length() >= 15 && pname == logname.substr(7, 15)) return true;
 
 	return false;
 }

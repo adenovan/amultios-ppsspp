@@ -63,6 +63,10 @@ private:
 	UI::EventReturn OnControlMapping(UI::EventParams &e);
 	UI::EventReturn OnTouchControlLayout(UI::EventParams &e);
 	UI::EventReturn OnDumpNextFrameToLog(UI::EventParams &e);
+<<<<<<< HEAD
+=======
+	//UI::EventReturn OnReloadCheats(UI::EventParams &e);
+>>>>>>> e8e3b7ce1... Android Build Fix
 	UI::EventReturn OnTiltTypeChange(UI::EventParams &e);
 	UI::EventReturn OnTiltCustomize(UI::EventParams &e);
 	UI::EventReturn OnComboKey(UI::EventParams &e);
@@ -81,6 +85,7 @@ private:
 	UI::EventReturn OnChangeQuickChat3(UI::EventParams &e);
 	UI::EventReturn OnChangeQuickChat4(UI::EventParams &e);
 	UI::EventReturn OnChangeNickname(UI::EventParams &e);
+	UI::EventReturn OnChangeAmultiosPin(UI::EventParams &e);
 	UI::EventReturn OnChangeproAdhocServerAddress(UI::EventParams &e);
 	UI::EventReturn OnChangeMacAddress(UI::EventParams &e);
 	UI::EventReturn OnClearRecents(UI::EventParams &e);

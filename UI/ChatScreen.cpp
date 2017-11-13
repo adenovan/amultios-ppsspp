@@ -29,25 +29,28 @@ void ChatScreen::CreateViews() {
 
 	float yres = screenManager()->getUIContext()->GetBounds().h;
 
+	const int cy = 290;
+	const int cx = 200;
+
 	switch (g_Config.iChatScreenPosition) {
 	// the chat screen size is still static 280,250 need a dynamic size based on device resolution 
 	case 0:
-		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight() , 290, NONE, NONE, 250, true));
+		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight() , cy, NONE, NONE, cx, true));
 		break;
 	case 1:
-		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), dc.GetBounds().centerX(), NONE, NONE, 250, true));
+		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), dc.GetBounds().centerX(), NONE, NONE, cx, true));
 		break;
 	case 2:
-		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), NONE, NONE, 290, 250, true));
+		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), NONE, NONE, cy, cx, true));
 		break;
 	case 3:
-		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), 290, 250, NONE, NONE, true));
+		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), cy, cx, NONE, NONE, true));
 		break;
 	case 4:
-		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), dc.GetBounds().centerX(), 250, NONE, NONE, true));
+		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), dc.GetBounds().centerX(), cx, NONE, NONE, true));
 		break;
 	case 5:
-		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), NONE, 250, 290, NONE, true));
+		box_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth(), ChatScreenHeight(), NONE, cx, cy, NONE, true));
 		break;
 	}
 

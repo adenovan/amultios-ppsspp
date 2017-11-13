@@ -914,6 +914,8 @@ void HandleGlobalMessage(const std::string &msg, const std::string &value) {
 			g_Config.sQuickChat3 = setString;
 		else if (inputboxValue[0] == "quickchat4")
 			g_Config.sQuickChat4 = setString;
+		else if (inputboxValue[0] == "pin") 
+			g_Config.sAmultiosPin = setString.substr(0,6);
 		else if (inputboxValue[0] == "Chat") {
 			if (inputboxValue.size() > 2) 
 			{

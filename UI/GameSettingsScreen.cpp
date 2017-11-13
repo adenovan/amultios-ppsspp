@@ -613,20 +613,38 @@ void GameSettingsScreen::CreateViews() {
 
 	networkingSettings->Add(new Choice(n->T("Visit Amultios Net Guide")))->OnClick.Handle(this, &GameSettingsScreen::OnAdhocGuides);
 
-	networkingSettings->Add(new CheckBox(&g_Config.bEnableWlan, n->T("Enable networking", "Enable networking/wlan (beta)")));
-	networkingSettings->Add(new CheckBox(&g_Config.bEnableAdhocServer, n->T("Enable built-in PRO Adhoc Server", "Enable built-in PRO Adhoc Server")));
+	networkingSettings->Add(new CheckBox(&g_Config.bEnableWlan,"Enable Amultios Network"));
 	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sMACAddress, n->T("Change Mac Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeMacAddress);
-	networkingSettings->Add(new ItemHeader(sy->T("Server Settings")));
-#ifdef _WIN32
-	networkingSettings->Add(new PopupTextInputChoice(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), "", 255, screenManager()));
+	// TODO: Come up with a way to display a keyboard for mobile users,
+	// so until then, this is Windows/Desktop only.
+	networkingSettings->Add(new ItemHeader(n->T("Credential Settings (Register from amultios.net)")));
+#if !defined(MOBILE_DEVICE) && !defined(USING_QT_UI)  // TODO: Add all platforms where KEY_CHAR support is added
+	networkingSettings->Add(new PopupTextInputChoice(&g_Config.sNickName, sy->T("Amultios Nickname"), "", 32, screenManager()));
+#elif defined(USING_QT_UI)
+	networkingSettings->Add(new Choice(sy->T("Amultios Nickname")))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
 #elif defined(__ANDROID__)
-	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
-#else
-	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
+	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sNickName, sy->T("Amultios Nickname"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
 #endif
+#if !defined(MOBILE_DEVICE) && !defined(USING_QT_UI)  // TODO: Add all platforms where KEY_CHAR support is added
+	networkingSettings->Add(new PopupTextInputChoice(&g_Config.sAmultiosPin, n->T("Amultios Pin"), "", 7, screenManager()));
+#elif defined(USING_QT_UI)
+	networkingSettings->Add(new Choice(sy->T("Amultios Pin")))->OnClick.Handle(this, &GameSettingsScreen::OnChangeAmultiosPin);
+#elif defined(__ANDROID__)
+	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeAmultiosPin);
+#endif
+
+	//server setting
+	networkingSettings->Add(new ItemHeader(n->T("Server Settings")));
+//#ifdef _WIN32
+//	networkingSettings->Add(new PopupTextInputChoice(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), "", 255, screenManager()));
+//#elif defined(__ANDROID__)
+//	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
+//#else
+//	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
+//#endif
 	static const char *serverChannels[] = { "Midgard", "Asgard","Vanaheim","Alfheim","Helheim" };
 	networkingSettings->Add(new PopupMultiChoice(&g_Config.iServerChannel, "Server Channel", serverChannels, 27313, ARRAY_SIZE(serverChannels), "Server Channel", screenManager()));
-	networkingSettings->Add(new PopupSliderChoice(&g_Config.iPortOffset, 0, 60000, n->T("Port offset", "Port offset(0 = PSP compatibility)"), 100, screenManager()));
+	//networkingSettings->Add(new PopupSliderChoice(&g_Config.iPortOffset, 0, 60000, n->T("Port offset", "Port offset(0 = PSP compatibility)"), 100, screenManager()));
 	networkingSettings->Add(new ItemHeader(sy->T("Chat Feature")));
 	networkingSettings->Add(new CheckBox(&g_Config.bEnableNetworkChat, n->T("Enable network chat", "Enable network chat")));
 	static const char *chatButtonPositions[] = { "Bottom Left", "Bottom Center","Bottom Right","Top Left","Top Center", "Top Right","Center Left","Center Right" };
@@ -820,15 +838,6 @@ void GameSettingsScreen::CreateViews() {
 	systemSettings->Add(new ItemHeader(sy->T("PSP Settings")));
 	static const char *models[] = {"PSP-1000" , "PSP-2000/3000"};
 	systemSettings->Add(new PopupMultiChoice(&g_Config.iPSPModel, sy->T("PSP Model"), models, 0, ARRAY_SIZE(models), sy->GetName(), screenManager()))->SetEnabled(!PSP_IsInited());
-	// TODO: Come up with a way to display a keyboard for mobile users,
-	// so until then, this is Windows/Desktop only.
-#if !defined(MOBILE_DEVICE) && !defined(USING_QT_UI)  // TODO: Add all platforms where KEY_CHAR support is added
-	systemSettings->Add(new PopupTextInputChoice(&g_Config.sNickName, sy->T("Change Nickname"), "", 32, screenManager()));
-#elif defined(USING_QT_UI)
-	systemSettings->Add(new Choice(sy->T("Change Nickname")))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
-#elif defined(__ANDROID__)
-	systemSettings->Add(new ChoiceWithValueDisplay(&g_Config.sNickName, sy->T("Change Nickname"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
-#endif
 #if defined(_WIN32) || (defined(USING_QT_UI) && !defined(MOBILE_DEVICE))
 	// Screenshot functionality is not yet available on non-Windows/non-Qt
 	systemSettings->Add(new CheckBox(&g_Config.bScreenshotsAsPNG, sy->T("Screenshots as PNG")));
@@ -892,7 +901,7 @@ static void RecreateActivity() {
 }
 
 UI::EventReturn GameSettingsScreen::OnAdhocGuides(UI::EventParams &e) {
-	LaunchBrowser("http://proindovpn.net/tutorial/international");
+	LaunchBrowser("https://amultios.net/started");
 	return UI::EVENT_DONE;
 }
 
@@ -1216,6 +1225,22 @@ UI::EventReturn GameSettingsScreen::OnChangeNickname(UI::EventParams &e) {
 #elif defined(__ANDROID__)
 	// TODO: The return value is handled in NativeApp::inputbox_completed. This is horrific.
 	System_SendMessage("inputbox", ("nickname:" + g_Config.sNickName).c_str());
+#endif
+	return UI::EVENT_DONE;
+}
+
+UI::EventReturn GameSettingsScreen::OnChangeAmultiosPin(UI::EventParams &e) {
+#if PPSSPP_PLATFORM(WINDOWS) || defined(USING_QT_UI)
+	const size_t pin_len = 6;
+
+	char pin[pin_len];
+	memset(pin, 0, sizeof(pin_len));
+
+	if (System_InputBoxGetString("Enter 6 digit number pin", g_Config.sAmultiosPin.c_str(), pin, pin_len)) {
+		g_Config.sAmultiosPin = pin;
+	}
+#elif defined(__ANDROID__)
+	System_SendMessage("inputbox", ("pin:" + g_Config.sAmultiosPin).c_str());
 #endif
 	return UI::EVENT_DONE;
 }

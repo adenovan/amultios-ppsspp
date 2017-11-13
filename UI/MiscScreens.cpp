@@ -482,7 +482,7 @@ void LogoScreen::render() {
 	I18NCategory *cr = GetI18NCategory("PSPCredits");
 	char temp[256];
 	// Manually formatting UTF-8 is fun.  \xXX doesn't work everywhere.
-	snprintf(temp, sizeof(temp), "%s Henrik Rydg%c%crd", cr->T("created", "Created by"), 0xC3, 0xA5);
+	snprintf(temp, sizeof(temp), "PPSSPP %s Henrik Rydg%c%crd", cr->T("created", "Created by"), 0xC3, 0xA5);
 	if (System_GetPropertyBool(SYSPROP_APP_GOLD)) {
 		dc.Draw()->DrawImage(I_ICONGOLD, bounds.centerX() - 120, bounds.centerY() - 30, 1.2f, textColor, ALIGN_CENTER);
 	} else {
@@ -492,11 +492,22 @@ void LogoScreen::render() {
 	//dc.Draw()->DrawTextShadow(UBUNTU48, "PPSSPP", xres / 2, yres / 2 - 30, textColor, ALIGN_CENTER);
 	dc.SetFontScale(1.0f, 1.0f);
 	dc.SetFontStyle(dc.theme->uiFont);
+<<<<<<< HEAD
 	dc.DrawText(temp, bounds.centerX(), bounds.centerY() + 40, textColor, ALIGN_CENTER);
 	dc.DrawText(cr->T("license", "Free Software under GPL 2.0+"), bounds.centerX(), bounds.centerY() + 70, textColor, ALIGN_CENTER);
 
 	int ppsspp_org_y = yres / 2 + 130;
 	dc.DrawText("www.ppsspp.org", bounds.centerX(), ppsspp_org_y, textColor, ALIGN_CENTER);
+=======
+	dc.DrawText("Amultios Service By adenovan ", bounds.centerX(), bounds.centerY() + 40, textColor, ALIGN_CENTER);
+	dc.DrawText(temp, bounds.centerX(), bounds.centerY() + 100, textColor, ALIGN_CENTER);
+	dc.DrawText(cr->T("license", "Free Software under GPL 2.0+"), bounds.centerX(), bounds.centerY() + 150, textColor, ALIGN_CENTER);
+	dc.DrawText("amultios.net", bounds.centerX(), yres / 2 + 200, textColor, ALIGN_CENTER);
+	dc.DrawText("www.ppsspp.org", bounds.centerX(), yres / 2 + 250, textColor, ALIGN_CENTER);
+	if (boot_filename.size()) {
+		dc.DrawTextShadow(boot_filename.c_str(), bounds.centerX(), bounds.centerY() + 180, textColor, ALIGN_CENTER);
+	}
+>>>>>>> e8e3b7ce1... Android Build Fix
 
 #if (defined(_WIN32) && !PPSSPP_PLATFORM(UWP)) || PPSSPP_PLATFORM(ANDROID)
 	// Draw the graphics API, except on UWP where it's always D3D11
@@ -589,8 +600,24 @@ void CreditsScreen::render() {
 	I18NCategory *cr = GetI18NCategory("PSPCredits");
 
 	const char * credits[] = {
-		"PPSSPP",
+		cr->T("amultios","Amultios"),
+		"a custom PPSSPP fork focused on adhoc multiplayer over internet",
+		"Build , Server , Development maintaned by",
+		"adenovan",
 		"",
+		"Amultios Logo And Design By",
+		"Argel Chris Rivero",
+		"",
+		"",
+		"Amultios Contributor",
+		"",
+		"",
+		"",
+		"Amultios Game Master",
+		"Ade Novan (Lucis)",
+		"Claude Klein Anderson (tintin)",
+		"",
+		"PPSSPP",
 		cr->T("title", "A fast and portable PSP emulator"),
 		"",
 		"",
@@ -598,8 +625,6 @@ void CreditsScreen::render() {
 		"Henrik Rydg\xc3\xa5rd",
 		"",
 		"",
-		cr->T("proindonesia","Pro Indonesia by"),
-		"adenovan",
 		"",
 		"",
 		cr->T("contributors", "Contributors:"),
@@ -701,9 +726,9 @@ void CreditsScreen::render() {
 	// TODO: This is kinda ugly, done on every frame...
 	char temp[256];
 	if (System_GetPropertyBool(SYSPROP_APP_GOLD)) {
-		snprintf(temp, sizeof(temp), "PPSSPP Gold %s", PPSSPP_GIT_VERSION);
+		snprintf(temp, sizeof(temp), "Amultios %s", PPSSPP_GIT_VERSION);
 	} else {
-		snprintf(temp, sizeof(temp), "PPSSPP %s", PPSSPP_GIT_VERSION);
+		snprintf(temp, sizeof(temp), "Amultios %s", PPSSPP_GIT_VERSION);
 	}
 	credits[0] = (const char *)temp;
 
