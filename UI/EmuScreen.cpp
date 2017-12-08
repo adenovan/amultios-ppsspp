@@ -75,6 +75,7 @@
 #include "UI/InstallZipScreen.h"
 #include "UI/ProfilerDraw.h"
 #include "UI/ChatScreen.h"
+#include "UI/ChatOnScreen.h"
 
 #if defined(_WIN32) && !PPSSPP_PLATFORM(UWP)
 #include "Windows/MainWindow.h"
@@ -852,6 +853,7 @@ void EmuScreen::CreateViews() {
 		root_->Add(new Button(dev->T("DevMenu")))->OnClick.Handle(this, &EmuScreen::OnDevTools);
 	}
 	if (g_Config.bEnableNetworkChat) {
+
 		switch (g_Config.iChatButtonPosition) {
 		case 0:
 			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, NONE, NONE, 50, true));
@@ -884,12 +886,7 @@ void EmuScreen::CreateViews() {
 
 		root_->Add(chatButtons)->OnClick.Handle(this, &EmuScreen::OnChat);
 	}
-	saveStatePreview_ = new AsyncImageFileView("", IS_FIXED, nullptr, new AnchorLayoutParams(bounds.centerX(), 100, NONE, NONE, true));
-	saveStatePreview_->SetFixedSize(160, 90);
-	saveStatePreview_->SetColor(0x90FFFFFF);
-	saveStatePreview_->SetVisibility(V_GONE);
-	saveStatePreview_->SetCanBeFocused(false);
-	root_->Add(saveStatePreview_);
+	root_->Add(new ChatOnScreen(new AnchorLayoutParams((Size)bounds.w, (Size)bounds.h)));
 	root_->Add(new OnScreenMessagesView(new AnchorLayoutParams((Size)bounds.w, (Size)bounds.h)));
 
 	loadingView_ = new TextView(sc->T("Loading game..."), new AnchorLayoutParams(bounds.centerX(), bounds.centerY(), NONE, NONE, true));

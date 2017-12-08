@@ -892,10 +892,10 @@ static int sceNetAdhocctlScan() {
 			int iResult = send(metasocket, (char *)&opcode, 1, 0);
 			if (iResult == SOCKET_ERROR) {
 				int error = errno;
-				ERROR_LOG(SCENET, "Socket error (%i) when sending", error);
-				threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+				//ERROR_LOG(SCENET, "Socket error (%i) when sending", error);
+				//threadStatus = ADHOCCTL_STATE_DISCONNECTED;
 				//if (error == ECONNABORTED || error == ECONNRESET || error == ENOTCONN) return ERROR_NET_ADHOCCTL_NOT_INITIALIZED; // A case where it need to reconnect to AdhocServer
-				return ERROR_NET_ADHOCCTL_DISCONNECTED; // ERROR_NET_ADHOCCTL_BUSY 
+				//return ERROR_NET_ADHOCCTL_DISCONNECTED; // ERROR_NET_ADHOCCTL_BUSY 
 			}
 
 			// Wait for Status to be connected to prevent Ford Street Racing from Failed to find game session

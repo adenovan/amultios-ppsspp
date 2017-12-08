@@ -154,7 +154,7 @@ UI::EventReturn ChatScreen::OnQuickChat5(UI::EventParams &e) {
 UI::EventReturn ChatScreen::OnChangeChannel(UI::EventParams &params) {
 
 	chatGuiIndex += 1;
-	if (chatGuiIndex >= 4) {
+	if (chatGuiIndex >= 3) {
 		chatGuiIndex = 0;
 	}
 

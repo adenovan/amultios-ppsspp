@@ -170,8 +170,13 @@ SceNetAdhocctlPeerInfo * findFriend(SceNetEtherAddr * MAC) {
 void changeBlockingMode(int fd, int nonblocking) {
 	unsigned long on = 1;
 	unsigned long off = 0;
+<<<<<<< HEAD
 #ifdef _WIN32
 	if (nonblocking){
+=======
+#ifdef _MSC_VER
+	if (nonblocking == 1){
+>>>>>>> 10932373b... Beta 4;
 		// Change to Non-Blocking Mode
 		ioctlsocket(fd, FIONBIO, &on);
 	}
@@ -1260,7 +1265,7 @@ int friendFinder(){
 					ctlServerStatus = CTL_SERVER_DISCONNECTED;
 
 					// Change State
-					threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+					//threadStatus = ADHOCCTL_STATE_DISCONNECTED;
 
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlNotifyPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlNotifyPacketS2C));

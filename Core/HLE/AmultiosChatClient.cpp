@@ -8,8 +8,8 @@ int chatclientstatus = CHAT_CLIENT_DISCONNECTED;
 bool ChatClientRunning = false;
 
 //later use for reconnect
-std::string lastgroupname = "";
-std::string lastgamecode = "";
+const char * lastgroupname;
+SceNetAdhocctlAdhocId *lastgamecode;
 
 std::thread ChatClientThread;
 std::vector<std::string> GroupChatLog;
@@ -100,7 +100,7 @@ void connectChatGame(SceNetAdhocctlAdhocId *adhoc_id) {
 	ChatConnectGamePacketC2S packet;
 	packet.base.opcode = OPCODE_AMULTIOS_CHAT_CONNECT_GAME;
 	memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
-	lastgamecode = packet.game.data;
+	lastgamecode = adhoc_id;
 	int sent = send(chatsocket, (char*)&packet, sizeof(packet), 0);
 	if (sent > 0) {
 		GameChatLog.push_back("Connected to game Lobby");
@@ -116,6 +116,7 @@ void connectChatGroup(const char * groupname) {
 	ChatConnectPacketC2S packet;
 	const ChatGroupName * groupNameStruct = (const ChatGroupName *)replace.c_str();
 
+	NOTICE_LOG(SCENET, "Attemp to joins virtual %s groupname on chat", replace.c_str());
 	packet.base.opcode = OPCODE_AMULTIOS_CHAT_CONNECT_GROUP;
 	if (groupNameStruct != NULL) packet.group = *groupNameStruct;
 	int sent = send(chatsocket, (const char *)&packet, sizeof(packet), 0);
@@ -384,6 +385,10 @@ void Reconnect() {
 		if (chatclientstatus != CHAT_CLIENT_WAITING && chatclientstatus != CHAT_CLIENT_CONNECTED) {
 			TerminateChat();
 			InitChat();
+			connectChatGame(lastgamecode);
+			if (friendFinderRunning && lastgroupname != NULL && threadStatus == ADHOCCTL_STATE_CONNECTED) {
+				connectChatGroup(lastgroupname);
+			}
 		}
 	}
 }
@@ -568,7 +573,10 @@ std::string createVirtualGroup(const char * groupname) {
 		virtgroupname += "PPSSPP";
 		break;
 	}
-	virtgroupname += groupname;
+	char safegroupname[ADHOCCTL_GROUPNAME_LEN + 1];
+	memset(safegroupname, 0, sizeof(safegroupname));
+	strncpy(safegroupname, groupname, ADHOCCTL_GROUPNAME_LEN);
+	virtgroupname += safegroupname;
 	return virtgroupname;
 }
 

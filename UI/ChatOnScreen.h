@@ -1,14 +1,9 @@
 #pragma once
-#include "file/file_util.h"
 #include "ui/ui_screen.h"
-class ChatOnScreen : public UIScreen {
+class ChatOnScreen : public UI::InertView {
 public:
-	ChatOnScreen();
-	~ChatOnScreen();
-	void CreateViews() override;
-	bool isTransparent() const override { return true; }
-	void update() override;
-	void UpdateChat();
+	ChatOnScreen(UI::LayoutParams *layoutParams = nullptr) : UI::InertView(layoutParams) {}
+	void Update() override;
 private:
 	bool FillVertical() const { return false; }
 	UI::Size ChatOnScreenWidth() const { return 550; }
