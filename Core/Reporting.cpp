@@ -456,8 +456,8 @@ namespace Reporting
 			return false;
 		if (g_Config.bTimerHack)
 			return false;
-		if (CheatsInEffect())
-			return false;
+		//if (CheatsInEffect())
+			//return false;
 		if (g_Config.iLockedCPUSpeed != 0)
 			return false;
 		// Don't allow builds without version info from git.  They're useless for reporting.
