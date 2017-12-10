@@ -231,8 +231,8 @@ void EmuScreen::bootGame(const std::string &filename) {
 		host->NotifyUserMessage(gr->T("BlockTransferRequired", "Warning: This game requires Simulate Block Transfer Mode to be set to On."), 15.0f);
 	}
 
-	loadingViewColor_->Divert(0xFFFFFFFF, 0.15f);
-	loadingViewVisible_->Divert(UI::V_VISIBLE, 0.15f);
+	//loadingViewColor_->Divert(0xFFFFFFFF, 0.15f);
+	//loadingViewVisible_->Divert(UI::V_VISIBLE, 0.15f);
 }
 
 void EmuScreen::bootComplete() {
@@ -280,10 +280,10 @@ void EmuScreen::bootComplete() {
 
 	System_SendMessage("event", "startgame");
 
-	saveStateSlot_ = SaveState::GetCurrentSlot();
+	//saveStateSlot_ = SaveState::GetCurrentSlot();
 
-	loadingViewColor_->Divert(0x00FFFFFF, 0.2f);
-	loadingViewVisible_->Divert(UI::V_INVISIBLE, 0.2f);
+	//loadingViewColor_->Divert(0x00FFFFFF, 0.2f);
+	//loadingViewVisible_->Divert(UI::V_INVISIBLE, 0.2f);
 }
 
 EmuScreen::~EmuScreen() {
@@ -889,12 +889,12 @@ void EmuScreen::CreateViews() {
 	root_->Add(new ChatOnScreen(new AnchorLayoutParams((Size)bounds.w, (Size)bounds.h)));
 	root_->Add(new OnScreenMessagesView(new AnchorLayoutParams((Size)bounds.w, (Size)bounds.h)));
 
-	loadingView_ = new TextView(sc->T("Loading game..."), new AnchorLayoutParams(bounds.centerX(), bounds.centerY(), NONE, NONE, true));
-	root_->Add(loadingView_);
+	//loadingView_ = new TextView(sc->T("Loading game..."), new AnchorLayoutParams(bounds.centerX(), bounds.centerY(), NONE, NONE, true));
+	//root_->Add(loadingView_);
 
 	// We start invisible here, in case of recreated views.
-	loadingViewColor_ = loadingView_->AddTween(new TextColorTween(0x00FFFFFF, 0x00FFFFFF, 0.2f, &bezierEaseInOut));
-	loadingViewVisible_ = loadingView_->AddTween(new VisibilityTween(UI::V_INVISIBLE, UI::V_INVISIBLE, 0.2f, &bezierEaseInOut));
+	//loadingViewColor_ = loadingView_->AddTween(new TextColorTween(0x00FFFFFF, 0x00FFFFFF, 0.2f, &bezierEaseInOut));
+	//loadingViewVisible_ = loadingView_->AddTween(new VisibilityTween(UI::V_INVISIBLE, UI::V_INVISIBLE, 0.2f, &bezierEaseInOut));
 }
 
 UI::EventReturn EmuScreen::OnDevTools(UI::EventParams &params) {
@@ -1129,12 +1129,12 @@ void EmuScreen::render() {
 	if (PSP_CoreParameter().freezeNext) {
 		PSP_CoreParameter().frozen = true;
 		PSP_CoreParameter().freezeNext = false;
-		SaveState::SaveToRam(freezeState_);
+		//SaveState::SaveToRam(freezeState_);
 	} else if (PSP_CoreParameter().frozen) {
-		if (CChunkFileReader::ERROR_NONE != SaveState::LoadFromRam(freezeState_)) {
-			ERROR_LOG(SAVESTATE, "Failed to load freeze state. Unfreezing.");
-			PSP_CoreParameter().frozen = false;
-		}
+		//if (CChunkFileReader::ERROR_NONE != SaveState::LoadFromRam(freezeState_)) {
+		//	ERROR_LOG(SAVESTATE, "Failed to load freeze state. Unfreezing.");
+		//	PSP_CoreParameter().frozen = false;
+		//}
 	}
 
 	Core_UpdateDebugStats(g_Config.bShowDebugStats || g_Config.bLogFrameDrops);
@@ -1169,7 +1169,7 @@ void EmuScreen::render() {
 	if (invalid_)
 		return;
 
-	const bool hasVisibleUI = !osm.IsEmpty() || g_Config.bShowTouchControls || loadingView_->GetVisibility() == UI::V_VISIBLE;
+	const bool hasVisibleUI = !osm.IsEmpty() || g_Config.bShowTouchControls;
 	const bool showDebugUI = g_Config.bShowDebugStats || g_Config.bShowDeveloperMenu || g_Config.bShowAudioDebug || g_Config.bShowFrameProfiler;
 	if (hasVisibleUI || showDebugUI || g_Config.iShowFPSCounter != 0) {
 		renderUI();
