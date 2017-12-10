@@ -360,8 +360,9 @@ void EmuScreen::sendMessage(const char *message, const char *value) {
 			PSP_Shutdown();
 			bootPending_ = true;
 			gamePath_ = value;
-		}*/
-	} else if (!strcmp(message, "config_loaded")) {
+		}
+	}*/ 
+	else if (!strcmp(message, "config_loaded")) {
 		// In case we need to position touch controls differently.
 		RecreateViews();
 	} else if (!strcmp(message, "control mapping") && screenManager()->topScreen() == this) {

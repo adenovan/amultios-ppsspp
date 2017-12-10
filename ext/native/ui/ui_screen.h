@@ -376,13 +376,4 @@ public :
 		std::string *sValue_;
 };
 
-class ChatTextEdit : public UI::TextEdit {
-	public:
-		ChatTextEdit(const std::string &text, const std::string &placeholderText, LayoutParams *layoutParams = 0) :
-			TextEdit(text,placeholderText,layoutParams) {};
-		void Draw(UIContext &dc) override;
-	private:
-		int maxTextDisplay_;
-
-};
 }  // namespace UI

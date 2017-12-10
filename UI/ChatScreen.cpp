@@ -67,7 +67,7 @@ void ChatScreen::CreateViews() {
 	bottom->Add(channel);
 	
 #if defined(_WIN32) || defined(USING_QT_UI)
-	chatEdit_ = bottom->Add(new ChatTextEdit("", n->T("Chat Here"), new LinearLayoutParams((ChatScreenWidth() -120),50)));
+	chatEdit_ = bottom->Add(new TextEdit("", n->T("Chat Here"), new LinearLayoutParams((ChatScreenWidth() -120),50)));
 	chatEdit_->SetMaxLen(63);
 	chatEdit_->OnEnter.Handle(this, &ChatScreen::OnSubmit);
 #if defined(USING_WIN_UI)
@@ -84,7 +84,7 @@ void ChatScreen::CreateViews() {
 	}
 #endif
 #elif defined(__ANDROID__)
-	bottom->Add(new Button(n->T("Chat Here"), new LayoutParams(FILL_PARENT, WRAP_CONTENT)))->OnClick.Handle(this, &ChatScreen::OnSubmit);
+	bottom->Add(new Button(n->T("Chat Here"), new LayoutParams((ChatScreenWidth() - 120), 50)))->OnClick.Handle(this, &ChatScreen::OnSubmit);
 #endif
 	if (g_Config.bEnableQuickChat) {
 		LinearLayout *quickChat = box_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, WRAP_CONTENT)));
