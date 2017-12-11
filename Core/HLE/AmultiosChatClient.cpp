@@ -12,13 +12,6 @@ const char * lastgroupname;
 SceNetAdhocctlAdhocId *lastgamecode;
 
 std::thread ChatClientThread;
-std::vector<std::string> GroupChatLog;
-std::vector<std::string> GameChatLog;
-std::vector<std::string> GlobalChatLog;
-std::vector<std::string> AllChatLog;
-std::string name = "";
-std::string incoming = "";
-std::string message = "";
 bool chatScreenVisible = false;
 bool updateChatScreen = false;
 bool updateChatOsm = false;
@@ -27,6 +20,50 @@ int GameNewChat = 0;
 int GlobalNewChat = 0;
 int newChat = 0;
 int chatGuiStatus = CHAT_GUI_ALL;
+
+
+ChatMessages cmList;
+
+void ChatMessages::Add(const std::string &text, const std::string &name, int room, uint32_t namecolor) {
+	std::lock_guard<std::mutex> locker(chatmutex_);
+	ChatMessage chat;
+
+	chat.name = name;
+	chat.roomcolor = 0x35D8FD;
+	if (name == "") {
+		chat.textcolor = 0x35D8FD;
+		chat.text = text;
+	}
+	else {
+		chat.textcolor = 0xFFFFFF;
+		chat.text.append(": ");
+		chat.text.append(text);
+	}
+
+	chat.namecolor = namecolor;
+	if (name == g_Config.sNickName.c_str()) {
+		chat.namecolor = 0x3539E5;
+	}
+
+	if (name == "Lucis" || name == "tintin" || name== "adenovan") {
+		chat.namecolor = 0x35D8FD;
+	}
+
+	chat.totalLength += chat.name.length();
+	chat.totalLength += chat.text.length();
+	if (room == CHAT_ADD_ALL) {
+		chat.room = "";
+		AllChatDb.push_back(chat);
+	}else if (room == CHAT_ADD_GROUP || room == CHAT_ADD_ALLGROUP) {
+		chat.room = "[Group]";
+		chat.totalLength += chat.room.length();
+		GroupChatDb.push_back(chat);
+		if (room == CHAT_ADD_ALLGROUP) {
+			AllChatDb.push_back(chat);
+		}
+	}
+}
+
 
 void InitChat() {
 
@@ -103,10 +140,10 @@ void connectChatGame(SceNetAdhocctlAdhocId *adhoc_id) {
 	lastgamecode = adhoc_id;
 	int sent = send(chatsocket, (char*)&packet, sizeof(packet), 0);
 	if (sent > 0) {
-		GameChatLog.push_back("Connected to game Lobby");
+		//GameChatLog.push_back("Connected to game Lobby");
 	}
 	else {
-		GameChatLog.push_back("Failed To Connect to game lobby");
+		cmList.Add("Failed To Join Adhoc Game", "", CHAT_ADD_ALLGROUP);
 	}
 }
 
@@ -125,14 +162,19 @@ void connectChatGroup(const char * groupname) {
 	if (sent > 0) {
 		info = "Connected to Group Lobby ";
 		info += replace.c_str();
-		GroupChatLog.push_back(info);
-		AllChatLog.push_back(info);
+		cmList.Add(info, "", CHAT_ADD_ALLGROUP);
 	}
 	else {
 		info = "Failed Connecting to Group Lobby ";
 		info += replace.c_str();
-		GroupChatLog.push_back(info);
-		AllChatLog.push_back(info);
+		cmList.Add(info, "", CHAT_ADD_ALLGROUP);
+	}
+
+	if (chatScreenVisible) {
+		updateChatScreen = true;
+	}
+	else {
+		updateChatOsm = true;
 	}
 	return;
 }
@@ -142,11 +184,18 @@ void disconnectChatGroup() {
 	packet.base.opcode = OPCODE_AMULTIOS_CHAT_DISCONNECT_GROUP;
 	int sent = send(chatsocket, (const char *)&packet, sizeof(packet), 0);
 	std::string info = "";
+	std::string replace = createVirtualGroup(lastgroupname);
+	info = "Disconnected from Group Lobby ";
+	info += replace.c_str();
 	if (sent > 0) {
-		GroupChatLog.push_back("Disconnected from group chat");
+		cmList.Add(info, "", CHAT_ADD_ALLGROUP);
+	}
+
+	if (chatScreenVisible) {
+		updateChatScreen = true;
 	}
 	else {
-		GroupChatLog.push_back("Failed Disconnected from group chat");
+		updateChatOsm = true;
 	}
 
 	return;
@@ -202,20 +251,15 @@ int ChatClient(int port) {
 				if (rxpos >= (int)sizeof(SceNetAdhocctlChatPacketS2C)) {
 					// Cast Packet
 					SceNetAdhocctlChatPacketS2C * packet = (SceNetAdhocctlChatPacketS2C *)rx;
-					// Add Incoming Chat to HUD
+					// Add Incoming Chat to HUD GROUP AND ALL
 					NOTICE_LOG(SCENET, "Received Group Chat message %s", packet->base.message);
-					incoming = "";
-					name = (char *)packet->name.data;
-					incoming.append(name.substr(0, 8));
-					incoming.append(": ");
-					incoming.append((char *)packet->base.message);
-					GroupChatLog.push_back(incoming);
-					AllChatLog.push_back("[Group] " + incoming);
+					cmList.Add((char *)packet->base.message, (char *)packet->name.data, CHAT_ADD_ALLGROUP);
 					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
 					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_GROUP || chatGuiStatus == CHAT_GUI_ALL) ) {
 						updateChatScreen = true;
 					}
 					else {
+						updateChatOsm = true;
 						if (GroupNewChat < 50) {
 							GroupNewChat += 1;
 							newChat += 1;
@@ -235,20 +279,14 @@ int ChatClient(int port) {
 				if (rxpos >= (int)sizeof(SceNetAdhocctlChatPacketS2C)) {
 					// Cast Packet
 					SceNetAdhocctlChatPacketS2C * packet = (SceNetAdhocctlChatPacketS2C *)rx;
-					// Add Incoming Chat to HUD
+					// Add Incoming Chat to HUD ALL
 					NOTICE_LOG(SCENET, "Received Global chat message %s", packet->base.message);
-					incoming = "";
-					name = (char *)packet->name.data;
-					incoming.append(name.substr(0, 8));
-					incoming.append(": ");
-					incoming.append((char *)packet->base.message);
-					GlobalChatLog.push_back(incoming);
-					AllChatLog.push_back(incoming);
-					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					if (chatScreenVisible &&( chatGuiStatus == CHAT_GUI_GLOBAL || chatGuiStatus == CHAT_GUI_ALL)) {
+					cmList.Add((char *)packet->base.message, (char *)packet->name.data, CHAT_ADD_ALL);
+					if (chatScreenVisible &&( chatGuiStatus == CHAT_GUI_SERVER || chatGuiStatus == CHAT_GUI_ALL)) {
 						updateChatScreen = true;
 					}
 					else {
+						updateChatOsm = true;
 						if (GlobalNewChat < 50) {
 							GlobalNewChat += 1;
 							newChat += 1;
@@ -268,20 +306,13 @@ int ChatClient(int port) {
 				if (rxpos >= (int)sizeof(SceNetAdhocctlChatPacketS2C)) {
 					// Cast Packet
 					SceNetAdhocctlChatPacketS2C * packet = (SceNetAdhocctlChatPacketS2C *)rx;
-					// Add Incoming Chat to HUD
+					// Should we make more room?
 					NOTICE_LOG(SCENET, "Received Game Chat message %s", packet->base.message);
-					incoming = "";
-					name = (char *)packet->name.data;
-					incoming.append(name.substr(0, 8));
-					incoming.append(": ");
-					incoming.append((char *)packet->base.message);
-					GameChatLog.push_back(incoming);
-					AllChatLog.push_back("[Game] "+incoming);
-					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
 					if (chatScreenVisible && chatGuiStatus == CHAT_GUI_GAME) {
 						updateChatScreen = true;
 					}
 					else {
+						updateChatOsm = true;
 						if (GameNewChat < 50) {
 							GameNewChat += 1;
 							newChat += 1;
@@ -308,9 +339,12 @@ int ChatClient(int port) {
 
 					// Fix RX Buffer Length
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
-					AllChatLog.push_back("Connected to Amultios Chat Server");
-					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_GLOBAL || chatGuiStatus == CHAT_GUI_ALL)) {
+					cmList.Add("Connected to Amultios Chat Server", "",CHAT_ADD_ALL);
+					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_SERVER || chatGuiStatus == CHAT_GUI_ALL)) {
 						updateChatScreen = true;
+					}
+					else {
+						updateChatOsm = true;
 					}
 				}
 			}
@@ -329,10 +363,13 @@ int ChatClient(int port) {
 
 					// Fix RX Buffer Length
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
-					std::string info = "Cannot Connect To Amultios Server Login Failed ";
-					AllChatLog.push_back(info);
-					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_GLOBAL || chatGuiStatus == CHAT_GUI_ALL)) {
+					cmList.Add("Cannot Connect To Amultios Server Login Failed", "", CHAT_ADD_ALL);
+					cmList.Add(packet->reason,"", CHAT_ADD_ALL);
+					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_SERVER || chatGuiStatus == CHAT_GUI_ALL)) {
 						updateChatScreen = true;
+					}
+					else {
+						updateChatOsm = true;
 					}
 					break;
 				}
@@ -363,22 +400,13 @@ int ChatClient(int port) {
 void Reconnect() {
 	//reconnect
 	if (chatclientstatus == CHAT_CLIENT_DISCONNECTED || chatclientstatus == CHAT_CLIENT_WAITING) {
-		std::string err = "Connection To Chat Server Lost Reconnecting..";
-		switch (chatGuiStatus) {
-		case CHAT_GUI_GROUP:
-			GroupChatLog.push_back(err);
-			break;
-		case CHAT_GUI_GAME:
-			GameChatLog.push_back(err);
-			break;
-		case CHAT_GUI_GLOBAL:
-			GlobalChatLog.push_back(err);
-		default:
-			AllChatLog.push_back(err);
-			break;
-		}
+		cmList.Add("Connection to Amultios Network Lost", "");
+		cmList.Add("Reconnect in Progress...", "");
 		if (chatScreenVisible) {
 			updateChatScreen = true;
+		}
+		else {
+			updateChatOsm = true;
 		}
 
 		// init only if disconnected (END OF Chat Client THREAD)
@@ -409,7 +437,7 @@ void sendChat(std::string chatString) {
 			case CHAT_GUI_GAME:
 				chat.base.opcode = OPCODE_GAME_CHAT;
 				break;
-			case CHAT_GUI_GLOBAL:
+			case CHAT_GUI_SERVER:
 				chat.base.opcode = OPCODE_GLOBAL_CHAT;
 			default :
 				chat.base.opcode = OPCODE_GLOBAL_CHAT;
@@ -419,9 +447,9 @@ void sendChat(std::string chatString) {
 		// Send Chat to Server 
 		if (!chatString.empty()) {
 			//maximum char allowed is 64 character for compability with original server (pro.coldbird.net)
-			message = chatString.substr(0, 63);
+			std::string message = chatString.substr(0, 63);
 			//Send Chat Messages
-			name = g_Config.sNickName.c_str();
+			std::string name = g_Config.sNickName.c_str();
 			NOTICE_LOG(SCENET, "Send Chat %s to Adhoc Server", chat.message);
 			int chatResult;
 			switch (chatGuiStatus) {
@@ -434,14 +462,14 @@ void sendChat(std::string chatString) {
 						ERROR_LOG(SCENET, "Socket error (%i) when sending", error);
 					}
 					else {
-						GroupChatLog.push_back(name.substr(0, 8) + ": " + chat.message);
-						AllChatLog.push_back("[Group] " + name.substr(0, 8) + ": " + chat.message);
+						cmList.Add(message, name, CHAT_ADD_ALLGROUP);
 					}
 				}
 				else {
-					GroupChatLog.push_back("Group Not Available, please go to adhoc lobby or gathering hall");
+					cmList.Add("Group Not Available, please go to adhoc lobby or gathering hall", "", CHAT_ADD_GROUP);
 				}
 				break;
+			/*
 			case CHAT_GUI_GAME:
 				if (friendFinderRunning) {
 					strcpy(chat.message, message.c_str());
@@ -451,15 +479,16 @@ void sendChat(std::string chatString) {
 						ERROR_LOG(SCENET, "Socket error (%i) when sending", error);
 					}
 					else {
-						GameChatLog.push_back(name.substr(0, 8) + ": " + chat.message);
-						AllChatLog.push_back("[Game] " + name.substr(0, 8) + ": " + chat.message);
+						//GameChatLog.push_back(name.substr(0, 8) + ": " + chat.message);
+						//AllChatLog.push_back("[Game] " + name.substr(0, 8) + ": " + chat.message);
 					}
 				}
 				else {
-					GameChatLog.push_back("Game Lobby Not Available, please go to adhoc lobby or gathering hall");
+					//GameChatLog.push_back("Game Lobby Not Available, please go to adhoc lobby or gathering hall");
 				}
 				break;
-			case CHAT_GUI_GLOBAL:
+
+			case CHAT_GUI_SERVER:
 				strcpy(chat.message, message.c_str());
 				chatResult = send(chatsocket, (const char *)&chat, sizeof(chat), 0);
 				if (chatResult == SOCKET_ERROR) {
@@ -467,10 +496,10 @@ void sendChat(std::string chatString) {
 					ERROR_LOG(SCENET, "Socket error (%i) when sending", error);
 				}
 				else {
-					GlobalChatLog.push_back(name.substr(0, 8) + ": " + chat.message);
 					AllChatLog.push_back(name.substr(0, 8) + ": " + chat.message);
 				}
 				break;
+			*/
 			case CHAT_GUI_ALL:
 				bool toGroup = false;
 				std::string command = message.substr(0, 6);
@@ -481,10 +510,7 @@ void sendChat(std::string chatString) {
 						message = message.erase(0, 6);
 					}
 					else {
-						AllChatLog.push_back("Group Not Available, please go to adhoc lobby or gathering hall");
-						if (chatScreenVisible) {
-							updateChatScreen = true;
-						}
+						cmList.Add("Group Not Available, please go to adhoc lobby or gathering hall", "", CHAT_ADD_ALL);
 						return;
 					}
 				}
@@ -496,12 +522,10 @@ void sendChat(std::string chatString) {
 				}
 				else {
 					if (toGroup) {
-						GroupChatLog.push_back(name.substr(0, 8) + ": " + chat.message);
-						AllChatLog.push_back("[Group] " + name.substr(0, 8) + ": " + chat.message);
+						cmList.Add(message, name, CHAT_ADD_ALLGROUP);
 					}
 					else {
-						GlobalChatLog.push_back(name.substr(0, 8) + ": " + chat.message);
-						AllChatLog.push_back(name.substr(0, 8) + ": " + chat.message);
+						cmList.Add(message, name, CHAT_ADD_ALL);
 					}
 
 				}
@@ -515,41 +539,6 @@ void sendChat(std::string chatString) {
 		}
 	}
 }
-
-std::vector<std::string> getChatLog() {
-	// this log used by chat screen
-
-	switch (chatGuiStatus) {
-	case CHAT_GUI_GROUP:
-		if (GroupChatLog.size() > 50) {
-			GroupChatLog.erase(GroupChatLog.begin(), GroupChatLog.begin() + 40);
-		}
-		return GroupChatLog;
-		break;
-	case CHAT_GUI_GAME:
-		if (GameChatLog.size() > 50) {
-			//erase the first 40 element limit the chatlog size
-			GameChatLog.erase(GameChatLog.begin(), GameChatLog.begin() + 40);
-		}
-		return GameChatLog;
-		break;
-	case CHAT_GUI_GLOBAL:
-		if (GlobalChatLog.size() > 50) {
-			//erase the first 40 element limit the chatlog size
-			GlobalChatLog.erase(GlobalChatLog.begin(), GlobalChatLog.begin() + 40);
-		}
-		return GlobalChatLog;
-		break;
-	case CHAT_GUI_ALL:
-		if (AllChatLog.size() > 50) {
-			//erase the first 40 element limit the chatlog size
-			AllChatLog.erase(AllChatLog.begin(), AllChatLog.begin() + 40);
-		}
-		return AllChatLog;
-		break;
-	}
-}
-
 
 std::string createVirtualGroup(const char * groupname) {
 	std::string virtgroupname = "";
@@ -617,31 +606,27 @@ void TerminateChat() {
 
 // used by UI
 
-std::vector<std::string> Split(const std::string& str)
-{
+std::vector<std::string> Split(const std::string& text, const std::string& name, const std::string& group)
+{	
 	std::vector<std::string> ret;
-	int counter = 0;
-	int firstSentenceEnd = 0;
-	int secondSentenceEnd = 0;
-	int spliton = 45;
 
-	for (auto i = 0; i<str.length(); i++) {
-		if (isspace(str[i])) {
-			if (i < spliton) {
-				if (str[i - 1] != ':')
-					firstSentenceEnd = i + 1;
-			}
-			else if (i > spliton) {
-				firstSentenceEnd = spliton;
+	size_t spliton = size_t(40) - group.length();
+	size_t firstSentenceEnd = size_t(0);
+
+	for (auto i = 0; i<text.length(); i++) {
+		if (isspace(text[i])) {
+			if (i>= 10 && i <= spliton) {
+				firstSentenceEnd = i+1;
 			}
 		}
 	}
 
-	if (firstSentenceEnd == 0) {
+	if (firstSentenceEnd == 0 && spliton < text.length()) {
 		firstSentenceEnd = spliton;
 	}
-	ret.push_back(str.substr(0, firstSentenceEnd));
-	ret.push_back(str.substr(firstSentenceEnd));
+
+	ret.push_back(text.substr(0, firstSentenceEnd));
+	ret.push_back(text.substr(firstSentenceEnd));
 	return ret;
 }
 
@@ -652,5 +637,11 @@ bool isPlayer(std::string pname, std::string logname) {
 	if (logname.length() >= 16 && pname == logname.substr(8, 16)) return true;
 	if (logname.length() >= 15 && pname == logname.substr(7, 15)) return true;
 
+	return false;
+}
+
+bool isPlayerGM(std::string pname) {
+
+	if (pname == "Lucis" || pname== "tintin" || pname == "adenovan" || pname == "Amultios") return true;
 	return false;
 }

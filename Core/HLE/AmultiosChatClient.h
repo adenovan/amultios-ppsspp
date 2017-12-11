@@ -11,7 +11,71 @@
 #define OPCODE_AMULTIOS_CHAT_DISCONNECT_GROUP 16
 #define OPCODE_GAME_CHAT 17
 
+
+// CLIENT HEADER
+
+#define CHAT_CLIENT_WAITING 0
+#define CHAT_CLIENT_CONNECTED 1
+#define CHAT_CLIENT_DISCONNECTED 2
+
+#define CHAT_GUI_ALL 0
+#define CHAT_GUI_GROUP 1
+#define CHAT_GUI_GAME 2
+#define CHAT_GUI_SERVER 3
+
+#define CHAT_ADD_ALL 0
+#define CHAT_ADD_GROUP 1
+#define CHAT_ADD_GAME 2
+#define CHAT_ADD_SERVER 3
+#define CHAT_ADD_ALLGROUP 4
 //server name + group name to make virtual room
+
+class ChatMessages {
+public:
+	struct ChatMessage {
+		std::string name;
+		std::string room;
+		std::string text;
+		uint32_t namecolor;
+		uint32_t roomcolor;
+		uint32_t textcolor;
+		size_t totalLength;
+	};
+	
+	void Lock() {
+		chatmutex_.lock();
+	}
+
+	void Unlock() {
+		chatmutex_.unlock();
+	}
+
+	void Add(const std::string &text, const std::string &name,int room = 0, uint32_t namecolor = 0xF6B629);
+	const std::list<ChatMessage> &Messages(int chatGuiStatus) {
+		if (chatGuiStatus == CHAT_GUI_GROUP) {
+			if (GroupChatDb.size() > 50) {
+				std::list<ChatMessage>::iterator itEnd;
+				itEnd = GroupChatDb.begin();
+				advance(itEnd, 39);
+				GroupChatDb.erase(GroupChatDb.begin(), itEnd);
+			}
+			return GroupChatDb;
+		}
+		if (AllChatDb.size() > 50) {
+			std::list<ChatMessage>::iterator itEnd;
+			itEnd = AllChatDb.begin();
+			advance(itEnd, 39);
+			AllChatDb.erase(AllChatDb.begin(),itEnd);
+		}
+		return AllChatDb;
+	}
+private:
+	std::list<ChatMessage> GroupChatDb;
+	std::list<ChatMessage> AllChatDb;
+	std::mutex chatmutex_;
+};
+
+
 
 typedef struct ChatGroupName {
 	uint8_t data[CHAT_GROUPNAME_LENGTH];
@@ -46,16 +110,6 @@ typedef struct {
 } PACK ChatDisconnectPacketC2S;
 
 
-// CLIENT HEADER
-
-#define CHAT_CLIENT_WAITING 0
-#define CHAT_CLIENT_CONNECTED 1
-#define CHAT_CLIENT_DISCONNECTED 2
-
-#define CHAT_GUI_GLOBAL 0
-#define CHAT_GUI_GROUP 1
-#define CHAT_GUI_GAME 2
-#define CHAT_GUI_ALL 3
 
 extern int chatsocket;
 extern std::thread ChatClientThread;
@@ -65,9 +119,9 @@ void sendChat(std::string chatString);
 void connectChatGame(SceNetAdhocctlAdhocId *adhoc_id);
 void connectChatGroup(const char * groupname);
 void disconnectChatGroup();
-std::vector<std::string> getChatLog();
 extern bool chatScreenVisible;
 extern bool updateChatScreen;
+extern bool updateChatOsm;
 extern int newChat;
 extern int chatGuiStatus;
 void InitChat();
@@ -77,8 +131,6 @@ extern void getServerName(char * servername);
 int ChatClient(int port);
 void Reconnect();
 
-extern std::vector<std::string> GroupChatLog;
-extern std::vector<std::string> AllChatLog;
+std::vector<std::string> Split(const std::string& text, const std::string& name, const std::string&group);
 
-std::vector<std::string> Split(const std::string& str);
-bool isPlayer(std::string pname, std::string logname);
+extern ChatMessages cmList;

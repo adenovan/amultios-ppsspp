@@ -77,6 +77,8 @@
 #include "UI/ChatScreen.h"
 #include "UI/ChatOnScreen.h"
 
+
+
 #if defined(_WIN32) && !PPSSPP_PLATFORM(UWP)
 #include "Windows/MainWindow.h"
 #endif
@@ -89,6 +91,9 @@ static AVIDump avi;
 #endif
 
 UI::ChoiceWithValueDisplay *chatButtons;
+UI::ViewGroup *chatBox;
+float lastChatUpdate;
+
 
 static bool frameStep_;
 static int lastNumFlips;
@@ -399,14 +404,14 @@ void EmuScreen::sendMessage(const char *message, const char *value) {
 		if (g_Config.bBypassOSKWithKeyboard) {
 			osm.Show("Disable windows native keyboard options to use ctrl + c hotkey", 2.0f);
 		} else {
-			if (g_Config.bEnableNetworkChat) {
+			if (g_Config.bEnableNetworkChat && !chatScreenVisible) {
 				releaseButtons();
 				UI::EventParams e{};
 				OnChatMenu.Trigger(e);
 			}
 		}
 #else
-		if (g_Config.bEnableNetworkChat) {
+		if (g_Config.bEnableNetworkChat && !chatScreenVisible) {
 			releaseButtons();
 			UI::EventParams e{};
 			OnChatMenu.Trigger(e);
@@ -852,43 +857,77 @@ void EmuScreen::CreateViews() {
 	if (g_Config.bShowDeveloperMenu) {
 		root_->Add(new Button(dev->T("DevMenu")))->OnClick.Handle(this, &EmuScreen::OnDevTools);
 	}
-	if (g_Config.bEnableNetworkChat) {
 
-		switch (g_Config.iChatButtonPosition) {
+	if (g_Config.bEnableNetworkChat) {
+		const int cy = 290;
+		const int cx = 200;
+		const int ChatScreenWidth = 550;
+		const int ChatScreenHeight = 360;
+		switch (g_Config.iChatScreenPosition) {
+			// the chat screen size is still static 280,250 need a dynamic size based on device resolution 
 		case 0:
-			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, NONE, NONE, 50, true));
+			chatBox = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth, ChatScreenHeight, cy, NONE, NONE, cx, true));
 			break;
 		case 1:
-			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, bounds.centerX(), NONE, NONE, 50, true));
+			chatBox = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth, ChatScreenHeight, bounds.centerX(), NONE, NONE, cx, true));
 			break;
 		case 2:
-			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, NONE, NONE, 80, 50, true));
+			chatBox = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth, ChatScreenHeight, NONE, NONE, cy, cx, true));
 			break;
 		case 3:
-			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, 50, NONE, NONE, true));
+			chatBox = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth, ChatScreenHeight, cy, cx, NONE, NONE, true));
 			break;
 		case 4:
-			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, bounds.centerX(), 50, NONE, NONE, true));
+			chatBox = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth, ChatScreenHeight, bounds.centerX(), cx, NONE, NONE, true));
 			break;
 		case 5:
-			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, NONE, 50, 80, NONE, true));
-			break;
-		case 6:
-			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, bounds.centerY(), NONE, NONE, true));
-			break;
-		case 7:
-			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, NONE, bounds.centerY(), 80, NONE, true));
-			break;
-		default:
-			chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, NONE, NONE, 50, true));
+			chatBox = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth, ChatScreenHeight, NONE, cx, cy, NONE, true));
 			break;
 		}
+		chatBox->SetBG(UI::Drawable(0x00303030));
+		chatBox->SetHasDropShadow(false);
+		chatOsm = chatBox->Add(new LinearLayout(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
+		chatOsm->SetSpacing(0);
+		root_->Add(chatBox);
 
-		root_->Add(chatButtons)->OnClick.Handle(this, &EmuScreen::OnChat);
+		if (g_Config.bEnableChatButtons) {
+			switch (g_Config.iChatButtonPosition) {
+			case 0:
+				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, NONE, NONE, 50, true));
+				break;
+			case 1:
+				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, bounds.centerX(), NONE, NONE, 50, true));
+				break;
+			case 2:
+				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, NONE, NONE, 80, 50, true));
+				break;
+			case 3:
+				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, 50, NONE, NONE, true));
+				break;
+			case 4:
+				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, bounds.centerX(), 50, NONE, NONE, true));
+				break;
+			case 5:
+				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, NONE, 50, 80, NONE, true));
+				break;
+			case 6:
+				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, bounds.centerY(), NONE, NONE, true));
+				break;
+			case 7:
+				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, NONE, bounds.centerY(), 80, NONE, true));
+				break;
+			default:
+				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, NONE, NONE, 50, true));
+				break;
+			}
+
+			root_->Add(chatButtons)->OnClick.Handle(this, &EmuScreen::OnChat);
+		}
+
+		
 	}
-	root_->Add(new ChatOnScreen(new AnchorLayoutParams((Size)bounds.w, (Size)bounds.h)));
+	
 	root_->Add(new OnScreenMessagesView(new AnchorLayoutParams((Size)bounds.w, (Size)bounds.h)));
-
 	//loadingView_ = new TextView(sc->T("Loading game..."), new AnchorLayoutParams(bounds.centerX(), bounds.centerY(), NONE, NONE, true));
 	//root_->Add(loadingView_);
 
@@ -909,7 +948,10 @@ UI::EventReturn EmuScreen::OnDevTools(UI::EventParams &params) {
 
 UI::EventReturn EmuScreen::OnChat(UI::EventParams &params) {
 	releaseButtons();
-	if(chatButtons->GetVisibility() == UI::V_VISIBLE) chatButtons->SetVisibility(UI::V_GONE);
+	if (chatBox->GetVisibility() == UI::V_VISIBLE) chatBox->SetVisibility(UI::V_INVISIBLE);
+	if (g_Config.bEnableChatButtons) {
+		if (chatButtons->GetVisibility() == UI::V_VISIBLE) chatButtons->SetVisibility(UI::V_GONE);
+	}
 	screenManager()->push(new ChatScreen());
 	return UI::EVENT_DONE;
 }
@@ -973,7 +1015,25 @@ void EmuScreen::update() {
 		screenManager()->push(new GamePauseScreen(gamePath_));
 	}
 
-	if (saveStatePreview_ && !bootPending_) {
+
+	if (!chatScreenVisible && g_Config.bEnableNetworkChat) {
+		// update chat osm
+		if (updateChatOsm) {
+			if (chatBox->GetVisibility() == UI::V_INVISIBLE) chatBox->SetVisibility(UI::V_VISIBLE);
+			lastChatUpdate = time_now();
+			updateChatView();
+			updateChatOsm = false;
+		}
+
+		const float now = time_now();
+		const float hidden = lastChatUpdate + 6;
+		//NOTICE_LOG(BOOT, "Time Elapsed %f now %f delta %f", hidden, now);
+		if (hidden < now) {
+			if (chatBox->GetVisibility() == UI::V_VISIBLE) chatBox->SetVisibility(UI::V_INVISIBLE);
+		}
+	}
+
+	/*if (saveStatePreview_ && !bootPending_) {
 		int currentSlot = SaveState::GetCurrentSlot();
 		if (saveStateSlot_ != currentSlot) {
 			saveStateSlot_ = currentSlot;
@@ -1001,7 +1061,7 @@ void EmuScreen::update() {
 				saveStatePreview_->SetVisibility(UI::V_GONE);
 			}
 		}
-	}
+	}*/
 
 }
 
@@ -1014,6 +1074,75 @@ void EmuScreen::checkPowerDown() {
 		screenManager()->switchScreen(new MainScreen());
 		bootPending_ = false;
 		invalid_ = true;
+	}
+}
+
+void EmuScreen::updateChatView() {
+	using namespace UI;
+
+
+	if (chatOsm != nullptr) {
+		chatOsm->Clear();
+		cmList.Lock();
+		const std::list<ChatMessages::ChatMessage> &messages = cmList.Messages(chatGuiStatus);
+
+		std::list<ChatMessages::ChatMessage>::const_iterator iter;
+		iter = messages.begin();
+		int get = 10;
+		if (g_Config.bEnableQuickChat) {
+			get = 8;
+		}
+
+		if (messages.size() > get) {
+			const int pos = messages.size() - get;
+			advance(iter, pos);
+		}
+
+		for (iter; iter != messages.end(); ++iter) {
+			if (iter->name == "") {
+				TextView *v = chatOsm->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
+				v->SetTextColor(0xFF000000 | iter->textcolor);
+				v->SetShadow(true);
+			}
+			else {
+				LinearLayout *line = chatOsm->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, FILL_PARENT)));
+				if (chatGuiStatus == CHAT_GUI_ALL) {
+					if (iter->room != "") {
+						TextView *GroupView = line->Add(new TextView(iter->room, FLAG_DYNAMIC_ASCII, true));
+						GroupView->SetTextColor(0xFF000000 | iter->roomcolor);
+						GroupView->SetShadow(true);
+					}
+
+					TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
+					nameView->SetTextColor(0xFF000000 | iter->namecolor);
+					nameView->SetShadow(true);
+				}
+				else {
+					TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
+					nameView->SetTextColor(0xFF000000 | iter->namecolor);
+					nameView->SetShadow(true);
+				}
+
+				if (iter->totalLength > 60) {
+					std::vector<std::string> splitted = Split(iter->text, iter->name, iter->room);
+					std::string one = splitted[0];
+					std::string two = splitted[1];
+					TextView *oneview = line->Add(new TextView(one, FLAG_DYNAMIC_ASCII, true));
+					oneview->SetTextColor(0xFF000000 | iter->textcolor);
+					oneview->SetShadow(true);
+					TextView *twoview = chatOsm->Add(new TextView(two, FLAG_DYNAMIC_ASCII, true));
+					twoview->SetTextColor(0xFF000000 | iter->textcolor);
+					twoview->SetShadow(true);
+					++iter;
+				}
+				else {
+					TextView *chatView = line->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
+					chatView->SetTextColor(0xFF000000 | iter->textcolor);
+					chatView->SetShadow(true);
+				}
+			}
+		}
+		cmList.Unlock();
 	}
 }
 
@@ -1191,6 +1320,7 @@ void EmuScreen::render() {
 #endif
 	}
 	*/
+		
 }
 
 void EmuScreen::renderUI() {

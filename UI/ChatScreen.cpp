@@ -157,7 +157,7 @@ UI::EventReturn ChatScreen::OnQuickChat5(UI::EventParams &e) {
 UI::EventReturn ChatScreen::OnChangeChannel(UI::EventParams &params) {
 
 	chatGuiIndex += 1;
-	if (chatGuiIndex >= 3) {
+	if (chatGuiIndex >= 2) {
 		chatGuiIndex = 0;
 	}
 
@@ -168,13 +168,13 @@ UI::EventReturn ChatScreen::OnChangeChannel(UI::EventParams &params) {
 		chatGuiStatus = CHAT_GUI_ALL;
 		break;
 	case 1:
-		chatTo = "Server";
-		chatGuiStatus = CHAT_GUI_GLOBAL;
-		break;
-	case 2:
 		chatTo = "Group";
 		chatGuiStatus = CHAT_GUI_GROUP;
 		break;
+	//case 2:
+		//chatTo = "Server";
+		//chatGuiStatus = CHAT_GUI_SERVER;
+		//break;
 	//case 3:
 		//chatTo = "Game";
 		//chatGuiStatus = CHAT_GUI_GAME;
@@ -199,54 +199,52 @@ void ChatScreen::UpdateChat() {
 	using namespace UI;
 	
 	if (chatVert_ != NULL) {
-		chatVert_->Clear(); 
-		std::vector<std::string> chatLog = getChatLog();
-		for (auto i : chatLog) {
-			//split long text
-			uint32_t namecolor = 0xF6B629;
-			uint32_t textcolor = 0xFFFFFF;
-			uint32_t infocolor = 0x35D8FD;
-
-			std::string name = g_Config.sNickName.c_str();
-			std::string displayname = i.substr(0, i.find(':'));
-			std::string chattext = i.substr(displayname.length());
-			
-			if (isPlayer(name.substr(0,8),displayname)) {
-				namecolor = 0x3539E5;
-			}
-
-			if (i[displayname.length()] != ':') {
-				TextView *v = chatVert_->Add(new TextView(i, FLAG_DYNAMIC_ASCII, true));
-				v->SetTextColor(0xFF000000 | infocolor);
+		chatVert_->Clear();
+		cmList.Lock();
+		const std::list<ChatMessages::ChatMessage> &messages = cmList.Messages(chatGuiStatus);
+		for (auto iter = messages.begin(); iter != messages.end(); ++iter) {
+			if (iter->name == "") {
+				TextView *v = chatVert_->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
+				v->SetTextColor(0xFF000000 | iter->textcolor);
+				v->SetShadow(true);
 			}
 			else {
 				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, FILL_PARENT)));
-				if (chatGuiStatus == CHAT_GUI_ALL && displayname.substr(0, 8) == "[Group] ") {
-					TextView *GroupView = line->Add(new TextView(displayname.substr(0,7), FLAG_DYNAMIC_ASCII, true));
-					GroupView->SetTextColor(0xFF000000 | infocolor);
-					TextView *nameView = line->Add(new TextView(displayname.substr(8,displayname.length()), FLAG_DYNAMIC_ASCII, true));
-					nameView->SetTextColor(0xFF000000 | namecolor);
+				if (chatGuiStatus == CHAT_GUI_ALL) {
+					if (iter->room != "") {
+						TextView *GroupView = line->Add(new TextView(iter->room, FLAG_DYNAMIC_ASCII, true));
+						GroupView->SetTextColor(0xFF000000 | iter->roomcolor);
+						GroupView->SetShadow(true);
+					}
+					TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
+					nameView->SetTextColor(0xFF000000 | iter->namecolor);
+					nameView->SetShadow(true);
 				}
 				else {
-					TextView *nameView = line->Add(new TextView(displayname, FLAG_DYNAMIC_ASCII, true));
-					nameView->SetTextColor(0xFF000000 | namecolor);
+					TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
+					nameView->SetTextColor(0xFF000000 | iter->namecolor);
+					nameView->SetShadow(true);
 				}
 
-				if (chattext.length() > 45) {
-					std::vector<std::string> splitted = Split(chattext);
+				if (iter->totalLength > 60) {
+					std::vector<std::string> splitted = Split(iter->text, iter->name,iter->room);
 					std::string one = splitted[0];
 					std::string two = splitted[1];
 					TextView *oneview = line->Add(new TextView(one, FLAG_DYNAMIC_ASCII, true));
-					oneview->SetTextColor(0xFF000000 | textcolor);
+					oneview->SetTextColor(0xFF000000 | iter->textcolor);
+					oneview->SetShadow(true);
 					TextView *twoview = chatVert_->Add(new TextView(two, FLAG_DYNAMIC_ASCII, true));
-					twoview->SetTextColor(0xFF000000 | textcolor);
+					twoview->SetTextColor(0xFF000000 | iter->textcolor);
+					twoview->SetShadow(true);
 				}
 				else {
-					TextView *chatView = line->Add(new TextView(chattext, FLAG_DYNAMIC_ASCII, true));
-					chatView->SetTextColor(0xFF000000 | textcolor);
+					TextView *chatView = line->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
+					chatView->SetTextColor(0xFF000000 | iter->textcolor);
+					chatView->SetShadow(true);
 				}
 			}
 		}
+		cmList.Unlock();
 		toBottom_ = true;
 	}
 	

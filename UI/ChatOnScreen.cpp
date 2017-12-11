@@ -7,7 +7,3 @@
 #include "Core/HLE/AmultiosChatClient.h"
 #include "i18n/i18n.h"
 #include "ChatOnScreen.h"
-
-void ChatOnScreen::Update() {
-
-}

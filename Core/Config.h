@@ -447,6 +447,7 @@ public:
 	int iWlanAdhocChannel;
 	bool bWlanPowerSave;
 	bool bEnableNetworkChat;
+	bool bEnableChatButtons;
 	//for chat position , moveable buttons is better than this 
 	int iChatButtonPosition;
 	int iChatScreenPosition;

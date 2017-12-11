@@ -352,7 +352,7 @@ static ConfigSetting generalSettings[] = {
 	ConfigSetting("ForceLagSync", &g_Config.bForceLagSync, false, true, true),
 
 	ReportedConfigSetting("NumWorkerThreads", &g_Config.iNumWorkerThreads, &DefaultNumWorkers, true, true),
-	ConfigSetting("EnableAutoLoad", &g_Config.bEnableAutoLoad, false, true, true),
+	//ConfigSetting("EnableAutoLoad", &g_Config.bEnableAutoLoad, false, true, true),
 	//ReportedConfigSetting("EnableCheats", &g_Config.bEnableCheats, false, true, true),
 	//ConfigSetting("CwCheatRefreshRate", &g_Config.iCwCheatRefreshRate, 77, true, true),
 
@@ -715,9 +715,10 @@ static ConfigSetting networkSettings[] = {
 	ConfigSetting("ServerChannel",&g_Config.iServerChannel,CHANNEL_1,true,true),
 	ConfigSetting("AmultiosPin",&g_Config.sAmultiosPin,"012345",true,true),
 	ConfigSetting("EnableNetworkChat", &g_Config.bEnableNetworkChat, true, true, true),
+	ConfigSetting("EnableChatButtons", &g_Config.bEnableChatButtons, false, true, true),
 	ConfigSetting("ChatButtonPosition",&g_Config.iChatButtonPosition,BOTTOM_LEFT,true,true),
 	ConfigSetting("ChatScreenPosition",&g_Config.iChatScreenPosition,BOTTOM_LEFT,true,true),
-	ConfigSetting("EnableQuickChat", &g_Config.bEnableQuickChat, true, true, true),
+	ConfigSetting("EnableQuickChat", &g_Config.bEnableQuickChat, false, true, true),
 	ConfigSetting("QuickChat1", &g_Config.sQuickChat0, "Quick Chat 1", true, true),
 	ConfigSetting("QuickChat2", &g_Config.sQuickChat1, "Quick Chat 2", true, true),
 	ConfigSetting("QuickChat3", &g_Config.sQuickChat2, "Quick Chat 3", true, true),

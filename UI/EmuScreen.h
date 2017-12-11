@@ -99,7 +99,10 @@ private:
 	AsyncImageFileView *saveStatePreview_;
 	int saveStateSlot_;
 
+	void updateChatView();
+
 	UI::View *loadingView_ = nullptr;
+	UI::LinearLayout *chatOsm = nullptr;
 	UI::TextColorTween *loadingViewColor_ = nullptr;
 	UI::VisibilityTween *loadingViewVisible_ = nullptr;
 };

@@ -1086,16 +1086,22 @@ int friendFinder(){
 
 					// Add User
 					addFriend(packet);
-
 					std::string incoming = "";
 					std::string name = (char *)packet->name.data;
 					incoming.append(name);
 					incoming.append(" Joined ");
-					GroupChatLog.push_back(incoming);
-					AllChatLog.push_back(incoming);
+
+					cmList.Add(incoming, "", CHAT_ADD_ALLGROUP);
+
 					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					if (chatScreenVisible && chatGuiStatus == CHAT_GUI_GROUP) {
-						updateChatScreen = true;
+					if (chatGuiStatus == CHAT_GUI_GROUP || chatGuiStatus == CHAT_GUI_ALL) {
+						if (chatScreenVisible) {
+							updateChatScreen = true;
+						}
+						else {
+							updateChatOsm = true;
+						}
+
 					}
 					// Update HUD User Count
 #ifdef LOCALHOST_AS_PEER
@@ -1122,7 +1128,6 @@ int friendFinder(){
 
 					// Cast Packet
 					SceNetAdhocctlDisconnectPacketS2C * packet = (SceNetAdhocctlDisconnectPacketS2C *)rx;
-	
 					// Delete User by IP, should delete by MAC since IP can be shared (behind NAT) isn't?
 					deleteFriendByIP(packet->ip);
 

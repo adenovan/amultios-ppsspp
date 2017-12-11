@@ -147,123 +147,6 @@
     <ClCompile Include="FileSystems\MetaFileSystem.cpp">
       <Filter>FileSystems</Filter>
     </ClCompile>
-    <ClCompile Include="HLE\HLE.cpp">
-      <Filter>HLE</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\HLETables.cpp">
-      <Filter>HLE</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernel.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelEventFlag.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelInterrupt.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelMemory.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelModule.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelSemaphore.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelThread.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelTime.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelMutex.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceAdler.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceAtrac.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceAudio.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceAudiocodec.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceAudioRouting.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceCcc.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceCtrl.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceDisplay.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceDmac.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceG729.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceGe.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceHprm.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceHttp.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceIo.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceJpeg.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceMpeg.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceMd5.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceMp4.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceP3da.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceMt19937.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceGameUpdate.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceNet.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\scePower.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceRtc.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceSas.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceUmd.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceUtility.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\scePsmf.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
     <ClCompile Include="Util\BlockAllocator.cpp">
       <Filter>Util</Filter>
     </ClCompile>
@@ -297,21 +180,6 @@
     <ClCompile Include="System.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="HLE\__sceAudio.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelMsgPipe.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelMbx.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelVTimer.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceKernelAlarm.cpp">
-      <Filter>HLE\Kernel</Filter>
-    </ClCompile>
     <ClCompile Include="Config.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -320,9 +188,6 @@
     </ClCompile>
     <ClCompile Include="HW\MemoryStick.cpp">
       <Filter>HW</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceImpose.cpp">
-      <Filter>HLE\Libraries</Filter>
     </ClCompile>
     <ClCompile Include="HW\MediaEngine.cpp">
       <Filter>HW</Filter>
@@ -336,26 +201,8 @@
     <ClCompile Include="Util\ppge_atlas.cpp">
       <Filter>Util</Filter>
     </ClCompile>
-    <ClCompile Include="HLE\sceFont.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
     <ClCompile Include="ELF\ParamSFO.cpp">
       <Filter>ELF</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceOpenPSID.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceParseUri.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceSsl.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceParseHttp.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceVaudio.cpp">
-      <Filter>HLE\Libraries</Filter>
     </ClCompile>
     <ClCompile Include="Dialog\PSPDialog.cpp">
       <Filter>Dialog</Filter>
@@ -380,9 +227,6 @@
     </ClCompile>
     <ClCompile Include="HW\SasAudio.cpp">
       <Filter>HW</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceUsb.cpp">
-      <Filter>HLE\Libraries</Filter>
     </ClCompile>
     <ClCompile Include="SaveState.cpp">
       <Filter>Core</Filter>
@@ -442,29 +286,11 @@
     <ClCompile Include="Reporting.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="HLE\scePspNpDrm_user.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceChnnlsv.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceDeflt.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
     <ClCompile Include="ELF\PBPReader.cpp">
       <Filter>ELF</Filter>
     </ClCompile>
-    <ClCompile Include="HLE\scePauth.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceNp.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
     <ClCompile Include="FileSystems\tlzrc.cpp">
       <Filter>FileSystems</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceMp3.cpp">
-      <Filter>HLE\Libraries</Filter>
     </ClCompile>
     <ClCompile Include="MIPS\JitCommon\JitBlockCache.cpp">
       <Filter>MIPS\JitCommon</Filter>
@@ -490,12 +316,6 @@
     <ClCompile Include="..\ext\xxhash.c">
       <Filter>Ext</Filter>
     </ClCompile>
-    <ClCompile Include="HLE\sceHeap.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceNetAdhoc.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
     <ClCompile Include="Dialog\PSPGamedataInstallDialog.cpp">
       <Filter>Dialog</Filter>
     </ClCompile>
@@ -505,14 +325,8 @@
     <ClCompile Include="Debugger\DisassemblyManager.cpp">
       <Filter>Debugger</Filter>
     </ClCompile>
-    <ClCompile Include="HLE\proAdhoc.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
     <ClCompile Include="Util\GameManager.cpp">
       <Filter>Util</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\ReplaceTables.cpp">
-      <Filter>HLE</Filter>
     </ClCompile>
     <ClCompile Include="MIPS\x86\CompReplace.cpp">
       <Filter>MIPS\x86</Filter>
@@ -525,15 +339,6 @@
     </ClCompile>
     <ClCompile Include="MIPS\x86\JitSafeMem.cpp">
       <Filter>MIPS\x86</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\HLEHelperThread.cpp">
-      <Filter>HLE</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceUsbGps.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\proAdhocServer.cpp">
-      <Filter>HLE\Libraries</Filter>
     </ClCompile>
     <ClCompile Include="..\ext\udis86\itab.c">
       <Filter>Ext\udis86</Filter>
@@ -553,9 +358,6 @@
     <ClCompile Include="..\ext\udis86\decode.c">
       <Filter>Ext\udis86</Filter>
     </ClCompile>
-    <ClCompile Include="HLE\sceSha256.cpp">
-      <Filter>HLE\Libraries</Filter>
-    </ClCompile>
     <ClCompile Include="Util\AudioFormatNEON.cpp">
       <Filter>Util</Filter>
     </ClCompile>
@@ -564,9 +366,6 @@
     </ClCompile>
     <ClCompile Include="..\ext\sfmt19937\SFMT.c">
       <Filter>Ext\sfmt19937</Filter>
-    </ClCompile>
-    <ClCompile Include="HLE\sceSfmt19937.cpp">
-      <Filter>HLE\Libraries</Filter>
     </ClCompile>
     <ClCompile Include="MIPS\ARM64\Arm64Asm.cpp">
       <Filter>MIPS\ARM64</Filter>
@@ -674,16 +473,217 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="WaveFile.cpp" />
+    <ClCompile Include="FileSystems\BlobFileSystem.cpp">
+      <Filter>FileSystems</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\__sceAudio.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\AmultiosChatClient.cpp" />
+    <ClCompile Include="HLE\HLE.cpp">
+      <Filter>HLE</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\HLEHelperThread.cpp">
+      <Filter>HLE</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\HLETables.cpp">
+      <Filter>HLE</Filter>
+    </ClCompile>
     <ClCompile Include="HLE\KUBridge.cpp">
       <Filter>HLE\Libraries</Filter>
     </ClCompile>
-    <ClCompile Include="FileSystems\BlobFileSystem.cpp">
-      <Filter>FileSystems</Filter>
+    <ClCompile Include="HLE\proAdhoc.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\proAdhocServer.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\ReplaceTables.cpp">
+      <Filter>HLE</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceAdler.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceAtrac.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceAudio.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceAudiocodec.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceAudioRouting.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceCcc.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceChnnlsv.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceCtrl.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceDeflt.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceDisplay.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceDmac.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceFont.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceG729.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceGameUpdate.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceGe.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceHeap.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceHprm.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceHttp.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceImpose.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceIo.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceJpeg.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernel.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelAlarm.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelEventFlag.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelInterrupt.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelMbx.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelMemory.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelModule.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelMsgPipe.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelMutex.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelSemaphore.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelThread.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelTime.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceKernelVTimer.cpp">
+      <Filter>HLE\Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceMd5.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceMp3.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceMp4.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceMpeg.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceMt19937.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceNet.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceNetAdhoc.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceNp.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceOpenPSID.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceP3da.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceParseHttp.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceParseUri.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\scePauth.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\scePower.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\scePsmf.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\scePspNpDrm_user.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceRtc.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceSas.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceSfmt19937.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceSha256.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceSsl.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceUmd.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceUsb.cpp">
+      <Filter>HLE\Libraries</Filter>
     </ClCompile>
     <ClCompile Include="HLE\sceUsbCam.cpp">
       <Filter>HLE\Libraries</Filter>
     </ClCompile>
-    <ClCompile Include="HLE\AmultiosChatClient.cpp" />
+    <ClCompile Include="HLE\sceUsbGps.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceUtility.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
+    <ClCompile Include="HLE\sceVaudio.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ELF\ElfReader.h">
@@ -746,126 +746,6 @@
     <ClInclude Include="FileSystems\MetaFileSystem.h">
       <Filter>FileSystems</Filter>
     </ClInclude>
-    <ClInclude Include="HLE\FunctionWrappers.h">
-      <Filter>HLE</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\HLE.h">
-      <Filter>HLE</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\HLETables.h">
-      <Filter>HLE</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernel.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelEventFlag.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelInterrupt.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelMemory.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelModule.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelSemaphore.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelThread.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelTime.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelMutex.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceAdler.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceAtrac.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceAudio.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceAudiocodec.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceAudioRouting.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceCcc.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceCtrl.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceDisplay.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceDmac.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceGe.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceHprm.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceHttp.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceIo.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceJpeg.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceMpeg.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceMd5.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceMp4.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceP3da.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceMt19937.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceG729.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceGameUpdate.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceNet.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\scePower.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceRtc.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceSas.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceUmd.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceUtility.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\scePsmf.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
     <ClInclude Include="Util\BlockAllocator.h">
       <Filter>Util</Filter>
     </ClInclude>
@@ -905,21 +785,6 @@
     <ClInclude Include="PSPLoaders.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="HLE\__sceAudio.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelMsgPipe.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelMbx.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelVTimer.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceKernelAlarm.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
     <ClInclude Include="Config.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -928,9 +793,6 @@
     </ClInclude>
     <ClInclude Include="HW\MemoryStick.h">
       <Filter>HW</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceImpose.h">
-      <Filter>HLE\Libraries</Filter>
     </ClInclude>
     <ClInclude Include="HW\MediaEngine.h">
       <Filter>HW</Filter>
@@ -944,26 +806,8 @@
     <ClInclude Include="Util\ppge_atlas.h">
       <Filter>Util</Filter>
     </ClInclude>
-    <ClInclude Include="HLE\sceFont.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
     <ClInclude Include="ELF\ParamSFO.h">
       <Filter>ELF</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceOpenPSID.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceParseUri.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceSsl.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceParseHttp.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceVaudio.h">
-      <Filter>HLE\Libraries</Filter>
     </ClInclude>
     <ClInclude Include="Dialog\PSPDialog.h">
       <Filter>Dialog</Filter>
@@ -988,9 +832,6 @@
     </ClInclude>
     <ClInclude Include="HW\SasAudio.h">
       <Filter>HW</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceUsb.h">
-      <Filter>HLE\Libraries</Filter>
     </ClInclude>
     <ClInclude Include="SaveState.h">
       <Filter>Core</Filter>
@@ -1031,26 +872,8 @@
     <ClInclude Include="Reporting.h">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="HLE\scePspNpDrm_user.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceChnnlsv.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceDeflt.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
     <ClInclude Include="ELF\PBPReader.h">
       <Filter>ELF</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\scePauth.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceNp.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceMp3.h">
-      <Filter>HLE\Libraries</Filter>
     </ClInclude>
     <ClInclude Include="MIPS\JitCommon\JitBlockCache.h">
       <Filter>MIPS\JitCommon</Filter>
@@ -1082,15 +905,6 @@
     <ClInclude Include="..\ext\xxhash.h">
       <Filter>Ext</Filter>
     </ClInclude>
-    <ClInclude Include="HLE\KernelWaitHelpers.h">
-      <Filter>HLE\Kernel</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceHeap.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceNetAdhoc.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
     <ClInclude Include="Dialog\PSPGamedataInstallDialog.h">
       <Filter>Dialog</Filter>
     </ClInclude>
@@ -1106,14 +920,8 @@
     <ClInclude Include="Debugger\DisassemblyManager.h">
       <Filter>Debugger</Filter>
     </ClInclude>
-    <ClInclude Include="HLE\proAdhoc.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
     <ClInclude Include="Util\GameManager.h">
       <Filter>Util</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\ReplaceTables.h">
-      <Filter>HLE</Filter>
     </ClInclude>
     <ClInclude Include="HW\BufferQueue.h">
       <Filter>HW</Filter>
@@ -1123,15 +931,6 @@
     </ClInclude>
     <ClInclude Include="MIPS\x86\JitSafeMem.h">
       <Filter>MIPS\x86</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\HLEHelperThread.h">
-      <Filter>HLE</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceUsbGps.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\proAdhocServer.h">
-      <Filter>HLE\Libraries</Filter>
     </ClInclude>
     <ClInclude Include="..\ext\udis86\decode.h">
       <Filter>Ext\udis86</Filter>
@@ -1154,9 +953,6 @@
     <ClInclude Include="..\ext\udis86\udis86.h">
       <Filter>Ext\udis86</Filter>
     </ClInclude>
-    <ClInclude Include="HLE\sceSha256.h">
-      <Filter>HLE\Libraries</Filter>
-    </ClInclude>
     <ClInclude Include="Util\AudioFormat.h">
       <Filter>Util</Filter>
     </ClInclude>
@@ -1174,9 +970,6 @@
     </ClInclude>
     <ClInclude Include="..\ext\sfmt19937\SFMT-params19937.h">
       <Filter>Ext\sfmt19937</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\sceSfmt19937.h">
-      <Filter>HLE\Libraries</Filter>
     </ClInclude>
     <ClInclude Include="MemMapHelpers.h">
       <Filter>Core</Filter>
@@ -1210,9 +1003,6 @@
     </ClInclude>
     <ClInclude Include="FileLoaders\DiskCachingFileLoader.h">
       <Filter>FileLoaders</Filter>
-    </ClInclude>
-    <ClInclude Include="HLE\ThreadQueueList.h">
-      <Filter>HLE</Filter>
     </ClInclude>
     <ClInclude Include="Compatibility.h">
       <Filter>Core</Filter>
@@ -1248,16 +1038,226 @@
       <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="WaveFile.h" />
+    <ClInclude Include="FileSystems\BlobFileSystem.h">
+      <Filter>FileSystems</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\__sceAudio.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\AmultiosChatClient.h" />
+    <ClInclude Include="HLE\FunctionWrappers.h">
+      <Filter>HLE</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\HLE.h">
+      <Filter>HLE</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\HLEHelperThread.h">
+      <Filter>HLE</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\HLETables.h">
+      <Filter>HLE</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\KernelWaitHelpers.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
     <ClInclude Include="HLE\KUBridge.h">
       <Filter>HLE\Libraries</Filter>
     </ClInclude>
-    <ClInclude Include="FileSystems\BlobFileSystem.h">
-      <Filter>FileSystems</Filter>
+    <ClInclude Include="HLE\proAdhoc.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\proAdhocServer.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\ReplaceTables.h">
+      <Filter>HLE</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceAdler.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceAtrac.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceAudio.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceAudiocodec.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceAudioRouting.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceCcc.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceChnnlsv.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceCtrl.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceDeflt.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceDisplay.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceDmac.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceFont.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceG729.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceGameUpdate.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceGe.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceHeap.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceHprm.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceHttp.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceImpose.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceIo.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceJpeg.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernel.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelAlarm.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelEventFlag.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelInterrupt.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelMbx.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelMemory.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelModule.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelMsgPipe.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelMutex.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelSemaphore.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelThread.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelTime.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceKernelVTimer.h">
+      <Filter>HLE\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceMd5.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceMp3.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceMp4.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceMpeg.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceMt19937.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceNet.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceNetAdhoc.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceNp.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceOpenPSID.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceP3da.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceParseHttp.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceParseUri.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\scePauth.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\scePower.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\scePsmf.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\scePspNpDrm_user.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceRtc.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceSas.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceSfmt19937.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceSha256.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceSsl.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceUmd.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceUsb.h">
+      <Filter>HLE\Libraries</Filter>
     </ClInclude>
     <ClInclude Include="HLE\sceUsbCam.h">
       <Filter>HLE\Libraries</Filter>
     </ClInclude>
-    <ClInclude Include="HLE\AmultiosChatClient.h" />
+    <ClInclude Include="HLE\sceUsbGps.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceUtility.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\sceVaudio.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\ThreadQueueList.h">
+      <Filter>HLE</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="CMakeLists.txt" />
