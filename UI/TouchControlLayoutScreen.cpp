@@ -371,6 +371,8 @@ void TouchControlLayoutScreen::CreateViews() {
 	int stickImage = g_Config.iTouchButtonStyle ? I_STICK_LINE : I_STICK;
 	int stickBg = g_Config.iTouchButtonStyle ? I_STICK_BG_LINE : I_STICK_BG;
 	int roundImage = g_Config.iTouchButtonStyle ? I_ROUND_LINE : I_ROUND;
+	int chatImage = g_Config.iTouchButtonStyle ? I_CHAT_LINE : I_CHAT;
+	int chatScreenImage = g_Config.iTouchButtonStyle ? I_CHATSCREEN_LINE : I_CHATSCREEN;
 
 	const int comboKeyImages[5] = { I_1, I_2, I_3, I_4, I_5 };
 
@@ -419,7 +421,17 @@ void TouchControlLayoutScreen::CreateViews() {
 	}
 	if (g_Config.bShowComboKey4) {
 		controls_.push_back(new DragDropButton(g_Config.fcombo4X, g_Config.fcombo4Y, roundImage, comboKeyImages[4], g_Config.fcomboScale4));
-	};
+	}
+
+	if (g_Config.bShowChatButton) {
+		DragDropButton *chatButton = new DragDropButton(g_Config.fchatButtonX, g_Config.fchatButtonY, chatImage, I_C, g_Config.fchatButtonScale);
+		controls_.push_back(chatButton);
+	}
+
+	if (g_Config.bShowChatScreenButton) {
+		DragDropButton *chatScreenButton = new DragDropButton(g_Config.fchatScreenButtonX, g_Config.fchatScreenButtonY, chatScreenImage, I_CS, g_Config.fchatScreenButtonScale);
+		controls_.push_back(chatScreenButton);
+	}
 
 	for (size_t i = 0; i < controls_.size(); i++) {
 		root_->Add(controls_[i]);

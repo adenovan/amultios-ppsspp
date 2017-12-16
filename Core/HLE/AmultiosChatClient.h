@@ -13,7 +13,6 @@
 
 
 // CLIENT HEADER
-
 #define CHAT_CLIENT_WAITING 0
 #define CHAT_CLIENT_CONNECTED 1
 #define CHAT_CLIENT_DISCONNECTED 2
@@ -42,6 +41,11 @@ public:
 		size_t totalLength;
 	};
 	
+	bool isChatScreenVisible();
+
+	void Update();
+	float getLastUpdate();
+
 	void Lock() {
 		chatmutex_.lock();
 	}
@@ -49,6 +53,12 @@ public:
 	void Unlock() {
 		chatmutex_.unlock();
 	}
+
+	void doOSMUpdate();
+	bool getOSMUpdate() { return updateOSMFlag; }
+	void doChatUpdate();
+	bool getChatUpdate() { return updateChatFlag; }
+	void toogleChatScreen(bool flag);
 
 	void Add(const std::string &text, const std::string &name,int room = 0, uint32_t namecolor = 0xF6B629);
 	const std::list<ChatMessage> &Messages(int chatGuiStatus) {
@@ -73,6 +83,12 @@ private:
 	std::list<ChatMessage> GroupChatDb;
 	std::list<ChatMessage> AllChatDb;
 	std::mutex chatmutex_;
+	std::mutex chatScreenMutex_;
+	std::mutex chatUpdateMutex_;
+	float lastUpdate;
+	bool chatScreenVisible;
+	bool updateOSMFlag;
+	bool updateChatFlag;
 };
 
 
@@ -119,10 +135,6 @@ void sendChat(std::string chatString);
 void connectChatGame(SceNetAdhocctlAdhocId *adhoc_id);
 void connectChatGroup(const char * groupname);
 void disconnectChatGroup();
-extern bool chatScreenVisible;
-extern bool updateChatScreen;
-extern bool updateChatOsm;
-extern int newChat;
 extern int chatGuiStatus;
 void InitChat();
 void TerminateChat();

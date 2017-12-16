@@ -30,7 +30,6 @@
     <ClCompile Include="TouchControlVisibilityScreen.cpp" />
     <ClCompile Include="InstallZipScreen.cpp" />
     <ClCompile Include="ui_atlas.cpp" />
-    <ClCompile Include="ChatOnScreen.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BackgroundAudio.h" />
@@ -62,6 +61,5 @@
     <ClInclude Include="TouchControlVisibilityScreen.h" />
     <ClInclude Include="InstallZipScreen.h" />
     <ClInclude Include="ui_atlas.h" />
-    <ClInclude Include="ChatOnScreen.h" />
   </ItemGroup>
 </Project>

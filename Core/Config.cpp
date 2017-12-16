@@ -610,6 +610,8 @@ static ConfigSetting controlSettings[] = {
 	ConfigSetting("ComboKey3Mapping", &g_Config.iCombokey3, 0, true, true),
 	ConfigSetting("ComboKey4Mapping", &g_Config.iCombokey4, 0, true, true),
 
+	ConfigSetting("ShowChatButton", &g_Config.bShowChatButton, true, true, true),
+	ConfigSetting("ShowChatScreenButton", &g_Config.bShowChatScreenButton, true, true, true),
 #if defined(_WIN32)
 	// A win32 user seeing touch controls is likely using PPSSPP on a tablet. There it makes
 	// sense to default this to on.
@@ -686,6 +688,13 @@ static ConfigSetting controlSettings[] = {
 	ConfigSetting("fcombo4X", &g_Config.fcombo4X, -1.0f, true, true),
 	ConfigSetting("fcombo4Y", &g_Config.fcombo4Y, -1.0f, true, true),
 	ConfigSetting("comboKeyScale4", &g_Config.fcomboScale4, defaultControlScale, true, true),
+
+	ConfigSetting("ChatButtonX", &g_Config.fchatButtonX, -1.0f, true, true),
+	ConfigSetting("ChatButtonY", &g_Config.fchatButtonY, -1.0f, true, true),
+	ConfigSetting("ChatButtonScale", &g_Config.fchatButtonScale, defaultControlScale, true, true),
+	ConfigSetting("ChatScreenButtonX", &g_Config.fchatScreenButtonX, -1.0f, true, true),
+	ConfigSetting("ChatScreenButtonY", &g_Config.fchatScreenButtonY, -1.0f, true, true),
+	ConfigSetting("ChatScreenButtonScale", &g_Config.fchatScreenButtonScale, defaultControlScale, true, true),
 #ifdef _WIN32
 	ConfigSetting("DInputAnalogDeadzone", &g_Config.fDInputAnalogDeadzone, 0.1f, true, true),
 	ConfigSetting("DInputAnalogInverseMode", &g_Config.iDInputAnalogInverseMode, 0, true, true),
@@ -715,8 +724,6 @@ static ConfigSetting networkSettings[] = {
 	ConfigSetting("ServerChannel",&g_Config.iServerChannel,CHANNEL_1,true,true),
 	ConfigSetting("AmultiosPin",&g_Config.sAmultiosPin,"012345",true,true),
 	ConfigSetting("EnableNetworkChat", &g_Config.bEnableNetworkChat, true, true, true),
-	ConfigSetting("EnableChatButtons", &g_Config.bEnableChatButtons, false, true, true),
-	ConfigSetting("ChatButtonPosition",&g_Config.iChatButtonPosition,BOTTOM_LEFT,true,true),
 	ConfigSetting("ChatScreenPosition",&g_Config.iChatScreenPosition,BOTTOM_LEFT,true,true),
 	ConfigSetting("EnableQuickChat", &g_Config.bEnableQuickChat, false, true, true),
 	ConfigSetting("QuickChat1", &g_Config.sQuickChat0, "Quick Chat 1", true, true),
@@ -1452,6 +1459,12 @@ void Config::ResetControlLayout() {
 	g_Config.fcombo4X = -1.0f;
 	g_Config.fcombo4Y = -1.0f;
 	g_Config.fcomboScale4 = defaultControlScale;
+	g_Config.fchatButtonX = -1.0f;
+	g_Config.fchatButtonY = -1.0f;
+	g_Config.fchatButtonScale = defaultControlScale;
+	g_Config.fchatScreenButtonX = -1.0f;
+	g_Config.fchatScreenButtonY = -1.0f;
+	g_Config.fchatScreenButtonScale = defaultControlScale;
 }
 
 void Config::GetReportingInfo(UrlEncoder &data) {

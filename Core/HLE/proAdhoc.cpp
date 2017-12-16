@@ -1014,7 +1014,9 @@ int friendFinder(){
 	while (friendFinderRunning) {
 		// Acquire Network Lock
 		//_acquireNetworkLock();
-
+		// disable unthrothhle
+		if (PSP_CoreParameter().unthrottle)
+			PSP_CoreParameter().unthrottle = false;
 		// Ping Server
 		now = real_time_now()*1000000.0; // should be in microseconds, but it seems real_time_now() returns in seconds
 		if (now - lastping >= PSP_ADHOCCTL_PING_TIMEOUT) { //100 // We need to use lower interval to prevent getting timeout at Pro Adhoc Server through internet
@@ -1094,15 +1096,7 @@ int friendFinder(){
 					cmList.Add(incoming, "", CHAT_ADD_ALLGROUP);
 
 					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					if (chatGuiStatus == CHAT_GUI_GROUP || chatGuiStatus == CHAT_GUI_ALL) {
-						if (chatScreenVisible) {
-							updateChatScreen = true;
-						}
-						else {
-							updateChatOsm = true;
-						}
-
-					}
+					cmList.Update();
 					// Update HUD User Count
 #ifdef LOCALHOST_AS_PEER
 					setUserCount(getActivePeerCount());

@@ -882,6 +882,12 @@ static int sceNetAdhocctlScan() {
 	// Library initialized
 	if (netAdhocctlInited) {
 		// Not connected
+
+		//faking success cannot connect to ctl server prevent Monster Hunter from stuck on faked network
+		if (!networkInited) {
+			return ERROR_NET_ADHOCCTL_DISCONNECTED;
+		}
+
 		if (threadStatus == ADHOCCTL_STATE_DISCONNECTED) {
 			threadStatus = ADHOCCTL_STATE_SCANNING;
 

@@ -84,6 +84,10 @@ private:
 	// If set, pauses at the end of the frame.
 	bool pauseTrigger_;
 
+	//if set trigger android box
+	bool chatTrigger_;
+	bool chatScreenTrigger_;
+
 	// To track mappable virtual keys. We can have as many as we want.
 	bool virtKeys[VIRTKEY_COUNT];
 
@@ -103,6 +107,7 @@ private:
 
 	UI::View *loadingView_ = nullptr;
 	UI::LinearLayout *chatOsm = nullptr;
+	UI::ViewGroup *chatBox = nullptr;
 	UI::TextColorTween *loadingViewColor_ = nullptr;
 	UI::VisibilityTween *loadingViewVisible_ = nullptr;
 };

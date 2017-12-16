@@ -75,9 +75,6 @@
 #include "UI/InstallZipScreen.h"
 #include "UI/ProfilerDraw.h"
 #include "UI/ChatScreen.h"
-#include "UI/ChatOnScreen.h"
-
-
 
 #if defined(_WIN32) && !PPSSPP_PLATFORM(UWP)
 #include "Windows/MainWindow.h"
@@ -89,11 +86,6 @@
 #ifndef MOBILE_DEVICE
 static AVIDump avi;
 #endif
-
-UI::ChoiceWithValueDisplay *chatButtons;
-UI::ViewGroup *chatBox;
-float lastChatUpdate;
-
 
 static bool frameStep_;
 static int lastNumFlips;
@@ -399,24 +391,9 @@ void EmuScreen::sendMessage(const char *message, const char *value) {
 		}
 	} else if (!strcmp(message, "chat screen")) {
 		releaseButtons();
-#if defined(USING_WIN_UI)
-		//temporary workaround for hotkey its freeze the ui when open chat screen using hotkey and native keyboard is enable
-		if (g_Config.bBypassOSKWithKeyboard) {
-			osm.Show("Disable windows native keyboard options to use ctrl + c hotkey", 2.0f);
-		} else {
-			if (g_Config.bEnableNetworkChat && !chatScreenVisible) {
-				releaseButtons();
-				UI::EventParams e{};
-				OnChatMenu.Trigger(e);
-			}
+		if (g_Config.bEnableNetworkChat) {
+			chatScreenTrigger_ = true;
 		}
-#else
-		if (g_Config.bEnableNetworkChat && !chatScreenVisible) {
-			releaseButtons();
-			UI::EventParams e{};
-			OnChatMenu.Trigger(e);
-		}
-#endif
 	}
 }
 
@@ -490,9 +467,10 @@ void EmuScreen::onVKeyDown(int virtualKeyCode) {
 
 	case VIRTKEY_OPENCHAT:
 		if (g_Config.bEnableNetworkChat) {
-			releaseButtons();
-			UI::EventParams e{};
-			OnChatMenu.Trigger(e);
+			//releaseButtons();
+			//UI::EventParams e{};
+			//OnChatMenu.Trigger(e);
+			chatScreenTrigger_ = true;
 		}
 		break;
 
@@ -853,7 +831,7 @@ void EmuScreen::CreateViews() {
 
 	const Bounds &bounds = screenManager()->getUIContext()->GetBounds();
 	InitPadLayout(bounds.w, bounds.h);
-	root_ = CreatePadLayout(bounds.w, bounds.h, &pauseTrigger_);
+	root_ = CreatePadLayout(bounds.w, bounds.h, &pauseTrigger_,&chatScreenTrigger_);
 	if (g_Config.bShowDeveloperMenu) {
 		root_->Add(new Button(dev->T("DevMenu")))->OnClick.Handle(this, &EmuScreen::OnDevTools);
 	}
@@ -864,7 +842,7 @@ void EmuScreen::CreateViews() {
 		const int ChatScreenWidth = 550;
 		const int ChatScreenHeight = 360;
 		switch (g_Config.iChatScreenPosition) {
-			// the chat screen size is still static 280,250 need a dynamic size based on device resolution 
+		// the chat screen size is still static 280,250 need a dynamic size based on device resolution, low res device make the chat screen too large
 		case 0:
 			chatBox = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatScreenWidth, ChatScreenHeight, cy, NONE, NONE, cx, true));
 			break;
@@ -889,42 +867,6 @@ void EmuScreen::CreateViews() {
 		chatOsm = chatBox->Add(new LinearLayout(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
 		chatOsm->SetSpacing(0);
 		root_->Add(chatBox);
-
-		if (g_Config.bEnableChatButtons) {
-			switch (g_Config.iChatButtonPosition) {
-			case 0:
-				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, NONE, NONE, 50, true));
-				break;
-			case 1:
-				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, bounds.centerX(), NONE, NONE, 50, true));
-				break;
-			case 2:
-				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, NONE, NONE, 80, 50, true));
-				break;
-			case 3:
-				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, 50, NONE, NONE, true));
-				break;
-			case 4:
-				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, bounds.centerX(), 50, NONE, NONE, true));
-				break;
-			case 5:
-				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, NONE, 50, 80, NONE, true));
-				break;
-			case 6:
-				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, bounds.centerY(), NONE, NONE, true));
-				break;
-			case 7:
-				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, NONE, bounds.centerY(), 80, NONE, true));
-				break;
-			default:
-				chatButtons = new ChoiceWithValueDisplay(&newChat, sc->T("Chat"), new AnchorLayoutParams(130, WRAP_CONTENT, 80, NONE, NONE, 50, true));
-				break;
-			}
-
-			root_->Add(chatButtons)->OnClick.Handle(this, &EmuScreen::OnChat);
-		}
-
-		
 	}
 	
 	root_->Add(new OnScreenMessagesView(new AnchorLayoutParams((Size)bounds.w, (Size)bounds.h)));
@@ -949,9 +891,6 @@ UI::EventReturn EmuScreen::OnDevTools(UI::EventParams &params) {
 UI::EventReturn EmuScreen::OnChat(UI::EventParams &params) {
 	releaseButtons();
 	if (chatBox->GetVisibility() == UI::V_VISIBLE) chatBox->SetVisibility(UI::V_INVISIBLE);
-	if (g_Config.bEnableChatButtons) {
-		if (chatButtons->GetVisibility() == UI::V_VISIBLE) chatButtons->SetVisibility(UI::V_GONE);
-	}
 	screenManager()->push(new ChatScreen());
 	return UI::EVENT_DONE;
 }
@@ -1015,22 +954,31 @@ void EmuScreen::update() {
 		screenManager()->push(new GamePauseScreen(gamePath_));
 	}
 
+	if (chatScreenTrigger_) {
+		chatScreenTrigger_ = false;
+		//prevent double add the chat screen
+		if (!cmList.isChatScreenVisible()) {
+			UI::EventParams e{};
+			OnChatMenu.Trigger(e);
+		}
+	}
 
-	if (!chatScreenVisible && g_Config.bEnableNetworkChat) {
+	if (g_Config.bEnableNetworkChat) {
 		// update chat osm
-		if (updateChatOsm) {
+		const float now = time_now();
+		if (!cmList.isChatScreenVisible() && now > cmList.getLastUpdate() && cmList.getOSMUpdate()) {
 			if (chatBox->GetVisibility() == UI::V_INVISIBLE) chatBox->SetVisibility(UI::V_VISIBLE);
-			lastChatUpdate = time_now();
-			updateChatView();
-			updateChatOsm = false;
+			if (chatBox->GetVisibility() == UI::V_VISIBLE && cmList.getOSMUpdate()) {
+				updateChatView();
+				cmList.doOSMUpdate();
+			}
+		}
+		else {
+			const float hidden = cmList.getLastUpdate() + 6;
+			if (hidden < now && chatBox->GetVisibility() == UI::V_VISIBLE)
+				chatBox->SetVisibility(UI::V_INVISIBLE);
 		}
 
-		const float now = time_now();
-		const float hidden = lastChatUpdate + 6;
-		//NOTICE_LOG(BOOT, "Time Elapsed %f now %f delta %f", hidden, now);
-		if (hidden < now) {
-			if (chatBox->GetVisibility() == UI::V_VISIBLE) chatBox->SetVisibility(UI::V_INVISIBLE);
-		}
 	}
 
 	/*if (saveStatePreview_ && !bootPending_) {
@@ -1080,21 +1028,17 @@ void EmuScreen::checkPowerDown() {
 void EmuScreen::updateChatView() {
 	using namespace UI;
 
-
 	if (chatOsm != nullptr) {
 		chatOsm->Clear();
 		cmList.Lock();
 		const std::list<ChatMessages::ChatMessage> &messages = cmList.Messages(chatGuiStatus);
 
+		
 		std::list<ChatMessages::ChatMessage>::const_iterator iter;
 		iter = messages.begin();
-		int get = 10;
-		if (g_Config.bEnableQuickChat) {
-			get = 8;
-		}
-
+		const size_t get = 10;		
 		if (messages.size() > get) {
-			const int pos = messages.size() - get;
+			const size_t pos = messages.size() - get;
 			advance(iter, pos);
 		}
 

@@ -42,3 +42,15 @@ image I_4 source_assets/image/4.png copy
 image I_5 source_assets/image/5.png copy
 image I_6 source_assets/image/6.png copy
 image I_PSP_DISPLAY source_assets/image/psp_display.png copy
+image I_C source_assets/image/c.png copy
+image I_CS source_assets/image/cs.png copy
+image I_Q1 source_assets/image/q1.png copy
+image I_Q2 source_assets/image/q2.png copy
+image I_Q3 source_assets/image/q3.png copy
+image I_Q4 source_assets/image/q4.png copy
+image I_Q5 source_assets/image/q5.png copy
+image I_CHAT source_assets/image/chat.png copy
+image I_CHAT_LINE source_assets/image/chat_line.png copy
+image I_CHATSCREEN source_assets/image/chatscreen.png copy
+image I_CHATSCREEN_LINE source_assets/image/chatscreen_line.png copy
+

@@ -49,7 +49,18 @@
 #define I_5 38
 #define I_6 39
 #define I_PSP_DISPLAY 40
+#define I_C 41
+#define I_CS 42
+#define I_Q1 43
+#define I_Q2 44
+#define I_Q3 45
+#define I_Q4 46
+#define I_Q5 47
+#define I_CHAT 48
+#define I_CHAT_LINE 49
+#define I_CHATSCREEN 50
+#define I_CHATSCREEN_LINE 51
 
 
 extern const Atlas ui_atlas;
-extern const AtlasImage ui_images[41];
+extern const AtlasImage ui_images[52];

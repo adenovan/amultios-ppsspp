@@ -28,6 +28,7 @@
 #include "base/timeutil.h"
 #include "math/math_util.h"
 #include "ui/ui_context.h"
+#include "Core/HLE/proAdhoc.h"
 
 static u32 GetButtonColor() {
 	return g_Config.iTouchButtonStyle == 1 ? 0xFFFFFF : 0xc0b080;
@@ -114,7 +115,20 @@ void MultiTouchButton::Draw(UIContext &dc) {
 	// is not at the "weight center" of the triangle.
 	if (img_ == I_TRIANGLE)
 		y -= 2.8f * scale;
-	dc.Draw()->DrawImageRotated(img_, bounds_.centerX(), y, scale, angle_ * (M_PI * 2 / 360.0f), color);
+	
+	// hack around chat the center is not square center so we fix that
+	int x = bounds_.centerX();
+	if (img_ == I_C) {
+		y -= 11.5f *scale;
+	}
+
+	// hack around to make cs in the right square center of chatscreen bg
+	if (img_ == I_CS) {
+		y -= 3.5f *scale;
+		x += 16.0f *scale;
+	}
+
+	dc.Draw()->DrawImageRotated(img_, x, y, scale, angle_ * (M_PI * 2 / 360.0f), color);
 }
 
 void BoolButton::Touch(const TouchInput &input) {
@@ -124,6 +138,18 @@ void BoolButton::Touch(const TouchInput &input) {
 
 	if (down != lastDown) {
 		*value_ = down;
+	}
+}
+
+void UnthrottleBoolButton::Touch(const TouchInput &input) {
+	bool lastDown = pointerDownMask_ != 0;
+	MultiTouchButton::Touch(input);
+	bool down = pointerDownMask_ != 0;
+	if (down != lastDown) {
+		*value_ = down;
+		//Disable Unthrottle in Adhoc cause a desync
+		if (friendFinderRunning)
+			*value_ = false;
 	}
 }
 
@@ -534,9 +560,28 @@ void InitPadLayout(float xres, float yres, float globalScale) {
 		g_Config.fcomboScale4 = scale;
 	}
 
+
+	int chat_key_X = xres / 2 + (bottom_key_spacing)* scale * 1.2;
+	int chat_key_Y = yres - 120;
+
+	if (g_Config.fchatButtonX == -1.0 || g_Config.fchatScreenButtonY == -1.0) {
+		g_Config.fchatButtonX = (float)chat_key_X / xres;
+		g_Config.fchatButtonY = (float)chat_key_Y / yres;
+		g_Config.fchatButtonScale = scale;
+	}
+
+	int chat_screen_key_X = xres / 2 + (bottom_key_spacing)* scale * 2.2;
+	int chat_screen_key_Y = yres -120 ;
+
+	if (g_Config.fchatScreenButtonX == -1.0 || g_Config.fchatScreenButtonY == -1.0) {
+		g_Config.fchatScreenButtonX = (float)chat_screen_key_X / xres;
+		g_Config.fchatScreenButtonY = (float)chat_screen_key_Y / yres;
+		g_Config.fchatScreenButtonScale = scale;
+	}
+
 };
 
-UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause) {
+UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause,bool *chatScreen) {
 	//standard coord system
 
 	using namespace UI;
@@ -616,9 +661,20 @@ UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause) {
 	float combo4_key_Y = g_Config.fcombo4Y * yres;
 	float combo4_key_scale = g_Config.fcomboScale4;
 
+	float chat_key_X = g_Config.fchatButtonX * xres;
+	float chat_key_Y = g_Config.fchatButtonY * yres;
+	float chat_key_scale = g_Config.fchatButtonScale;
+
+	float chat_screen_key_X = g_Config.fchatScreenButtonX * xres;
+	float chat_screen_key_Y = g_Config.fchatScreenButtonY * yres;
+	float chat_screen_key_scale = g_Config.fchatScreenButtonScale;
+
+
 	const int halfW = xres / 2;
 
 	const int roundImage = g_Config.iTouchButtonStyle ? I_ROUND_LINE : I_ROUND;
+	const int chatImage = g_Config.iTouchButtonStyle ? I_CHAT_LINE : I_CHAT;
+	const int chatScreenImage = g_Config.iTouchButtonStyle ? I_CHATSCREEN_LINE : I_CHATSCREEN;
 
 	if (g_Config.bShowTouchControls) {
 		const int rectImage = g_Config.iTouchButtonStyle ? I_RECT_LINE : I_RECT;
@@ -651,7 +707,13 @@ UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause) {
 			root->Add(new PSPButton(CTRL_SELECT, rectImage, I_SELECT, select_key_scale, new AnchorLayoutParams(select_key_X, select_key_Y, NONE, NONE, true)));
 
 		if (g_Config.bShowTouchUnthrottle)
-			root->Add(new BoolButton(&PSP_CoreParameter().unthrottle, rectImage, I_ARROW, unthrottle_key_scale, new AnchorLayoutParams(unthrottle_key_X, unthrottle_key_Y, NONE, NONE, true)))->SetAngle(180);
+			root->Add(new UnthrottleBoolButton(&PSP_CoreParameter().unthrottle, rectImage, I_ARROW, unthrottle_key_scale, new AnchorLayoutParams(unthrottle_key_X, unthrottle_key_Y, NONE, NONE, true)))->SetAngle(180);
+
+		if (g_Config.bShowChatButton)
+			root->Add(new BoolButton(chatScreen, chatImage, I_C, chat_key_scale, new AnchorLayoutParams(chat_key_X, chat_key_Y, NONE, NONE, true)));
+
+		if (g_Config.bShowChatScreenButton)
+			root->Add(new BoolButton(chatScreen, chatScreenImage, I_CS, chat_screen_key_scale, new AnchorLayoutParams(chat_screen_key_X, chat_screen_key_Y, NONE, NONE, true)));
 
 		if (g_Config.bShowTouchLTrigger)
 			root->Add(new PSPButton(CTRL_LTRIGGER, shoulderImage, I_L, l_key_scale, new AnchorLayoutParams(l_key_X, l_key_Y, NONE, NONE, true)));

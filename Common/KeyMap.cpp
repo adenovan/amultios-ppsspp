@@ -674,6 +674,12 @@ const KeyMap_IntStrPair psp_button_names[] = {
 	{CTRL_SCREEN, "Screen"},
 	{CTRL_NOTE, "Note"},
 	{VIRTKEY_OPENCHAT,"OpenChat"},
+	{VIRTKEY_CHAT,"Chat"},
+	{VIRTKEY_QUICKCHAT1,"QuickChat1"},
+	{VIRTKEY_QUICKCHAT2,"QuickChat2"},
+	{VIRTKEY_QUICKCHAT3,"QuickChat3"},
+	{VIRTKEY_QUICKCHAT4,"QuickChat4"},
+	{VIRTKEY_QUICKCHAT5,"QuickChat5"}
 };
 
 const int AXIS_BIND_NKCODE_START = 4000;

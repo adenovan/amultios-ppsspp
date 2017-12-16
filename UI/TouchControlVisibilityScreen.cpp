@@ -74,6 +74,8 @@ void TouchControlVisibilityScreen::CreateViews() {
 	keyToggles["Combo2"] = &g_Config.bShowComboKey2;
 	keyToggles["Combo3"] = &g_Config.bShowComboKey3;
 	keyToggles["Combo4"] = &g_Config.bShowComboKey4;
+	keyToggles["Chat"] = &g_Config.bShowChatButton;
+	keyToggles["Chat Screen"] = &g_Config.bShowChatScreenButton;
 
 	std::map<std::string, int>::iterator imageFinder;
 

@@ -78,6 +78,19 @@ private:
 	bool *value_;
 };
 
+class UnthrottleBoolButton : public MultiTouchButton {
+public:
+	UnthrottleBoolButton(bool *value, int bgImg, int img, float scale, UI::LayoutParams *layoutParams)
+		: MultiTouchButton(bgImg, img, scale, layoutParams), value_(value) {
+
+	}
+	void Touch(const TouchInput &input) override;
+	bool IsDown() override { return *value_; }
+
+private:
+	bool *value_;
+};
+
 class PSPButton : public MultiTouchButton {
 public:
 	PSPButton(int pspButtonBit, int bgImg, int img, float scale, UI::LayoutParams *layoutParams)
@@ -135,7 +148,7 @@ private:
 //initializes the layout from Config. if a default layout does not exist,
 //it sets up default values
 void InitPadLayout(float xres, float yres, float globalScale = 1.15f);
-UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause);
+UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause,bool *chatScreen);
 
 const int D_pad_Radius = 50;
 const int baseActionButtonSpacing = 60;

@@ -2,6 +2,7 @@
 #include "Core/Host.h"
 #include "AmultiosChatClient.h"
 #include "i18n/i18n.h"
+#include "base/timeutil.h"
 
 int chatsocket;
 int chatclientstatus = CHAT_CLIENT_DISCONNECTED;
@@ -12,17 +13,39 @@ const char * lastgroupname;
 SceNetAdhocctlAdhocId *lastgamecode;
 
 std::thread ChatClientThread;
-bool chatScreenVisible = false;
-bool updateChatScreen = false;
-bool updateChatOsm = false;
-int GroupNewChat = 0;
-int GameNewChat = 0;
-int GlobalNewChat = 0;
-int newChat = 0;
 int chatGuiStatus = CHAT_GUI_ALL;
 
 
 ChatMessages cmList;
+
+bool ChatMessages::isChatScreenVisible() {
+	return chatScreenVisible;
+}
+
+void ChatMessages::doOSMUpdate() {
+	std::lock_guard<std::mutex> locker(chatUpdateMutex_);
+	updateOSMFlag = false;
+}
+
+void ChatMessages::doChatUpdate() {
+	std::lock_guard<std::mutex> locker(chatUpdateMutex_);
+	updateChatFlag = false;
+}
+
+void ChatMessages::toogleChatScreen(bool flag) {
+	std::lock_guard<std::mutex> locker(chatScreenMutex_);
+	bool chatScreenVisible = flag;
+}
+
+float ChatMessages::getLastUpdate() {
+	return lastUpdate;
+}
+void ChatMessages::Update() {
+	std::lock_guard<std::mutex> locker(chatUpdateMutex_);
+	lastUpdate = time_now();
+	updateOSMFlag = true;
+	updateChatFlag = true;
+}
 
 void ChatMessages::Add(const std::string &text, const std::string &name, int room, uint32_t namecolor) {
 	std::lock_guard<std::mutex> locker(chatmutex_);
@@ -49,7 +72,7 @@ void ChatMessages::Add(const std::string &text, const std::string &name, int roo
 		chat.namecolor = 0x35D8FD;
 	}
 
-	chat.totalLength += chat.name.length();
+	chat.totalLength = chat.name.length();
 	chat.totalLength += chat.text.length();
 	if (room == CHAT_ADD_ALL) {
 		chat.room = "";
@@ -134,17 +157,20 @@ void InitChat() {
 }
 
 void connectChatGame(SceNetAdhocctlAdhocId *adhoc_id) {
-	ChatConnectGamePacketC2S packet;
-	packet.base.opcode = OPCODE_AMULTIOS_CHAT_CONNECT_GAME;
-	memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
-	lastgamecode = adhoc_id;
-	int sent = send(chatsocket, (char*)&packet, sizeof(packet), 0);
-	if (sent > 0) {
-		//GameChatLog.push_back("Connected to game Lobby");
+	if (adhoc_id != nullptr) {
+		ChatConnectGamePacketC2S packet;
+		packet.base.opcode = OPCODE_AMULTIOS_CHAT_CONNECT_GAME;
+		memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
+		lastgamecode = adhoc_id;
+		int sent = send(chatsocket, (char*)&packet, sizeof(packet), 0);
+		if (sent > 0) {
+			//GameChatLog.push_back("Connected to game Lobby");
+		}
+		else {
+			cmList.Add("Failed To Join Adhoc Game", "", CHAT_ADD_ALLGROUP);
+		}
 	}
-	else {
-		cmList.Add("Failed To Join Adhoc Game", "", CHAT_ADD_ALLGROUP);
-	}
+
 }
 
 void connectChatGroup(const char * groupname) {
@@ -163,19 +189,15 @@ void connectChatGroup(const char * groupname) {
 		info = "Connected to Group Lobby ";
 		info += replace.c_str();
 		cmList.Add(info, "", CHAT_ADD_ALLGROUP);
+		cmList.Update();
 	}
 	else {
 		info = "Failed Connecting to Group Lobby ";
 		info += replace.c_str();
 		cmList.Add(info, "", CHAT_ADD_ALLGROUP);
+		cmList.Update();
 	}
-
-	if (chatScreenVisible) {
-		updateChatScreen = true;
-	}
-	else {
-		updateChatOsm = true;
-	}
+	cmList.Update();
 	return;
 }
 
@@ -189,15 +211,10 @@ void disconnectChatGroup() {
 	info += replace.c_str();
 	if (sent > 0) {
 		cmList.Add(info, "", CHAT_ADD_ALLGROUP);
+		cmList.Update();
 	}
 
-	if (chatScreenVisible) {
-		updateChatScreen = true;
-	}
-	else {
-		updateChatOsm = true;
-	}
-
+	cmList.Update();
 	return;
 }
 
@@ -255,16 +272,7 @@ int ChatClient(int port) {
 					NOTICE_LOG(SCENET, "Received Group Chat message %s", packet->base.message);
 					cmList.Add((char *)packet->base.message, (char *)packet->name.data, CHAT_ADD_ALLGROUP);
 					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_GROUP || chatGuiStatus == CHAT_GUI_ALL) ) {
-						updateChatScreen = true;
-					}
-					else {
-						updateChatOsm = true;
-						if (GroupNewChat < 50) {
-							GroupNewChat += 1;
-							newChat += 1;
-						}
-					}
+					cmList.Update();
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlChatPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlChatPacketS2C));
 
@@ -282,16 +290,7 @@ int ChatClient(int port) {
 					// Add Incoming Chat to HUD ALL
 					NOTICE_LOG(SCENET, "Received Global chat message %s", packet->base.message);
 					cmList.Add((char *)packet->base.message, (char *)packet->name.data, CHAT_ADD_ALL);
-					if (chatScreenVisible &&( chatGuiStatus == CHAT_GUI_SERVER || chatGuiStatus == CHAT_GUI_ALL)) {
-						updateChatScreen = true;
-					}
-					else {
-						updateChatOsm = true;
-						if (GlobalNewChat < 50) {
-							GlobalNewChat += 1;
-							newChat += 1;
-						}
-					}
+					cmList.Update();
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlChatPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlChatPacketS2C));
 
@@ -308,16 +307,7 @@ int ChatClient(int port) {
 					SceNetAdhocctlChatPacketS2C * packet = (SceNetAdhocctlChatPacketS2C *)rx;
 					// Should we make more room?
 					NOTICE_LOG(SCENET, "Received Game Chat message %s", packet->base.message);
-					if (chatScreenVisible && chatGuiStatus == CHAT_GUI_GAME) {
-						updateChatScreen = true;
-					}
-					else {
-						updateChatOsm = true;
-						if (GameNewChat < 50) {
-							GameNewChat += 1;
-							newChat += 1;
-						}
-					}
+					cmList.Update();
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlChatPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlChatPacketS2C));
 
@@ -340,12 +330,7 @@ int ChatClient(int port) {
 					// Fix RX Buffer Length
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
 					cmList.Add("Connected to Amultios Chat Server", "",CHAT_ADD_ALL);
-					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_SERVER || chatGuiStatus == CHAT_GUI_ALL)) {
-						updateChatScreen = true;
-					}
-					else {
-						updateChatOsm = true;
-					}
+					cmList.Update();
 				}
 			}
 
@@ -365,12 +350,7 @@ int ChatClient(int port) {
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
 					cmList.Add("Cannot Connect To Amultios Server Login Failed", "", CHAT_ADD_ALL);
 					cmList.Add(packet->reason,"", CHAT_ADD_ALL);
-					if (chatScreenVisible && (chatGuiStatus == CHAT_GUI_SERVER || chatGuiStatus == CHAT_GUI_ALL)) {
-						updateChatScreen = true;
-					}
-					else {
-						updateChatOsm = true;
-					}
+					cmList.Update();
 					break;
 				}
 			}
@@ -402,12 +382,7 @@ void Reconnect() {
 	if (chatclientstatus == CHAT_CLIENT_DISCONNECTED || chatclientstatus == CHAT_CLIENT_WAITING) {
 		cmList.Add("Connection to Amultios Network Lost", "");
 		cmList.Add("Reconnect in Progress...", "");
-		if (chatScreenVisible) {
-			updateChatScreen = true;
-		}
-		else {
-			updateChatOsm = true;
-		}
+		cmList.Update();
 
 		// init only if disconnected (END OF Chat Client THREAD)
 		if (chatclientstatus != CHAT_CLIENT_WAITING && chatclientstatus != CHAT_CLIENT_CONNECTED) {
@@ -463,10 +438,12 @@ void sendChat(std::string chatString) {
 					}
 					else {
 						cmList.Add(message, name, CHAT_ADD_ALLGROUP);
+						cmList.Update();
 					}
 				}
 				else {
 					cmList.Add("Group Not Available, please go to adhoc lobby or gathering hall", "", CHAT_ADD_GROUP);
+					cmList.Update();
 				}
 				break;
 			/*
@@ -507,10 +484,11 @@ void sendChat(std::string chatString) {
 					if (friendFinderRunning) {
 						toGroup = true;
 						chat.base.opcode = OPCODE_CHAT;
-						message = message.erase(0, 6);
+						message = message.erase(0, 7);
 					}
 					else {
 						cmList.Add("Group Not Available, please go to adhoc lobby or gathering hall", "", CHAT_ADD_ALL);
+						cmList.Update();
 						return;
 					}
 				}
@@ -523,9 +501,11 @@ void sendChat(std::string chatString) {
 				else {
 					if (toGroup) {
 						cmList.Add(message, name, CHAT_ADD_ALLGROUP);
+						cmList.Update();
 					}
 					else {
 						cmList.Add(message, name, CHAT_ADD_ALL);
+						cmList.Update();
 					}
 
 				}
@@ -533,9 +513,7 @@ void sendChat(std::string chatString) {
 			}
 
 			//update chatlog
-			if (chatScreenVisible) {
-				updateChatScreen = true;
-			}
+			cmList.Update();
 		}
 	}
 }
@@ -605,24 +583,16 @@ void TerminateChat() {
 
 
 // used by UI
-
 std::vector<std::string> Split(const std::string& text, const std::string& name, const std::string& group)
 {	
 	std::vector<std::string> ret;
+	size_t firstSentenceEnd = text.length() /2;
 
-	size_t spliton = size_t(40) - group.length();
-	size_t firstSentenceEnd = size_t(0);
-
-	for (auto i = 0; i<text.length(); i++) {
+	for (auto i = firstSentenceEnd; i<text.length(); i++) {
 		if (isspace(text[i])) {
-			if (i>= 10 && i <= spliton) {
-				firstSentenceEnd = i+1;
-			}
+			firstSentenceEnd = i+1;
+			break;
 		}
-	}
-
-	if (firstSentenceEnd == 0 && spliton < text.length()) {
-		firstSentenceEnd = spliton;
 	}
 
 	ret.push_back(text.substr(0, firstSentenceEnd));

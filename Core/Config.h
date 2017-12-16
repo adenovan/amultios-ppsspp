@@ -389,6 +389,16 @@ public:
 	bool bShowComboKey3;
 	bool bShowComboKey4;
 
+	//Chat Button Visibilty
+	float fchatButtonX, fchatButtonY;
+	float fchatButtonScale;
+	float fchatScreenButtonX, fchatScreenButtonY;
+	float fchatScreenButtonScale;
+
+	bool bShowChatButton;
+	bool bShowChatScreenButton;
+	bool bShowQuickChat;
+
 	// Combo_key mapping. These are bitfields.
 	int iCombokey0;
 	int iCombokey1;
@@ -447,9 +457,7 @@ public:
 	int iWlanAdhocChannel;
 	bool bWlanPowerSave;
 	bool bEnableNetworkChat;
-	bool bEnableChatButtons;
 	//for chat position , moveable buttons is better than this 
-	int iChatButtonPosition;
 	int iChatScreenPosition;
 	int iServerChannel;
 	std::string sAmultiosPin;

@@ -9,6 +9,7 @@
 #include "i18n/i18n.h"
 #include <ctype.h>
 #include "util/text/utf8.h"
+#include "base/timeutil.h"
 
 std::string chatTo = "All";
 int chatGuiIndex = 0;
@@ -73,6 +74,9 @@ void ChatScreen::CreateViews() {
 	chatEdit_ = bottom->Add(new TextEdit("", n->T("Chat Here"), new LinearLayoutParams((ChatScreenWidth() -120),50)));
 	chatEdit_->SetMaxLen(63);
 	chatEdit_->OnEnter.Handle(this, &ChatScreen::OnSubmit);
+	UI::EnableFocusMovement(true);
+	root_->SetDefaultFocusView(chatEdit_);
+	root_->SetFocus();
 #if defined(USING_WIN_UI)
 	//freeze  the ui when using ctrl + C hotkey need workaround
 	if (g_Config.bBypassOSKWithKeyboard && !g_Config.bFullScreen)
@@ -87,28 +91,12 @@ void ChatScreen::CreateViews() {
 	}
 #endif
 #elif defined(__ANDROID__)
-	bottom->Add(new Button(n->T("Chat Here"), new LayoutParams((ChatScreenWidth() - 120), 50)))->OnClick.Handle(this, &ChatScreen::OnSubmit);
-#endif
-	if (g_Config.bEnableQuickChat) {
-		LinearLayout *quickChat = box_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, WRAP_CONTENT)));
-		quickChat->Add(new Button(n->T("1"), new LinearLayoutParams(1.0)))->OnClick.Handle(this, &ChatScreen::OnQuickChat1);
-		quickChat->Add(new Button(n->T("2"), new LinearLayoutParams(1.0)))->OnClick.Handle(this, &ChatScreen::OnQuickChat2);
-		quickChat->Add(new Button(n->T("3"), new LinearLayoutParams(1.0)))->OnClick.Handle(this, &ChatScreen::OnQuickChat3);
-		quickChat->Add(new Button(n->T("4"), new LinearLayoutParams(1.0)))->OnClick.Handle(this, &ChatScreen::OnQuickChat4);
-		quickChat->Add(new Button(n->T("5"), new LinearLayoutParams(1.0)))->OnClick.Handle(this, &ChatScreen::OnQuickChat5);
-	}
-	//CreatePopupContents(box_);
-#if defined(_WIN32) || defined(USING_QT_UI)
+	chatButton_ = bottom->Add(new Button(n->T("Chat Here"), new LayoutParams((ChatScreenWidth() - 120), 50)))->OnClick.Handle(this, &ChatScreen::OnSubmit);
 	UI::EnableFocusMovement(true);
-	root_->SetDefaultFocusView(chatEdit_);
+	root_->SetDefaultFocusView(chatButton_);
 	root_->SetFocus();
-#else
-	//root_->SetDefaultFocusView(box_);
-	//box_->SubviewFocused(scroll_);
-	//root_->SetFocus();
 #endif
-	chatScreenVisible = true;
-	newChat = 0;
+	cmList.toogleChatScreen(true);
 	UpdateChat();
 }
 
@@ -125,32 +113,6 @@ UI::EventReturn ChatScreen::OnSubmit(UI::EventParams &e) {
 #elif defined(__ANDROID__)
 	System_SendMessage("inputbox", "Chat:");
 #endif
-	return UI::EVENT_DONE;
-}
-
-
-UI::EventReturn ChatScreen::OnQuickChat1(UI::EventParams &e) {
-	sendChat(g_Config.sQuickChat0);
-	return UI::EVENT_DONE;
-}
-
-UI::EventReturn ChatScreen::OnQuickChat2(UI::EventParams &e) {
-	sendChat(g_Config.sQuickChat1);
-	return UI::EVENT_DONE;
-}
-
-UI::EventReturn ChatScreen::OnQuickChat3(UI::EventParams &e) {
-	sendChat(g_Config.sQuickChat2);
-	return UI::EVENT_DONE;
-}
-
-UI::EventReturn ChatScreen::OnQuickChat4(UI::EventParams &e) {
-	sendChat(g_Config.sQuickChat3);
-	return UI::EVENT_DONE;
-}
-
-UI::EventReturn ChatScreen::OnQuickChat5(UI::EventParams &e) {
-	sendChat(g_Config.sQuickChat4);
 	return UI::EVENT_DONE;
 }
 
@@ -198,7 +160,7 @@ UI::EventReturn ChatScreen::OnChangeChannel(UI::EventParams &params) {
 void ChatScreen::UpdateChat() {
 	using namespace UI;
 	
-	if (chatVert_ != NULL) {
+	if (chatVert_ != nullptr) {
 		chatVert_->Clear();
 		cmList.Lock();
 		const std::list<ChatMessages::ChatMessage> &messages = cmList.Messages(chatGuiStatus);
@@ -243,11 +205,10 @@ void ChatScreen::UpdateChat() {
 					chatView->SetShadow(true);
 				}
 			}
+			toBottom_ = true;
 		}
 		cmList.Unlock();
-		toBottom_ = true;
 	}
-	
 }
 
 bool ChatScreen::touch(const TouchInput &touch) {
@@ -268,19 +229,19 @@ void ChatScreen::update() {
 
 	alpha_ = 1.0f;
 
-	
 	if (scroll_ && toBottom_) {
 		toBottom_ = false;
 		scroll_->ScrollToBottom();
 	}
 
-	if (updateChatScreen) {
+	const float now = time_now();
+	if (now > cmList.getLastUpdate() && cmList.getChatUpdate()) {
 		UpdateChat();
-		updateChatScreen = false;
+		cmList.doChatUpdate();
 	}
 }
 
 
 ChatScreen::~ChatScreen() {
-	chatScreenVisible = false;
+	cmList.toogleChatScreen(false);
 }
