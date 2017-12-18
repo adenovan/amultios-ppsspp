@@ -63,7 +63,7 @@ void ChatScreen::CreateViews() {
 	channel->OnClick.Handle(this, &ChatScreen::OnChangeChannel);
 
 	scroll_ = box_->Add(new ScrollView(ORIENT_VERTICAL, new LinearLayoutParams(1.0)));
-	scroll_->setBobColor(0x00FFFFFF);
+	scroll_->setBobColor(0x99303030);
 	chatVert_ = scroll_->Add(new LinearLayout(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
 	chatVert_->SetSpacing(0);
 
@@ -91,10 +91,7 @@ void ChatScreen::CreateViews() {
 	}
 #endif
 #elif defined(__ANDROID__)
-	chatButton_ = bottom->Add(new Button(n->T("Chat Here"), new LayoutParams((ChatScreenWidth() - 120), 50)))->OnClick.Handle(this, &ChatScreen::OnSubmit);
-	UI::EnableFocusMovement(true);
-	root_->SetDefaultFocusView(chatButton_);
-	root_->SetFocus();
+	bottom->Add(new Button(n->T("Chat Here"), new LayoutParams((550 - 120), 50)))->OnClick.Handle(this, &ChatScreen::OnSubmit);
 #endif
 	cmList.toogleChatScreen(true);
 	UpdateChat();
@@ -165,10 +162,9 @@ void ChatScreen::UpdateChat() {
 		cmList.Lock();
 		const std::list<ChatMessages::ChatMessage> &messages = cmList.Messages(chatGuiStatus);
 		for (auto iter = messages.begin(); iter != messages.end(); ++iter) {
-			if (iter->name == "") {
+			if (iter->name == "" || iter->onlytext) {
 				TextView *v = chatVert_->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
 				v->SetTextColor(0xFF000000 | iter->textcolor);
-				v->SetShadow(true);
 			}
 			else {
 				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, FILL_PARENT)));
@@ -176,38 +172,21 @@ void ChatScreen::UpdateChat() {
 					if (iter->room != "") {
 						TextView *GroupView = line->Add(new TextView(iter->room, FLAG_DYNAMIC_ASCII, true));
 						GroupView->SetTextColor(0xFF000000 | iter->roomcolor);
-						GroupView->SetShadow(true);
 					}
 					TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
 					nameView->SetTextColor(0xFF000000 | iter->namecolor);
-					nameView->SetShadow(true);
 				}
 				else {
 					TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
 					nameView->SetTextColor(0xFF000000 | iter->namecolor);
 					nameView->SetShadow(true);
 				}
-
-				if (iter->totalLength > 60) {
-					std::vector<std::string> splitted = Split(iter->text, iter->name,iter->room);
-					std::string one = splitted[0];
-					std::string two = splitted[1];
-					TextView *oneview = line->Add(new TextView(one, FLAG_DYNAMIC_ASCII, true));
-					oneview->SetTextColor(0xFF000000 | iter->textcolor);
-					oneview->SetShadow(true);
-					TextView *twoview = chatVert_->Add(new TextView(two, FLAG_DYNAMIC_ASCII, true));
-					twoview->SetTextColor(0xFF000000 | iter->textcolor);
-					twoview->SetShadow(true);
-				}
-				else {
-					TextView *chatView = line->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
-					chatView->SetTextColor(0xFF000000 | iter->textcolor);
-					chatView->SetShadow(true);
-				}
+				TextView *chatView = line->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
+				chatView->SetTextColor(0xFF000000 | iter->textcolor);
 			}
-			toBottom_ = true;
 		}
 		cmList.Unlock();
+		toBottom_ = true;
 	}
 }
 

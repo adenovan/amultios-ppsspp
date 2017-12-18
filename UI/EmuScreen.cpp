@@ -464,13 +464,43 @@ void EmuScreen::onVKeyDown(int virtualKeyCode) {
 			Core_EnableStepping(true);
 		}
 		break;
-
+#ifdef MOBILE_DEVICE
+	case VIRTKEY_CHAT:
+		if (g_Config.bEnableNetworkChat) {
+			chatTrigger_ = true;
+		}
+		break;
+#endif // MOBILE_DEVICE
 	case VIRTKEY_OPENCHAT:
 		if (g_Config.bEnableNetworkChat) {
-			//releaseButtons();
-			//UI::EventParams e{};
-			//OnChatMenu.Trigger(e);
 			chatScreenTrigger_ = true;
+		}
+		break;
+	case VIRTKEY_QUICKCHAT1:
+		if (g_Config.bEnableNetworkChat) {
+			quickChat1Trigger_ = true;
+		}
+		break;
+	case VIRTKEY_QUICKCHAT2:
+		if (g_Config.bEnableNetworkChat) {
+			quickChat2Trigger_ = true;
+		}
+		break;
+
+	case VIRTKEY_QUICKCHAT3:
+		if (g_Config.bEnableNetworkChat) {
+			quickChat3Trigger_ = true;
+		}
+		break;
+
+	case VIRTKEY_QUICKCHAT4:
+		if (g_Config.bEnableNetworkChat) {
+			quickChat4Trigger_ = true;
+		}
+		break;
+	case VIRTKEY_QUICKCHAT5:
+		if (g_Config.bEnableNetworkChat) {
+			quickChat5Trigger_ = true;
 		}
 		break;
 
@@ -831,7 +861,7 @@ void EmuScreen::CreateViews() {
 
 	const Bounds &bounds = screenManager()->getUIContext()->GetBounds();
 	InitPadLayout(bounds.w, bounds.h);
-	root_ = CreatePadLayout(bounds.w, bounds.h, &pauseTrigger_,&chatScreenTrigger_);
+	root_ = CreatePadLayout(bounds.w, bounds.h, &pauseTrigger_,&chatScreenTrigger_,&chatTrigger_,&quickChat1Trigger_, &quickChat2Trigger_, &quickChat3Trigger_, &quickChat4Trigger_, &quickChat5Trigger_);
 	if (g_Config.bShowDeveloperMenu) {
 		root_->Add(new Button(dev->T("DevMenu")))->OnClick.Handle(this, &EmuScreen::OnDevTools);
 	}
@@ -890,7 +920,7 @@ UI::EventReturn EmuScreen::OnDevTools(UI::EventParams &params) {
 
 UI::EventReturn EmuScreen::OnChat(UI::EventParams &params) {
 	releaseButtons();
-	if (chatBox->GetVisibility() == UI::V_VISIBLE) chatBox->SetVisibility(UI::V_INVISIBLE);
+	if (chatBox->GetVisibility() == UI::V_VISIBLE && !cmList.getOSMUpdate()) chatBox->SetVisibility(UI::V_INVISIBLE);
 	screenManager()->push(new ChatScreen());
 	return UI::EVENT_DONE;
 }
@@ -954,6 +984,13 @@ void EmuScreen::update() {
 		screenManager()->push(new GamePauseScreen(gamePath_));
 	}
 
+#ifdef MOBILE_DEVICE
+	if (chatTrigger_) {
+		chatTrigger_ = false;
+		System_SendMessage("inputbox", "Chat:");
+	}
+#endif // MOBILE_DEVICE
+
 	if (chatScreenTrigger_) {
 		chatScreenTrigger_ = false;
 		//prevent double add the chat screen
@@ -962,6 +999,31 @@ void EmuScreen::update() {
 			OnChatMenu.Trigger(e);
 		}
 	}
+
+	if (quickChat1Trigger_ && g_Config.bEnableQuickChat) {
+		quickChat1Trigger_ = false;
+		sendChat(g_Config.sQuickChat0);
+	}
+	if (quickChat2Trigger_ && g_Config.bEnableQuickChat) {
+		quickChat2Trigger_ = false;
+		sendChat(g_Config.sQuickChat1);
+	}
+
+	if (quickChat3Trigger_ && g_Config.bEnableQuickChat) {
+		quickChat3Trigger_ = false;
+		sendChat(g_Config.sQuickChat2);
+	}
+
+	if (quickChat4Trigger_ && g_Config.bEnableQuickChat) {
+		quickChat4Trigger_ = false;
+		sendChat(g_Config.sQuickChat3);
+	}
+
+	if (quickChat5Trigger_ && g_Config.bEnableQuickChat) {
+		quickChat5Trigger_ = false;
+		sendChat(g_Config.sQuickChat4);
+	}
+
 
 	if (g_Config.bEnableNetworkChat) {
 		// update chat osm
@@ -1032,21 +1094,17 @@ void EmuScreen::updateChatView() {
 		chatOsm->Clear();
 		cmList.Lock();
 		const std::list<ChatMessages::ChatMessage> &messages = cmList.Messages(chatGuiStatus);
-
-		
 		std::list<ChatMessages::ChatMessage>::const_iterator iter;
 		iter = messages.begin();
-		const size_t get = 10;		
-		if (messages.size() > get) {
-			const size_t pos = messages.size() - get;
-			advance(iter, pos);
+		if (messages.size() > 10) {
+			const size_t pos = messages.size() - 10;
+			std::advance(iter, pos);
 		}
 
 		for (iter; iter != messages.end(); ++iter) {
-			if (iter->name == "") {
+			if (iter->name == "" || iter->onlytext) {
 				TextView *v = chatOsm->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
 				v->SetTextColor(0xFF000000 | iter->textcolor);
-				v->SetShadow(true);
 			}
 			else {
 				LinearLayout *line = chatOsm->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, FILL_PARENT)));
@@ -1054,36 +1112,17 @@ void EmuScreen::updateChatView() {
 					if (iter->room != "") {
 						TextView *GroupView = line->Add(new TextView(iter->room, FLAG_DYNAMIC_ASCII, true));
 						GroupView->SetTextColor(0xFF000000 | iter->roomcolor);
-						GroupView->SetShadow(true);
 					}
 
 					TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
 					nameView->SetTextColor(0xFF000000 | iter->namecolor);
-					nameView->SetShadow(true);
 				}
 				else {
 					TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
 					nameView->SetTextColor(0xFF000000 | iter->namecolor);
-					nameView->SetShadow(true);
 				}
-
-				if (iter->totalLength > 60) {
-					std::vector<std::string> splitted = Split(iter->text, iter->name, iter->room);
-					std::string one = splitted[0];
-					std::string two = splitted[1];
-					TextView *oneview = line->Add(new TextView(one, FLAG_DYNAMIC_ASCII, true));
-					oneview->SetTextColor(0xFF000000 | iter->textcolor);
-					oneview->SetShadow(true);
-					TextView *twoview = chatOsm->Add(new TextView(two, FLAG_DYNAMIC_ASCII, true));
-					twoview->SetTextColor(0xFF000000 | iter->textcolor);
-					twoview->SetShadow(true);
-					++iter;
-				}
-				else {
-					TextView *chatView = line->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
-					chatView->SetTextColor(0xFF000000 | iter->textcolor);
-					chatView->SetShadow(true);
-				}
+				TextView *chatView = line->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
+				chatView->SetTextColor(0xFF000000 | iter->textcolor);
 			}
 		}
 		cmList.Unlock();

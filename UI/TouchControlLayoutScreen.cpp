@@ -423,14 +423,34 @@ void TouchControlLayoutScreen::CreateViews() {
 		controls_.push_back(new DragDropButton(g_Config.fcombo4X, g_Config.fcombo4Y, roundImage, comboKeyImages[4], g_Config.fcomboScale4));
 	}
 
+#ifdef MOBILE_DEVICE
 	if (g_Config.bShowChatButton) {
-		DragDropButton *chatButton = new DragDropButton(g_Config.fchatButtonX, g_Config.fchatButtonY, chatImage, I_C, g_Config.fchatButtonScale);
-		controls_.push_back(chatButton);
+		controls_.push_back(new DragDropButton(g_Config.fchatButtonX, g_Config.fchatButtonY, chatImage, I_C, g_Config.fchatButtonScale));
 	}
+#endif // MOBILE_DEVICE
 
 	if (g_Config.bShowChatScreenButton) {
-		DragDropButton *chatScreenButton = new DragDropButton(g_Config.fchatScreenButtonX, g_Config.fchatScreenButtonY, chatScreenImage, I_CS, g_Config.fchatScreenButtonScale);
-		controls_.push_back(chatScreenButton);
+		controls_.push_back(new DragDropButton(g_Config.fchatScreenButtonX, g_Config.fchatScreenButtonY, chatScreenImage, I_CS, g_Config.fchatScreenButtonScale));
+	}
+
+	if (g_Config.bShowQuickChat1) {
+		controls_.push_back(new DragDropButton(g_Config.fQuickChat1X, g_Config.fQuickChat1Y, chatImage, I_Q1, g_Config.fQuickChat1Scale));
+	}
+
+	if (g_Config.bShowQuickChat2) {
+		controls_.push_back(new DragDropButton(g_Config.fQuickChat2X, g_Config.fQuickChat2Y, chatImage, I_Q2, g_Config.fQuickChat2Scale));
+	}
+
+	if (g_Config.bShowQuickChat3) {
+		controls_.push_back(new DragDropButton(g_Config.fQuickChat3X, g_Config.fQuickChat3Y, chatImage, I_Q3, g_Config.fQuickChat3Scale));
+	}
+
+	if (g_Config.bShowQuickChat4) {
+		controls_.push_back(new DragDropButton(g_Config.fQuickChat4X, g_Config.fQuickChat4Y, chatImage, I_Q4, g_Config.fQuickChat4Scale));
+	}
+
+	if (g_Config.bShowQuickChat5) {
+		controls_.push_back(new DragDropButton(g_Config.fQuickChat5X, g_Config.fQuickChat5Y, chatImage, I_Q5, g_Config.fQuickChat5Scale));
 	}
 
 	for (size_t i = 0; i < controls_.size(); i++) {

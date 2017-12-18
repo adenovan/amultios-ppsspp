@@ -612,6 +612,11 @@ static ConfigSetting controlSettings[] = {
 
 	ConfigSetting("ShowChatButton", &g_Config.bShowChatButton, true, true, true),
 	ConfigSetting("ShowChatScreenButton", &g_Config.bShowChatScreenButton, true, true, true),
+	ConfigSetting("ShowQuickChat1",&g_Config.bShowQuickChat1,false,true,true),
+	ConfigSetting("ShowQuickChat2",&g_Config.bShowQuickChat2,false,true,true),
+	ConfigSetting("ShowQuickChat3",&g_Config.bShowQuickChat3,false,true,true),
+	ConfigSetting("ShowQuickChat4",&g_Config.bShowQuickChat4,false,true,true),
+	ConfigSetting("ShowQuickChat5",&g_Config.bShowQuickChat5,false,true,true),
 #if defined(_WIN32)
 	// A win32 user seeing touch controls is likely using PPSSPP on a tablet. There it makes
 	// sense to default this to on.
@@ -688,13 +693,27 @@ static ConfigSetting controlSettings[] = {
 	ConfigSetting("fcombo4X", &g_Config.fcombo4X, -1.0f, true, true),
 	ConfigSetting("fcombo4Y", &g_Config.fcombo4Y, -1.0f, true, true),
 	ConfigSetting("comboKeyScale4", &g_Config.fcomboScale4, defaultControlScale, true, true),
-
 	ConfigSetting("ChatButtonX", &g_Config.fchatButtonX, -1.0f, true, true),
 	ConfigSetting("ChatButtonY", &g_Config.fchatButtonY, -1.0f, true, true),
 	ConfigSetting("ChatButtonScale", &g_Config.fchatButtonScale, defaultControlScale, true, true),
 	ConfigSetting("ChatScreenButtonX", &g_Config.fchatScreenButtonX, -1.0f, true, true),
 	ConfigSetting("ChatScreenButtonY", &g_Config.fchatScreenButtonY, -1.0f, true, true),
 	ConfigSetting("ChatScreenButtonScale", &g_Config.fchatScreenButtonScale, defaultControlScale, true, true),
+	ConfigSetting("QuickChat1X", &g_Config.fQuickChat1X, -1.0f, true, true),
+	ConfigSetting("QuickChat1Y", &g_Config.fQuickChat1Y, -1.0f, true, true),
+	ConfigSetting("QuickChat1Scale", &g_Config.fQuickChat1Scale, defaultControlScale, true, true),
+	ConfigSetting("QuickChat2X", &g_Config.fQuickChat2X, -1.0f, true, true),
+	ConfigSetting("QuickChat2Y", &g_Config.fQuickChat2Y, -1.0f, true, true),
+	ConfigSetting("QuickChat2Scale", &g_Config.fQuickChat2Scale, defaultControlScale, true, true),
+	ConfigSetting("QuickChat3X", &g_Config.fQuickChat3X, -1.0f, true, true),
+	ConfigSetting("QuickChat3Y", &g_Config.fQuickChat3Y, -1.0f, true, true),
+	ConfigSetting("QuickChat3Scale", &g_Config.fQuickChat3Scale, defaultControlScale, true, true),
+	ConfigSetting("QuickChat4X", &g_Config.fQuickChat4X, -1.0f, true, true),
+	ConfigSetting("QuickChat4Y", &g_Config.fQuickChat4Y, -1.0f, true, true),
+	ConfigSetting("QuickChat4Scale", &g_Config.fQuickChat4Scale, defaultControlScale, true, true),
+	ConfigSetting("QuickChat5X", &g_Config.fQuickChat5X, -1.0f, true, true),
+	ConfigSetting("QuickChat5Y", &g_Config.fQuickChat5Y, -1.0f, true, true),
+	ConfigSetting("QuickChat5Scale", &g_Config.fQuickChat5Scale, defaultControlScale, true, true),
 #ifdef _WIN32
 	ConfigSetting("DInputAnalogDeadzone", &g_Config.fDInputAnalogDeadzone, 0.1f, true, true),
 	ConfigSetting("DInputAnalogInverseMode", &g_Config.iDInputAnalogInverseMode, 0, true, true),
@@ -1465,6 +1484,21 @@ void Config::ResetControlLayout() {
 	g_Config.fchatScreenButtonX = -1.0f;
 	g_Config.fchatScreenButtonY = -1.0f;
 	g_Config.fchatScreenButtonScale = defaultControlScale;
+	g_Config.fQuickChat1X = -1.0f;
+	g_Config.fQuickChat1Y = -1.0f;
+	g_Config.fQuickChat1Scale = defaultControlScale;
+	g_Config.fQuickChat2X = -1.0f;
+	g_Config.fQuickChat2Y = -1.0f;
+	g_Config.fQuickChat2Scale = defaultControlScale;
+	g_Config.fQuickChat3X = -1.0f;
+	g_Config.fQuickChat3Y = -1.0f;
+	g_Config.fQuickChat3Scale = defaultControlScale;
+	g_Config.fQuickChat4X = -1.0f;
+	g_Config.fQuickChat4Y = -1.0f;
+	g_Config.fQuickChat4Scale = defaultControlScale;
+	g_Config.fQuickChat5X = -1.0f;
+	g_Config.fQuickChat5Y = -1.0f;
+	g_Config.fQuickChat5Scale = defaultControlScale;
 }
 
 void Config::GetReportingInfo(UrlEncoder &data) {

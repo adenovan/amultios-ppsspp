@@ -394,10 +394,29 @@ public:
 	float fchatButtonScale;
 	float fchatScreenButtonX, fchatScreenButtonY;
 	float fchatScreenButtonScale;
+	
+	float fQuickChat1X, fQuickChat1Y;
+	float fQuickChat1Scale;
+
+	float fQuickChat2X, fQuickChat2Y;
+	float fQuickChat2Scale;
+
+	float fQuickChat3X, fQuickChat3Y;
+	float fQuickChat3Scale;
+
+	float fQuickChat4X, fQuickChat4Y;
+	float fQuickChat4Scale;
+
+	float fQuickChat5X, fQuickChat5Y;
+	float fQuickChat5Scale;
 
 	bool bShowChatButton;
 	bool bShowChatScreenButton;
-	bool bShowQuickChat;
+	bool bShowQuickChat1;
+	bool bShowQuickChat2;
+	bool bShowQuickChat3;
+	bool bShowQuickChat4;
+	bool bShowQuickChat5;
 
 	// Combo_key mapping. These are bitfields.
 	int iCombokey0;

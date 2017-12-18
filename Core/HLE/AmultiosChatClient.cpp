@@ -49,40 +49,94 @@ void ChatMessages::Update() {
 
 void ChatMessages::Add(const std::string &text, const std::string &name, int room, uint32_t namecolor) {
 	std::lock_guard<std::mutex> locker(chatmutex_);
-	ChatMessage chat;
+	size_t totalLength = 0;
 
-	chat.name = name;
-	chat.roomcolor = 0x35D8FD;
+	//text coloring
+	uint32_t textcolor = 0x53C800;
 	if (name == "") {
-		chat.textcolor = 0x35D8FD;
-		chat.text = text;
-	}
-	else {
-		chat.textcolor = 0xFFFFFF;
-		chat.text.append(": ");
-		chat.text.append(text);
+		textcolor = 0x28CAFF;
 	}
 
+	ChatMessage chat;
+	totalLength += name.length();
+	totalLength += text.length();
+
+	// fill chat info;
+	chat.name = name;
 	chat.namecolor = namecolor;
+	chat.room = "";
+	chat.textcolor = textcolor;
+	chat.onlytext = false;
 	if (name == g_Config.sNickName.c_str()) {
-		chat.namecolor = 0x3539E5;
+		chat.namecolor = 0x3643F4;
+	}
+	
+	if (name == "Lucis" || name == "tintin" || name == "adenovan" || name == "Amultios") {
+		chat.namecolor = 0xD893CE;
 	}
 
-	if (name == "Lucis" || name == "tintin" || name== "adenovan") {
-		chat.namecolor = 0x35D8FD;
-	}
-
-	chat.totalLength = chat.name.length();
-	chat.totalLength += chat.text.length();
 	if (room == CHAT_ADD_ALL) {
-		chat.room = "";
-		AllChatDb.push_back(chat);
-	}else if (room == CHAT_ADD_GROUP || room == CHAT_ADD_ALLGROUP) {
-		chat.room = "[Group]";
-		chat.totalLength += chat.room.length();
-		GroupChatDb.push_back(chat);
-		if (room == CHAT_ADD_ALLGROUP) {
+		//splitted text without room info
+		if (totalLength > 60) {
+			size_t firstSentenceEnd = text.length() / 2;
+			for (auto i = firstSentenceEnd; i<text.length(); i++) {
+				if (isspace(text[i])) {
+					firstSentenceEnd = i + 1;
+					break;
+				}
+			}
+			std::string one = text.substr(0, firstSentenceEnd);
+			std::string two = text.substr(firstSentenceEnd);
+			chat.text = one;
+
+			ChatMessage chat2;
+			chat2.text = two;
+			chat2.textcolor = textcolor;
+			chat2.onlytext = true;
+
 			AllChatDb.push_back(chat);
+			AllChatDb.push_back(chat2);
+		}
+		else {
+			chat.text = text;
+			AllChatDb.push_back(chat);
+		}
+	}
+	else if (room == CHAT_ADD_GROUP || room == CHAT_ADD_ALLGROUP) {
+		chat.room = "[Group]";
+		chat.roomcolor = 0x28CAFF;
+		totalLength += chat.room.length();
+		//splitted text with room info
+		if (totalLength > 60) {
+			size_t firstSentenceEnd = text.length() / 2;
+			for (auto i = firstSentenceEnd; i < text.length(); i++) {
+				if (isspace(text[i])) {
+					firstSentenceEnd = i + 1;
+					break;
+				}
+			}
+			std::string one = text.substr(0, firstSentenceEnd);
+			std::string two = text.substr(firstSentenceEnd);
+			chat.text = one;
+
+			ChatMessage chat2;
+			chat2.text = two;
+			chat2.textcolor = textcolor;
+			chat2.onlytext = true;
+
+			GroupChatDb.push_back(chat);
+			GroupChatDb.push_back(chat2);
+			if (room == CHAT_ADD_ALLGROUP) {
+				AllChatDb.push_back(chat);
+				AllChatDb.push_back(chat2);
+			}
+		}
+		else {
+			chat.text = text;
+			GroupChatDb.push_back(chat);
+			if (room == CHAT_ADD_ALLGROUP) {
+				AllChatDb.push_back(chat);
+			}
 		}
 	}
 }
@@ -102,7 +156,7 @@ void InitChat() {
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port = htons(30000); //27312 // Maybe read this from config too
 
-														   // Resolve dns
+	// Resolve dns
 	addrinfo * resultAddr;
 	addrinfo * ptr;
 	in_addr serverIp;
@@ -111,7 +165,7 @@ void InitChat() {
 	iResult = getaddrinfo("amultios.net", 0, NULL, &resultAddr);
 	if (iResult != 0) {
 		ERROR_LOG(SCENET, "Chat Client DNS Error (%s)\n", g_Config.proAdhocServer.c_str());
-		host->NotifyUserMessage("DNS Error connecting to Amultios Network" + g_Config.proAdhocServer, 8.0f);
+		host->NotifyUserMessage("DNS Error connecting to Amultios Network Check your internet connection", 8.0f);
 		return;
 	}
 	for (ptr = resultAddr; ptr != NULL; ptr = ptr->ai_next) {
@@ -579,25 +633,6 @@ void TerminateChat() {
 			ChatClientThread.join();
 		}
 	}
-}
-
-
-// used by UI
-std::vector<std::string> Split(const std::string& text, const std::string& name, const std::string& group)
-{	
-	std::vector<std::string> ret;
-	size_t firstSentenceEnd = text.length() /2;
-
-	for (auto i = firstSentenceEnd; i<text.length(); i++) {
-		if (isspace(text[i])) {
-			firstSentenceEnd = i+1;
-			break;
-		}
-	}
-
-	ret.push_back(text.substr(0, firstSentenceEnd));
-	ret.push_back(text.substr(firstSentenceEnd));
-	return ret;
 }
 
 bool isPlayer(std::string pname, std::string logname) {

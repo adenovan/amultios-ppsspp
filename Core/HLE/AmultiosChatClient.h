@@ -38,7 +38,7 @@ public:
 		uint32_t namecolor;
 		uint32_t roomcolor;
 		uint32_t textcolor;
-		size_t totalLength;
+		bool onlytext;
 	};
 	
 	bool isChatScreenVisible();
@@ -60,7 +60,7 @@ public:
 	bool getChatUpdate() { return updateChatFlag; }
 	void toogleChatScreen(bool flag);
 
-	void Add(const std::string &text, const std::string &name,int room = 0, uint32_t namecolor = 0xF6B629);
+	void Add(const std::string &text, const std::string &name,int room = 0, uint32_t namecolor = 0xF39621);
 	const std::list<ChatMessage> &Messages(int chatGuiStatus) {
 		if (chatGuiStatus == CHAT_GUI_GROUP) {
 			if (GroupChatDb.size() > 50) {
@@ -142,7 +142,4 @@ extern std::string createVirtualGroup(const char * groupname);
 extern void getServerName(char * servername);
 int ChatClient(int port);
 void Reconnect();
-
-std::vector<std::string> Split(const std::string& text, const std::string& name, const std::string&group);
-
 extern ChatMessages cmList;

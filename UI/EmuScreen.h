@@ -85,8 +85,13 @@ private:
 	bool pauseTrigger_;
 
 	//if set trigger android box
-	bool chatTrigger_;
-	bool chatScreenTrigger_;
+	bool chatTrigger_ = false;
+	bool chatScreenTrigger_ = false;
+	bool quickChat1Trigger_ = false;
+	bool quickChat2Trigger_ = false;
+	bool quickChat3Trigger_ = false;
+	bool quickChat4Trigger_ = false;
+	bool quickChat5Trigger_ = false;
 
 	// To track mappable virtual keys. We can have as many as we want.
 	bool virtKeys[VIRTKEY_COUNT];

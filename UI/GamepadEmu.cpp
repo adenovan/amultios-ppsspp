@@ -118,7 +118,7 @@ void MultiTouchButton::Draw(UIContext &dc) {
 	
 	// hack around chat the center is not square center so we fix that
 	int x = bounds_.centerX();
-	if (img_ == I_C) {
+	if (img_ == I_C || img_ == I_Q1 || img_ == I_Q2 || img_ == I_Q3 || img_ == I_Q4 || img_ == I_Q5) {
 		y -= 11.5f *scale;
 	}
 
@@ -561,17 +561,8 @@ void InitPadLayout(float xres, float yres, float globalScale) {
 	}
 
 
-	int chat_key_X = xres / 2 + (bottom_key_spacing)* scale * 1.2;
-	int chat_key_Y = yres - 120;
-
-	if (g_Config.fchatButtonX == -1.0 || g_Config.fchatScreenButtonY == -1.0) {
-		g_Config.fchatButtonX = (float)chat_key_X / xres;
-		g_Config.fchatButtonY = (float)chat_key_Y / yres;
-		g_Config.fchatButtonScale = scale;
-	}
-
-	int chat_screen_key_X = xres / 2 + (bottom_key_spacing)* scale * 2.2;
-	int chat_screen_key_Y = yres -120 ;
+	int chat_screen_key_X = xres / 2 - (bottom_key_spacing)* scale * 1.0;
+	int chat_screen_key_Y = yres - 170;
 
 	if (g_Config.fchatScreenButtonX == -1.0 || g_Config.fchatScreenButtonY == -1.0) {
 		g_Config.fchatScreenButtonX = (float)chat_screen_key_X / xres;
@@ -579,9 +570,59 @@ void InitPadLayout(float xres, float yres, float globalScale) {
 		g_Config.fchatScreenButtonScale = scale;
 	}
 
+	int chat_key_X = xres / 2 + (bottom_key_spacing)* scale * 1.0;
+	int chat_key_Y = yres - 160;
+
+	if (g_Config.fchatButtonX == -1.0 || g_Config.fchatScreenButtonY == -1.0) {
+		g_Config.fchatButtonX = (float)chat_key_X / xres;
+		g_Config.fchatButtonY = (float)chat_key_Y / yres;
+		g_Config.fchatButtonScale = scale;
+	}
+
+	//ToDO quickchat position
+
+	int quick_chat1_key_X = xres / 2 - (bottom_key_spacing)* scale * 3.0;
+	int quick_chat1_key_Y = yres - 420;
+	if (g_Config.fQuickChat1X == -1.0 || g_Config.fQuickChat1Y == -1.0) {
+		g_Config.fQuickChat1X = (float)quick_chat1_key_X / xres;
+		g_Config.fQuickChat1Y = (float)quick_chat1_key_Y / yres;
+		g_Config.fQuickChat1Scale = scale;
+	}
+
+	int quick_chat2_key_X = xres / 2 - (bottom_key_spacing)* scale * 1.5;
+	int quick_chat2_key_Y = yres - 420;
+	if (g_Config.fQuickChat2X == -1.0 || g_Config.fQuickChat2Y == -1.0) {
+		g_Config.fQuickChat2X = (float)quick_chat2_key_X / xres;
+		g_Config.fQuickChat2Y = (float)quick_chat2_key_Y / yres;
+		g_Config.fQuickChat2Scale = scale;
+	}
+
+	int quick_chat3_key_X = xres / 2;
+	int quick_chat3_key_Y = yres - 420;
+	if (g_Config.fQuickChat3X == -1.0 || g_Config.fQuickChat3Y == -1.0) {
+		g_Config.fQuickChat3X = (float)quick_chat3_key_X / xres;
+		g_Config.fQuickChat3Y = (float)quick_chat3_key_Y / yres;
+		g_Config.fQuickChat3Scale = scale;
+	}
+
+	int quick_chat4_key_X = xres / 2 + (bottom_key_spacing)* scale * 1.5;
+	int quick_chat4_key_Y = yres - 420;
+	if (g_Config.fQuickChat4X == -1.0 || g_Config.fQuickChat4Y == -1.0) {
+		g_Config.fQuickChat4X = (float)quick_chat4_key_X / xres;
+		g_Config.fQuickChat4Y = (float)quick_chat4_key_Y / yres;
+		g_Config.fQuickChat4Scale = scale;
+	}
+
+	int quick_chat5_key_X = xres / 2 + (bottom_key_spacing)* scale * 3.0;
+	int quick_chat5_key_Y = yres - 420;
+	if (g_Config.fQuickChat5X == -1.0 || g_Config.fQuickChat5Y == -1.0) {
+		g_Config.fQuickChat5X = (float)quick_chat5_key_X / xres;
+		g_Config.fQuickChat5Y = (float)quick_chat5_key_Y / yres;
+		g_Config.fQuickChat5Scale = scale;
+	}
 };
 
-UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause,bool *chatScreen) {
+UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause,bool *chatScreen, bool *chat, bool *quickchat1, bool *quickchat2, bool *quickchat3, bool *quickchat4, bool *quickchat5) {
 	//standard coord system
 
 	using namespace UI;
@@ -669,6 +710,27 @@ UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause,bool *chatScr
 	float chat_screen_key_Y = g_Config.fchatScreenButtonY * yres;
 	float chat_screen_key_scale = g_Config.fchatScreenButtonScale;
 
+	float quick_chat1_key_X = g_Config.fQuickChat1X * xres;
+	float quick_chat1_key_Y = g_Config.fQuickChat1Y * yres;
+	float quick_chat1_key_scale = g_Config.fQuickChat1Scale;
+
+	float quick_chat2_key_X = g_Config.fQuickChat2X * xres;
+	float quick_chat2_key_Y = g_Config.fQuickChat2Y * yres;
+	float quick_chat2_key_scale = g_Config.fQuickChat2Scale;
+
+
+	float quick_chat3_key_X = g_Config.fQuickChat3X * xres;
+	float quick_chat3_key_Y = g_Config.fQuickChat3Y * yres;
+	float quick_chat3_key_scale = g_Config.fQuickChat3Scale;
+
+	float quick_chat4_key_X = g_Config.fQuickChat4X * xres;
+	float quick_chat4_key_Y = g_Config.fQuickChat4Y * yres;
+	float quick_chat4_key_scale = g_Config.fQuickChat4Scale;
+
+	float quick_chat5_key_X = g_Config.fQuickChat5X * xres;
+	float quick_chat5_key_Y = g_Config.fQuickChat5Y * yres;
+	float quick_chat5_key_scale = g_Config.fQuickChat5Scale;
+
 
 	const int halfW = xres / 2;
 
@@ -709,11 +771,29 @@ UI::ViewGroup *CreatePadLayout(float xres, float yres, bool *pause,bool *chatScr
 		if (g_Config.bShowTouchUnthrottle)
 			root->Add(new UnthrottleBoolButton(&PSP_CoreParameter().unthrottle, rectImage, I_ARROW, unthrottle_key_scale, new AnchorLayoutParams(unthrottle_key_X, unthrottle_key_Y, NONE, NONE, true)))->SetAngle(180);
 
-		if (g_Config.bShowChatButton)
-			root->Add(new BoolButton(chatScreen, chatImage, I_C, chat_key_scale, new AnchorLayoutParams(chat_key_X, chat_key_Y, NONE, NONE, true)));
+#ifdef MOBILE_DEVICE
 
+		if (g_Config.bShowChatButton)
+			root->Add(new BoolButton(chat, chatImage, I_C, chat_key_scale, new AnchorLayoutParams(chat_key_X, chat_key_Y, NONE, NONE, true)));
+
+#endif
 		if (g_Config.bShowChatScreenButton)
 			root->Add(new BoolButton(chatScreen, chatScreenImage, I_CS, chat_screen_key_scale, new AnchorLayoutParams(chat_screen_key_X, chat_screen_key_Y, NONE, NONE, true)));
+
+		if (g_Config.bShowQuickChat1 && g_Config.bEnableQuickChat)
+			root->Add(new BoolButton(quickchat1, chatImage, I_Q1, quick_chat1_key_scale, new AnchorLayoutParams(quick_chat1_key_X, quick_chat1_key_Y, NONE, NONE, true)));
+
+		if (g_Config.bShowQuickChat2 && g_Config.bEnableQuickChat)
+			root->Add(new BoolButton(quickchat2, chatImage, I_Q2, quick_chat2_key_scale, new AnchorLayoutParams(quick_chat2_key_X, quick_chat2_key_Y, NONE, NONE, true)));
+
+		if (g_Config.bShowQuickChat3 && g_Config.bEnableQuickChat)
+			root->Add(new BoolButton(quickchat3, chatImage, I_Q3, quick_chat3_key_scale, new AnchorLayoutParams(quick_chat3_key_X, quick_chat3_key_Y, NONE, NONE, true)));
+
+		if (g_Config.bShowQuickChat4 && g_Config.bEnableQuickChat)
+			root->Add(new BoolButton(quickchat4, chatImage, I_Q4, quick_chat4_key_scale, new AnchorLayoutParams(quick_chat4_key_X, quick_chat4_key_Y, NONE, NONE, true)));
+
+		if (g_Config.bShowQuickChat5 && g_Config.bEnableQuickChat)
+			root->Add(new BoolButton(quickchat5, chatImage, I_Q5, quick_chat5_key_scale, new AnchorLayoutParams(quick_chat5_key_X, quick_chat5_key_Y, NONE, NONE, true)));
 
 		if (g_Config.bShowTouchLTrigger)
 			root->Add(new PSPButton(CTRL_LTRIGGER, shoulderImage, I_L, l_key_scale, new AnchorLayoutParams(l_key_X, l_key_Y, NONE, NONE, true)));

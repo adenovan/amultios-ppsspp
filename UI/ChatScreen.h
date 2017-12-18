@@ -19,7 +19,6 @@ private:
 	UI::EventReturn OnSubmit(UI::EventParams &e);
 	UI::EventReturn OnChangeChannel(UI::EventParams &e);
 	UI::TextEdit *chatEdit_;
-	UI::Button *chatButton_;
 	UI::ScrollView *scroll_;
 	UI::LinearLayout *chatVert_ = nullptr;
 	UI::ViewGroup *box_;

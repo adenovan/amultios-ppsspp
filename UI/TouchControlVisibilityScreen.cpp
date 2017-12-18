@@ -74,9 +74,15 @@ void TouchControlVisibilityScreen::CreateViews() {
 	keyToggles["Combo2"] = &g_Config.bShowComboKey2;
 	keyToggles["Combo3"] = &g_Config.bShowComboKey3;
 	keyToggles["Combo4"] = &g_Config.bShowComboKey4;
+#ifdef MOBILE_DEVICE
 	keyToggles["Chat"] = &g_Config.bShowChatButton;
+#endif // MOBILE_DEVICE
 	keyToggles["Chat Screen"] = &g_Config.bShowChatScreenButton;
-
+	keyToggles["Quick Chat 1"] = &g_Config.bShowQuickChat1;
+	keyToggles["Quick Chat 2"] = &g_Config.bShowQuickChat2;
+	keyToggles["Quick Chat 3"] = &g_Config.bShowQuickChat3;
+	keyToggles["Quick Chat 4"] = &g_Config.bShowQuickChat4;
+	keyToggles["Quick Chat 5"] = &g_Config.bShowQuickChat5;
 	std::map<std::string, int>::iterator imageFinder;
 
 	I18NCategory *mc = GetI18NCategory("MappableControls");

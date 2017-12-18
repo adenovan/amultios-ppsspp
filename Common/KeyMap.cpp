@@ -674,7 +674,9 @@ const KeyMap_IntStrPair psp_button_names[] = {
 	{CTRL_SCREEN, "Screen"},
 	{CTRL_NOTE, "Note"},
 	{VIRTKEY_OPENCHAT,"OpenChat"},
-	{VIRTKEY_CHAT,"Chat"},
+#ifdef MOBILE_DEVICE
+	{ VIRTKEY_CHAT,"Chat" },
+#endif // MOBILE_DEVICE
 	{VIRTKEY_QUICKCHAT1,"QuickChat1"},
 	{VIRTKEY_QUICKCHAT2,"QuickChat2"},
 	{VIRTKEY_QUICKCHAT3,"QuickChat3"},
