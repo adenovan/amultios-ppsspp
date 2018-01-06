@@ -1096,7 +1096,7 @@ int friendFinder(){
 					cmList.Add(incoming, "", CHAT_ADD_ALLGROUP);
 
 					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					cmList.Update();
+					cmList.Update(CHAT_ADD_ALLGROUP);
 					// Update HUD User Count
 #ifdef LOCALHOST_AS_PEER
 					setUserCount(getActivePeerCount());

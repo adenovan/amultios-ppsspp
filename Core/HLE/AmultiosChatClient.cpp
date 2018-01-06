@@ -40,11 +40,20 @@ void ChatMessages::toogleChatScreen(bool flag) {
 float ChatMessages::getLastUpdate() {
 	return lastUpdate;
 }
-void ChatMessages::Update() {
+void ChatMessages::Update(int chatAddStatus) {
 	std::lock_guard<std::mutex> locker(chatUpdateMutex_);
-	lastUpdate = time_now();
-	updateOSMFlag = true;
-	updateChatFlag = true;
+	if (chatAddStatus == chatGuiStatus) {
+		lastUpdate = time_now();
+		updateOSMFlag = true;
+		updateChatFlag = true;
+	}
+
+	if (chatAddStatus == CHAT_ADD_ALLGROUP && (chatGuiStatus == CHAT_GUI_ALL || chatGuiStatus == CHAT_GUI_GROUP)) {
+		lastUpdate = time_now();
+		updateOSMFlag = true;
+		updateChatFlag = true;
+	}
+
 }
 
 void ChatMessages::Add(const std::string &text, const std::string &name, int room, uint32_t namecolor) {
@@ -243,15 +252,14 @@ void connectChatGroup(const char * groupname) {
 		info = "Connected to Group Lobby ";
 		info += replace.c_str();
 		cmList.Add(info, "", CHAT_ADD_ALLGROUP);
-		cmList.Update();
+		cmList.Update(CHAT_ADD_ALLGROUP);
 	}
 	else {
 		info = "Failed Connecting to Group Lobby ";
 		info += replace.c_str();
 		cmList.Add(info, "", CHAT_ADD_ALLGROUP);
-		cmList.Update();
+		cmList.Update(CHAT_ADD_ALLGROUP);
 	}
-	cmList.Update();
 	return;
 }
 
@@ -265,10 +273,8 @@ void disconnectChatGroup() {
 	info += replace.c_str();
 	if (sent > 0) {
 		cmList.Add(info, "", CHAT_ADD_ALLGROUP);
-		cmList.Update();
+		cmList.Update(CHAT_ADD_ALLGROUP);
 	}
-
-	cmList.Update();
 	return;
 }
 
@@ -309,7 +315,7 @@ int ChatClient(int port) {
 
 			// Log Incoming Traffic
 			//printf("Received %d Bytes of Data from Server\n", received);
-			INFO_LOG(SCENET, "Received %d Bytes of Data from Chat Server", received);
+			DEBUG_LOG(SCENET, "Received %d Bytes of Data from Chat Server", received);
 		}
 
 		// Handle Packets
@@ -317,7 +323,7 @@ int ChatClient(int port) {
 
 			// Chat Packet
 			if (rx[0] == OPCODE_CHAT) {
-				INFO_LOG(SCENET, "Chat Client: Incoming OPCODE_CHAT");
+				DEBUG_LOG(SCENET, "Chat Client: Incoming OPCODE_CHAT");
 				// Enough Data available
 				if (rxpos >= (int)sizeof(SceNetAdhocctlChatPacketS2C)) {
 					// Cast Packet
@@ -326,7 +332,7 @@ int ChatClient(int port) {
 					NOTICE_LOG(SCENET, "Received Group Chat message %s", packet->base.message);
 					cmList.Add((char *)packet->base.message, (char *)packet->name.data, CHAT_ADD_ALLGROUP);
 					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
-					cmList.Update();
+					cmList.Update(CHAT_ADD_ALLGROUP);
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlChatPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlChatPacketS2C));
 
@@ -336,7 +342,7 @@ int ChatClient(int port) {
 			}
 
 			else if (rx[0] == OPCODE_GLOBAL_CHAT) {
-				INFO_LOG(SCENET, "Chat Client: Incoming OPCODE_GLOBAL_CHAT)");
+				DEBUG_LOG(SCENET, "Chat Client: Incoming OPCODE_GLOBAL_CHAT)");
 				// Enough Data available
 				if (rxpos >= (int)sizeof(SceNetAdhocctlChatPacketS2C)) {
 					// Cast Packet
@@ -344,7 +350,7 @@ int ChatClient(int port) {
 					// Add Incoming Chat to HUD ALL
 					NOTICE_LOG(SCENET, "Received Global chat message %s", packet->base.message);
 					cmList.Add((char *)packet->base.message, (char *)packet->name.data, CHAT_ADD_ALL);
-					cmList.Update();
+					cmList.Update(CHAT_ADD_ALL);
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlChatPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlChatPacketS2C));
 
@@ -354,14 +360,14 @@ int ChatClient(int port) {
 			}
 
 			else if (rx[0] == OPCODE_GAME_CHAT) {
-				INFO_LOG(SCENET, "ChatClient: Incoming OPCODE_GAME_CHAT");
+				DEBUG_LOG(SCENET, "ChatClient: Incoming OPCODE_GAME_CHAT");
 				// Enough Data available
 				if (rxpos >= (int)sizeof(SceNetAdhocctlChatPacketS2C)) {
 					// Cast Packet
 					SceNetAdhocctlChatPacketS2C * packet = (SceNetAdhocctlChatPacketS2C *)rx;
 					// Should we make more room?
 					NOTICE_LOG(SCENET, "Received Game Chat message %s", packet->base.message);
-					cmList.Update();
+					cmList.Update(CHAT_ADD_ALL);
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlChatPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlChatPacketS2C));
 
@@ -384,7 +390,7 @@ int ChatClient(int port) {
 					// Fix RX Buffer Length
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
 					cmList.Add("Connected to Amultios Chat Server", "",CHAT_ADD_ALL);
-					cmList.Update();
+					cmList.Update(CHAT_ADD_ALL);
 				}
 			}
 
@@ -404,7 +410,7 @@ int ChatClient(int port) {
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
 					cmList.Add("Cannot Connect To Amultios Server Login Failed", "", CHAT_ADD_ALL);
 					cmList.Add(packet->reason,"", CHAT_ADD_ALL);
-					cmList.Update();
+					cmList.Update(CHAT_ADD_ALL);
 					break;
 				}
 			}
@@ -425,7 +431,7 @@ int ChatClient(int port) {
 
 	chatclientstatus = CHAT_CLIENT_DISCONNECTED;
 	// Log Shutdown
-	INFO_LOG(SCENET, "CHAT_CLIENT: End of CHAT CLIENT Thread");
+	DEBUG_LOG(SCENET, "CHAT_CLIENT: End of CHAT CLIENT Thread");
 	closesocket(chatsocket);
 	// Return Success
 	return 0;
@@ -436,7 +442,7 @@ void Reconnect() {
 	if (chatclientstatus == CHAT_CLIENT_DISCONNECTED || chatclientstatus == CHAT_CLIENT_WAITING) {
 		cmList.Add("Connection to Amultios Network Lost", "");
 		cmList.Add("Reconnect in Progress...", "");
-		cmList.Update();
+		cmList.Update(CHAT_ADD_ALL);
 
 		// init only if disconnected (END OF Chat Client THREAD)
 		if (chatclientstatus != CHAT_CLIENT_WAITING && chatclientstatus != CHAT_CLIENT_CONNECTED) {
@@ -492,12 +498,12 @@ void sendChat(std::string chatString) {
 					}
 					else {
 						cmList.Add(message, name, CHAT_ADD_ALLGROUP);
-						cmList.Update();
+						cmList.Update(CHAT_ADD_ALLGROUP);
 					}
 				}
 				else {
 					cmList.Add("Group Not Available, please go to adhoc lobby or gathering hall", "", CHAT_ADD_GROUP);
-					cmList.Update();
+					cmList.Update(CHAT_ADD_GROUP);
 				}
 				break;
 			/*
@@ -542,7 +548,7 @@ void sendChat(std::string chatString) {
 					}
 					else {
 						cmList.Add("Group Not Available, please go to adhoc lobby or gathering hall", "", CHAT_ADD_ALL);
-						cmList.Update();
+						cmList.Update(CHAT_ADD_ALL);
 						return;
 					}
 				}
@@ -555,19 +561,16 @@ void sendChat(std::string chatString) {
 				else {
 					if (toGroup) {
 						cmList.Add(message, name, CHAT_ADD_ALLGROUP);
-						cmList.Update();
+						cmList.Update(CHAT_ADD_ALLGROUP);
 					}
 					else {
 						cmList.Add(message, name, CHAT_ADD_ALL);
-						cmList.Update();
+						cmList.Update(CHAT_ADD_ALL);
 					}
 
 				}
 				break;
 			}
-
-			//update chatlog
-			cmList.Update();
 		}
 	}
 }

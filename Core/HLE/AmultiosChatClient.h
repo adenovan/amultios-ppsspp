@@ -43,7 +43,7 @@ public:
 	
 	bool isChatScreenVisible();
 
-	void Update();
+	void Update(int chatAdd);
 	float getLastUpdate();
 
 	void Lock() {

@@ -920,8 +920,8 @@ UI::EventReturn GameSettingsScreen::OnRenderingMode(UI::EventParams &e) {
 	// We do not want to report when rendering mode is Framebuffer to memory - so many issues
 	// are caused by that (framebuffer copies overwriting display lists, etc).
 	Reporting::UpdateConfig();
-	enableReports_ = Reporting::IsEnabled();
-	enableReportsCheckbox_->SetEnabled(Reporting::IsSupported());
+	//enableReports_ = Reporting::IsEnabled();
+	//enableReportsCheckbox_->SetEnabled(Reporting::IsSupported());
 
 	postProcEnable_ = !g_Config.bSoftwareRendering && (g_Config.iRenderingMode != FB_NON_BUFFERED_MODE);
 	resolutionEnable_ = !g_Config.bSoftwareRendering && (g_Config.iRenderingMode != FB_NON_BUFFERED_MODE);
