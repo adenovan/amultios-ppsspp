@@ -171,7 +171,8 @@ void InitChat() {
 	in_addr serverIp;
 	serverIp.s_addr = INADDR_NONE;
 
-	iResult = getaddrinfo("amultios.net", 0, NULL, &resultAddr);
+	//iResult = getaddrinfo("amultios.net", 0, NULL, &resultAddr);
+	iResult = getaddrinfo(g_Config.proAdhocServer.c_str(), 0, NULL, &resultAddr);
 	if (iResult != 0) {
 		ERROR_LOG(SCENET, "Chat Client DNS Error (%s)\n", g_Config.proAdhocServer.c_str());
 		host->NotifyUserMessage("DNS Error connecting to Amultios Network Check your internet connection", 8.0f);
@@ -607,6 +608,9 @@ std::string createVirtualGroup(const char * groupname) {
 void getServerName(char * servername) {
 
 	switch (g_Config.iServerChannel) {
+	case 27312:
+		strcpy(servername, "PPSSPP");
+		break;
 	case 27313:
 		strcpy(servername, "Midgard");
 		break;

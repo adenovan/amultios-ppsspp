@@ -37,6 +37,7 @@
 #include "Core/HLE/sceNet.h"
 #include "Core/HLE/AmultiosChatClient.h"
 #include "Core/HLE/proAdhocServer.h"
+#include "Core/HLE/AmultiosAdhoc.h"
 
 // shared in sceNetAdhoc.h since it need to be used from sceNet.cpp also
 // TODO: Make accessor functions instead, and throw all this state in a struct.
@@ -46,6 +47,9 @@ bool networkInited;
 
 static bool netAdhocMatchingInited;
 int netAdhocMatchingStarted = 0;
+uint16_t pdpRelayPort = 35001;
+uint16_t ptpRelayPort = 35001;
+
 
 SceUID threadAdhocID;
 
@@ -74,7 +78,7 @@ void __NetAdhocShutdown() {
 		}
 	}
 	//terminate chat thread;
-	TerminateChat();
+	//TerminateChat();
 
 	// Checks to avoid confusing logspam
 	if (netAdhocMatchingInited) {
@@ -162,7 +166,7 @@ void __NetAdhocInit() {
 		adhocServerThread = std::thread(proAdhocServerThread, g_Config.iServerChannel);
 	}
 
-	InitChat();
+	//InitChat();
 }
 
 u32 sceNetAdhocInit() {
@@ -201,9 +205,9 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr) {
 	if(g_Config.bEnableWlan) {
 		if (initNetwork((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == 0) {
 
-			if (ChatClientRunning) {
-				connectChatGame((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr));
-			}
+			//if (ChatClientRunning) {
+				//connectChatGame((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr));
+			//}
 			if (!friendFinderRunning) {
 				friendFinderRunning = true;
 				friendFinderThread = std::thread(friendFinder);
@@ -249,14 +253,14 @@ static int sceNetAdhocctlGetState(u32 ptrToStatus) {
  */
 // When choosing AdHoc menu in Wipeout Pulse sometimes it's saying that "WLAN is turned off" on game screen and getting "kUnityCommandCode_MediaDisconnected" error in the Log Console when calling sceNetAdhocPdpCreate, probably it needed to wait something from the thread before calling this (ie. need to receives 7 bytes from adhoc server 1st?)
 static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unknown) {
-	INFO_LOG(SCENET, "sceNetAdhocPdpCreate(%s, %u, %u, %u) at %08x", mac, port, bufferSize, unknown, currentMIPS->pc);
+	SceNetEtherAddr * saddr = (SceNetEtherAddr *)mac;
+	INFO_LOG(SCENET, "sceNetAdhocPdpCreate(%02X:%02X:%02X:%02X:%02X:%02X, %u, %u, %u) at %08x", saddr->data[0], saddr->data[1], saddr->data[2], saddr->data[3], saddr->data[4], saddr->data[5], port, bufferSize, unknown, currentMIPS->pc);
 	if (!g_Config.bEnableWlan) {
 		return -1;
 	}
 
 	int retval = ERROR_NET_ADHOC_NOT_INITIALIZED;
 	// Library is initialized
-	SceNetEtherAddr * saddr = (SceNetEtherAddr *)mac;
 	if (netAdhocInited) {
 		// Valid Arguments are supplied
 		if (mac != NULL && bufferSize > 0) {
@@ -269,7 +273,7 @@ static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 u
 				//return ERROR_NET_ADHOC_PORT_IN_USE;
 
 				// Create Internet UDP Socket
-				int usocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+				int usocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 				// Valid Socket produced
 				if (usocket != INVALID_SOCKET) {
 					// Change socket buffer size when necessary
@@ -279,61 +283,94 @@ static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 u
 					// Enable Port Re-use, this will allow binding to an already used port, but only one of them can read the data (shared receive buffer?)
 					int one = 1;
 					setsockopt(usocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&one, sizeof(one)); // NO idea if we need this
-					// Binding Information for local Port
-					sockaddr_in addr;
-					addr.sin_family = AF_INET;
-					addr.sin_addr.s_addr = INADDR_ANY;
+					setsockopt(usocket, IPPROTO_TCP, TCP_NODELAY, (const char*)&one, sizeof(one));
+					int iResult = 0;
+					struct sockaddr_in server_addr;
+					server_addr.sin_family = AF_INET;
+					//server_addr.sin_port = htons(g_Config.iServerChannel); //27312 // Maybe read this from config too
+					// Resolve dns
+					addrinfo * resultAddr;
+					addrinfo * ptr;
+					in_addr serverIp;
+					serverIp.s_addr = INADDR_NONE;
 
-					//if (port < 7) addr.sin_port = htons(port + 1341); else // <= 443
-					addr.sin_port = htons(port + portOffset ); // This not safe in any way...
-					// The port might be under 1024 (ie. GTA:VCS use port 1, Ford Street Racing use port 0 (UNUSED_PORT), etc) and already used by other application/host OS, should we add 1024 to the port whenever it tried to use an already used port?
+					iResult = getaddrinfo(g_Config.proAdhocServer.c_str(), 0, NULL, &resultAddr);
+					for (ptr = resultAddr; ptr != NULL; ptr = ptr->ai_next) {
+						switch (ptr->ai_family) {
+						case AF_INET:
+							serverIp = ((sockaddr_in *)ptr->ai_addr)->sin_addr;
+							break;
+						}
+					}
+					server_addr.sin_addr = serverIp;
+					server_addr.sin_port = htons(pdpRelayPort);
 
 					// Bound Socket to local Port
-					int iResult = bind(usocket, (sockaddr *)&addr, sizeof(addr));
+					iResult = connect(usocket, (sockaddr *)&server_addr, sizeof(server_addr));
 					/*if (iResult == SOCKET_ERROR && errno == 10048) { //Forcing PdpCreate to be successfull using a different Port might not works and might affect other players sharing the same IP due to "deleteFriendByIP" (should delete by MAC instead of IP)
 						addr.sin_port = 0; //UNUSED_PORT
 						iResult = bind(usocket, (sockaddr *)&addr, sizeof(addr));
 						WARN_LOG(SCENET, "Port %u is already used, replaced with UNUSED_PORT(%u)", port, ntohs(addr.sin_port));
 					}*/
 					if (iResult == 0) {
-						// Allocate Memory for Internal Data
-						SceNetAdhocPdpStat * internal = (SceNetAdhocPdpStat *)malloc(sizeof(SceNetAdhocPdpStat));
+						RELAY_PDP_CREATE_LOGIN login_packet;
+						memset(&login_packet, 0, sizeof(login_packet));
 
-						// Allocated Memory
-						if (internal != NULL) {
-							// Clear Memory
-							memset(internal, 0, sizeof(SceNetAdhocPdpStat));
+						login_packet.opcode = OPCODE_PDP_LOGIN;
+						getLocalMac(&login_packet.mac);
+						login_packet.port = port;
 
-							// Find Free Translator Index
-							int i = 0; for (; i < 255; i++) if (pdp[i] == NULL) break;
+						int sendResult = send(usocket, (const char *)&login_packet, sizeof(login_packet), 0);
+						int error = errno;
 
-							// Found Free Translator Index
-							if (i < 255) {
-								// Fill in Data
-								internal->id = usocket;
-								internal->laddr = *saddr;
-								internal->lport = getLocalPort(usocket) - portOffset; //should use the port given to the socket (in case it's UNUSED_PORT port) isn't?
-								internal->rcv_sb_cc = bufferSize;
-
-								// Link Socket to Translator ID
-								pdp[i] = internal;
-
-								// Forward Port on Router
-								//sceNetPortOpen("UDP", sport); // I need to figure out how to use this in windows/linux
-								
-								// Success
-								return i + 1;
-							} 
-
-							// Free Memory for Internal Data
-							free(internal);
+						if (sendResult == SOCKET_ERROR && error != EAGAIN) {
+							ERROR_LOG(SCENET, "Socket error (%i) PDP LOGIN TO RELAY", errno);
+							retval = ERROR_NET_ADHOC_PORT_IN_USE;
 						}
-						retval = ERROR_NET_NO_SPACE;
+						else {
+								INFO_LOG(SCENET, "PDP Login Sending %i bytes to relay server", sendResult);
+								// Allocate Memory for Internal Data
+								SceNetAdhocPdpStat * internal = (SceNetAdhocPdpStat *)malloc(sizeof(SceNetAdhocPdpStat));
+								if (internal != NULL) {
+									// Clear Memory
+									memset(internal, 0, sizeof(SceNetAdhocPdpStat));
+									// Find Free Translator Index
+									int i = 0; for (; i < 255; i++) if (pdp[i] == NULL) break;
+
+									// Found Free Translator Index
+									if (i < 255) {
+										// Fill in Data
+										internal->id = usocket;
+										internal->laddr = *saddr;
+										//internal->lport = getLocalPort(usocket) - portOffset; //should use the port given to the socket (in case it's UNUSED_PORT port) isn't?
+										internal->lport = port;
+										internal->rcv_sb_cc = bufferSize;
+
+										// Link Socket to Translator ID
+										pdp[i] = internal;
+
+										// Link PDP Relay
+
+
+										// Forward Port on Router
+										//sceNetPortOpen("UDP", sport); // I need to figure out how to use this in windows/linux
+
+										// Success
+										return i + 1;
+									}
+
+									// Free Memory for Internal Data
+									free(internal);
+									// Allocated Memory
+									retval = ERROR_NET_NO_SPACE;
+								}
+							}
+
 					}
 					else {
 						retval = ERROR_NET_ADHOC_PORT_IN_USE;
 						if (iResult == SOCKET_ERROR) {
-							ERROR_LOG(SCENET, "Socket error (%i) when binding port %u", errno, ntohs(addr.sin_port));
+							ERROR_LOG(SCENET, "Socket error (%i) when connecting to  %s:%u", errno, inet_ntoa(serverIp),ntohs(server_addr.sin_port));
 						}
 					}
 
@@ -433,100 +470,69 @@ static int sceNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int
 
 							// Single Target
 							if (!isBroadcastMAC(daddr)) {
-								// Fill in Target Structure
-								sockaddr_in target;
-								target.sin_family = AF_INET;
-								target.sin_port = htons(dport + portOffset);
+								RELAY_PDP_SINGLE * packet_pdp_single = (RELAY_PDP_SINGLE *) malloc(sizeof(RELAY_PDP_SINGLE));
+								packet_pdp_single->opcode = OPCODE_PDP_RELAY_SINGLE;
+								packet_pdp_single->dmac = *daddr;
+								packet_pdp_single->port = port;
+								packet_pdp_single->dataLength = len;
 
-								// Get Peer IP
-								if (resolveMAC((SceNetEtherAddr *)daddr, (uint32_t *)&target.sin_addr.s_addr)) {
-									// Acquire Network Lock
-									//_acquireNetworkLock();
+								changeBlockingMode(socket->id, flag);
+								int sendHeader = send(socket->id, (const char*)packet_pdp_single, sizeof(RELAY_PDP_SINGLE), 0);
+								int error = errno;
+								changeBlockingMode(socket->id, 0);
 
-									// Send Data
+								if (sendHeader == SOCKET_ERROR && error != EAGAIN) {
+									ERROR_LOG(SCENET, "Socket Error (%i) on sceNetAdhocPdpSendHeader[%i:%u->%u] (size=%i)", error, id, getLocalPort(socket->id), port, len);
+								}
+								else {
 									changeBlockingMode(socket->id, flag);
-									int sent = sendto(socket->id, (const char *)data, len, 0, (sockaddr *)&target, sizeof(target));
-									int error = errno;
+									int sent = send(socket->id, (const char*)data, len, 0);
 									if (sent == SOCKET_ERROR) {
-										DEBUG_LOG(SCENET, "Socket Error (%i) on sceNetAdhocPdpSend[%i:%u->%u] (size=%i)", error, id, getLocalPort(socket->id), ntohs(target.sin_port), len);
+										DEBUG_LOG(SCENET, "Socket Error (%i) on sceNetAdhocPdpSend[%i:%u->%u] (size=%i)", error, id, getLocalPort(socket->id), port, len);
 									}
 									changeBlockingMode(socket->id, 0);
 
-									// Free Network Lock
-									//_freeNetworkLock();
-
-									uint8_t * sip = (uint8_t *)&target.sin_addr.s_addr;
-									// Sent Data
 									if (sent == len) {
-										DEBUG_LOG(SCENET, "sceNetAdhocPdpSend[%i:%u]: Sent %u bytes to %u.%u.%u.%u:%u\n", id, getLocalPort(socket->id), sent, sip[0], sip[1], sip[2], sip[3], ntohs(target.sin_port));
-
+										DEBUG_LOG(SCENET, "sceNetAdhocPdpSend[%i:%u]: Sent %u bytes to \n", id, getLocalPort(socket->id), sent);
 										// Success
 										return 0;
 									}
-
-									// Blocking Situation
-									if (flag) return ERROR_NET_ADHOC_WOULD_BLOCK;
-
-									// Timeout
-									return ERROR_NET_ADHOC_TIMEOUT; //-1;
 								}
+
+								// Blocking Situation
+								if (flag) return ERROR_NET_ADHOC_WOULD_BLOCK;
+
+								// Timeout
+								return ERROR_NET_ADHOC_TIMEOUT; //-1;
 							}
 
 							// Broadcast Target
 							else {
-								// Acquire Network Lock
-								//_acquireNetworkLock();
+								RELAY_PDP_BROADCAST * packet_pdp_broadcast = (RELAY_PDP_BROADCAST *)malloc(sizeof(RELAY_PDP_BROADCAST));
+								packet_pdp_broadcast->opcode = OPCODE_PDP_RELAY_BROADCAST_GROUP;
+								packet_pdp_broadcast->port = port; 
+								packet_pdp_broadcast->dataLength = len;
 
-#ifdef BROADCAST_TO_LOCALHOST
-								//// Get Local IP Address
-								//union SceNetApctlInfo info; if (sceNetApctlGetInfo(PSP_NET_APCTL_INFO_IP, &info) == 0) {
-								//	// Fill in Target Structure
-								//	SceNetInetSockaddrIn target;
-								//	target.sin_family = AF_INET;
-								//	sceNetInetInetAton(info.ip, &target.sin_addr);
-								//	target.sin_port = sceNetHtons(dport);
-								//	
-								//	// Send Data
-								//	sceNetInetSendto(socket->id, data, len, ((flag != 0) ? (INET_MSG_DONTWAIT) : (0)), (SceNetInetSockaddr *)&target, sizeof(target));
-								//}
-#endif
-
-								// Acquire Peer Lock
-								peerlock.lock();
-
-								// Iterate Peers
-								SceNetAdhocctlPeerInfo * peer = friends;
-								for (; peer != NULL; peer = peer->next) {
-									// Skip timed out friends
-									if (peer->last_recv == 0) continue;
-
-									// Fill in Target Structure
-									sockaddr_in target;
-									target.sin_family = AF_INET;
-									target.sin_addr.s_addr = peer->ip_addr;
-									target.sin_port = htons(dport + portOffset);
-
-									// Send Data
+								changeBlockingMode(socket->id, flag);
+								int sendHeader = send(socket->id, (const char*)packet_pdp_broadcast, sizeof(RELAY_PDP_BROADCAST), 0);
+								changeBlockingMode(socket->id, 0);
+								int error = errno;
+								if (sendHeader == SOCKET_ERROR) {
+									DEBUG_LOG(SCENET, "Socket Error (%i) on sceNetAdhocPdpSendHeaderBroadcast[%i:%u->%u] (size=%i)", error, id, getLocalPort(socket->id), port);
+								}
+								else {
+									VERBOSE_LOG(SCENET, "sceNetAdhocPdpSendHeaderBroadcast[%i:%u->%u] header sent (size=%i)", id, getLocalPort(socket->id), port, sendHeader);
 									changeBlockingMode(socket->id, flag);
-									int sent = sendto(socket->id, (const char *)data, len, 0, (sockaddr *)&target, sizeof(target));
-									int error = errno;
+									int sent = send(socket->id, (const char*)data, len, 0);
 									if (sent == SOCKET_ERROR) {
-										DEBUG_LOG(SCENET, "Socket Error (%i) on sceNetAdhocPdpSend[%i:%u->%u](BC) [size=%i]", error, id, getLocalPort(socket->id), ntohs(target.sin_port), len);
+										ERROR_LOG(SCENET, "Socket Error (%i) on sceNetAdhocPdpSendBroadcast[%i:%u->%u] (size=%i)", error, id, getLocalPort(socket->id), port, len);
 									}
 									changeBlockingMode(socket->id, 0);
-									if (sent >= 0) {
-										uint8_t * sip = (uint8_t *)&target.sin_addr.s_addr;
-										DEBUG_LOG(SCENET, "sceNetAdhocPdpSend[%i:%u](BC): Sent %u bytes to %u.%u.%u.%u:%u\n", id, getLocalPort(socket->id), sent, sip[0], sip[1], sip[2], sip[3], ntohs(target.sin_port));
+
+									if (sent == len) {
+										DEBUG_LOG(SCENET, "sceNetAdhocPdpSendBroadcast[%i:%u]: Sent %u bytes broadcast\n", id, getLocalPort(socket->id), sent);
 									}
 								}
-
-								// Free Peer Lock
-								peerlock.unlock();
-
-								// Free Network Lock
-								//_freeNetworkLock();
-
-								// Success, Broadcast never fails!
 								return 0;
 							}
 						}
@@ -569,7 +575,7 @@ static int sceNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int
  * @return 0 on success or... ADHOC_INVALID_ARG, ADHOC_NOT_INITIALIZED, ADHOC_INVALID_SOCKET_ID, ADHOC_SOCKET_DELETED, ADHOC_SOCKET_ALERTED, ADHOC_WOULD_BLOCK, ADHOC_TIMEOUT, ADHOC_NOT_ENOUGH_SPACE, ADHOC_THREAD_ABORTED, NET_INTERNAL
  */
 static int sceNetAdhocPdpRecv(int id, void *addr, void * port, void *buf, void *dataLength, u32 timeout, int flag) {
-	DEBUG_LOG(SCENET, "sceNetAdhocPdpRecv(%i, %p, %p, %p, %p, %i, %i) at %08x", id, addr, port, buf, dataLength, timeout, flag, currentMIPS->pc);
+	VERBOSE_LOG(SCENET, "sceNetAdhocPdpRecv(%i, %p, %p, %p, %p, %i, %i) at %08x", id, addr, port, buf, dataLength, timeout, flag, currentMIPS->pc);
 	if (!g_Config.bEnableWlan) {
 		return -1;
 	}
@@ -612,48 +618,57 @@ static int sceNetAdhocPdpRecv(int id, void *addr, void * port, void *buf, void *
 				setsockopt(socket->id, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
 
 				// Sender Address
-				sockaddr_in sin;
+				//sockaddr_in sin;
 
 				// Set Address Length (so we get the sender ip)
-				socklen_t sinlen = sizeof(sin);
+				//socklen_t sinlen = sizeof(sin);
 				//sin.sin_len = (uint8_t)sinlen;
 
 				// Acquire Network Lock
 				//_acquireNetworkLock();
 
 				// Receive Data
+				RELAY_PDP_RECV * packet = (RELAY_PDP_RECV *)malloc(sizeof(RELAY_PDP_RECV));
+
 				changeBlockingMode(socket->id, flag);
-				int received = recvfrom(socket->id, (char *)buf, *len,0,(sockaddr *)&sin, &sinlen);
+				int received = recv(socket->id, (char *)packet, sizeof(RELAY_PDP_RECV),0);
 				int error = errno;
-				if (received == SOCKET_ERROR) {
-					VERBOSE_LOG(SCENET, "Socket Error (%i) on sceNetAdhocPdpRecv [size=%i]", error, *len);
+				if (received == SOCKET_ERROR && error != EAGAIN) {
+					//ERROR_LOG(SCENET, "Socket Error (%i) on sceNetAdhocPdpRecv Receive Header Error[size=%i]", error, *len);
 				}
 				changeBlockingMode(socket->id, 0); 
 
 				// Received Data
-				if (received >= 0) {
-					uint8_t * sip = (uint8_t *)&sin.sin_addr.s_addr;
-					DEBUG_LOG(SCENET, "sceNetAdhocPdpRecv[%i:%u]: Received %u bytes from %u.%u.%u.%u:%u\n", id, getLocalPort(socket->id), received, sip[0], sip[1], sip[2], sip[3], ntohs(sin.sin_port));
+				if (received >= 0 && received >= sizeof(RELAY_PDP_RECV)) {
+					//DEBUG_LOG(SCENET, "sceNetAdhocPdpRecv[%i:%u]: Received %u bytes from %u.%u.%u.%u:%u\n", id, getLocalPort(socket->id), received);
 
-					// Peer MAC
-					SceNetEtherAddr mac;
-
-					// Find Peer MAC
-					if (resolveIP(sin.sin_addr.s_addr, &mac)) {
-						// Provide Sender Information
-						*saddr = mac;
-						*sport = ntohs(sin.sin_port) - portOffset;
-
-						// Save Length
-						*len = received;
-
-						// Free Network Lock
-						//_freeNetworkLock();
-
-						// Return Success
-						return 0;
+					sockaddr_in sin;
+					// Grab Peer IP
+					if (resolveMAC(&packet->smac, (uint32_t *)&sin.sin_addr.s_addr)){
+						*saddr = packet->smac;
+						*sport = packet->port;
+						*len = packet->dataLength;
+						int pos = 0;
+						changeBlockingMode(socket->id, flag);
+						int data = recv(socket->id, (char *)buf, packet->dataLength, 0);
+						changeBlockingMode(socket->id, 0);
+						if (data >= 0) {
+							pos += data;
+							//receive leftovers
+							while (pos < packet->dataLength) {
+								changeBlockingMode(socket->id, flag);
+								data = recv(socket->id, (char *)buf + pos, packet->dataLength - pos, 0);
+								changeBlockingMode(socket->id, 0);
+								if (data >= 0) {
+									pos += data;
+								}
+							}
+							DEBUG_LOG(SCENET, "sceNetAdhocPdpRecv[%i:%u]: Received %u bytes from [%02X:%02X:%02X:%02X:%02X:%02X]:%u \n ", id, getLocalPort(socket->id), pos, packet->smac.data[0], packet->smac.data[1], packet->smac.data[2], packet->smac.data[3], packet->smac.data[4], packet->smac.data[5], packet->port);
+							return 0;
+							// Return Success
+						}
 					}
-					WARN_LOG(SCENET, "sceNetAdhocPdpRecv[%i:%u]: Received %i bytes from Unknown Peer %u.%u.%u.%u:%u [%02X:%02X:%02X:%02X:%02X:%02X]", id, getLocalPort(socket->id), received, sip[0], sip[1], sip[2], sip[3], ntohs(sin.sin_port), mac.data[0], mac.data[1], mac.data[2], mac.data[3], mac.data[4], mac.data[5]);
+					WARN_LOG(SCENET, "sceNetAdhocPdpRecv[%i:%u]: Received %i bytes from Unknown Peer %u:[%02X:%02X:%02X:%02X:%02X:%02X]", id, getLocalPort(socket->id), received,packet->port, packet->smac.data[0], packet->smac.data[1], packet->smac.data[2], packet->smac.data[3], packet->smac.data[4], packet->smac.data[5]);
 
 					// Free Network Lock
 					//_freeNetworkLock();
@@ -661,6 +676,12 @@ static int sceNetAdhocPdpRecv(int id, void *addr, void * port, void *buf, void *
 					//Receiving data from unknown peer, ignore it ?
 					//return ERROR_NET_ADHOC_WOULD_BLOCK; //ERROR_NET_ADHOC_NO_DATA_AVAILABLE
 				}
+
+				//discard remaining buffer
+				//char buf[8192];
+				//changeBlockingMode(socket->id, flag);
+				//received = recv(socket->id, buf, packet->dataLength,0);
+				//changeBlockingMode(socket->id, 0);
 
 				// Free Network Lock
 				//_freeNetworkLock();
@@ -1097,7 +1118,7 @@ static u32 sceNetAdhocctlDisconnect() {
 				ERROR_LOG(SCENET, "Socket error (%i) when sending", errno);
 			}
 
-			disconnectChatGroup();
+			//disconnectChatGroup();
 
 			// Free Network Lock
 			//_freeNetworkLock();
@@ -1163,6 +1184,7 @@ int sceNetAdhocctlTerm() {
 		// Free stuff here
 		closesocket(metasocket);
 		metasocket = (int)INVALID_SOCKET;
+		//networkInited = false;
 /*#ifdef _MSC_VER
 		WSACleanup(); // Might be better to call WSAStartup/WSACleanup from sceNetInit/sceNetTerm isn't? since it's the first/last network function being used, even better to put it in __NetInit/__NetShutdown as it's only called once
 #endif*/
@@ -1395,7 +1417,7 @@ int sceNetAdhocctlCreate(const char *groupName) {
 					}
 				}
 
-				connectChatGroup(groupName);
+				//connectChatGroup(groupName);
 				// Return Success
 				return 0;
 			}
@@ -1475,7 +1497,7 @@ int sceNetAdhocTerm() {
 		//sceNetInetTerm();
 
 		// Unload Internet Modules (Just keep it in memory... unloading crashes?!)
-		// if (_manage_modules != 0) sceUtilityUnloadModule(PSP_MODULE_NET_INET);
+		//if (_manage_modules != 0) sceUtilityUnloadModule(PSP_MODULE_NET_INET);
 		// Library shutdown
 		netAdhocInited = false;
 		return 0;
@@ -1658,83 +1680,104 @@ static int sceNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac,
 	if (netAdhocInited) {
 		// Valid Addresses
 		if (saddr != NULL && isLocalMAC(saddr) && daddr != NULL && !isBroadcastMAC(daddr)) {
-			// Random Port required
-			if (sport == 0) {
-				// Find unused Port
-				// while (sport == 0 || _IsPTPPortInUse(sport)) {
-				// 	// Generate Port Number
-				// 	sport = (uint16_t)_getRandomNumber(65535);
-				// }
-			}
 			
 			// Valid Ports
-			if (!isPTPPortInUse(sport) /*&& dport != 0*/) {
-				//sport 0 should be shifted back to 0 when using offset Phantasy Star Portable 2 use this
-				if (sport == 0) sport = -(int)portOffset;
-				// Valid Arguments
+			if (!isPTPPortInUse(sport)) {
+
 				if (bufsize > 0 && rexmt_int > 0 && rexmt_cnt > 0) {
 					// Create Infrastructure Socket
 					int tcpsocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 					
 					// Valid Socket produced
 					if (tcpsocket > 0) {
+						int iResult = 0;
+						sockaddr_in server_addr;
+						server_addr.sin_family = AF_INET;
+						//server_addr.sin_port = htons(ptpRelayPort);
+						// Resolve dns
+						addrinfo * resultAddr;
+						addrinfo * ptr;
+						in_addr serverIp;
+						serverIp.s_addr = INADDR_NONE;
+
+						iResult = getaddrinfo(g_Config.proAdhocServer.c_str(), 0, NULL, &resultAddr);
+						for (ptr = resultAddr; ptr != NULL; ptr = ptr->ai_next) {
+							switch (ptr->ai_family) {
+							case AF_INET:
+								serverIp = ((sockaddr_in *)ptr->ai_addr)->sin_addr;
+								break;
+							}
+						}
 						// Change socket buffer size when necessary
 						if (getSockBufferSize(tcpsocket, SO_SNDBUF) < bufsize) setSockBufferSize(tcpsocket, SO_SNDBUF, bufsize);
 						if (getSockBufferSize(tcpsocket, SO_RCVBUF) < bufsize) setSockBufferSize(tcpsocket, SO_RCVBUF, bufsize);
 
 						// Enable Port Re-use
 						setsockopt(tcpsocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&one, sizeof(one));
-						
-						// Binding Information for local Port
-						sockaddr_in addr;
-						// addr.sin_len = sizeof(addr);
-						addr.sin_family = AF_INET;
-						addr.sin_addr.s_addr = INADDR_ANY;
-						addr.sin_port = htons(sport + portOffset);
+						setsockopt(tcpsocket, IPPROTO_TCP, TCP_NODELAY, (const char*)&one, sizeof(one));
+
+						server_addr.sin_addr = serverIp;
+						server_addr.sin_port = htons(ptpRelayPort);
 						
 						// Bound Socket to local Port
-						if (bind(tcpsocket, (sockaddr *)&addr, sizeof(addr)) == 0) {
-							// Update sport with the port assigned binternal->lport = ntohs(local.sin_port)y bind
-							socklen_t len = sizeof(addr);
-							if (getsockname(tcpsocket, (sockaddr *)&addr, &len) == 0) {
-								sport = ntohs(addr.sin_port) - portOffset;
+						if (connect(tcpsocket, (sockaddr *)&server_addr, sizeof(server_addr)) == 0) {
+
+							socklen_t len = sizeof(server_addr);
+							if (getsockname(tcpsocket, (sockaddr *)&server_addr, &len) == 0) {
+								sport = ntohs(server_addr.sin_port);
 							}
-							
-							// Allocate Memory
+
+							RELAY_PTP_OPEN login_packet;
+							memset(&login_packet, 0, sizeof(login_packet));
+
+							login_packet.opcode = OPCODE_PTP_STATE_OPEN;
+							login_packet.srcmac = *saddr;
+							login_packet.sport = sport;
+							login_packet.dstmac = *daddr;
+							login_packet.dport = dport;
+
+							int sendResult = send(tcpsocket, (const char *)&login_packet, sizeof(RELAY_PTP_OPEN), 0);
+
+							int error = errno;
+
+							if (sendResult == SOCKET_ERROR && error != EAGAIN) {
+								ERROR_LOG(SCENET,"Socket Error (%i) when tried to open relay", error);
+							}
+
 							SceNetAdhocPtpStat * internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
-							
+
 							// Allocated Memory
 							if (internal != NULL) {
 								// Find Free Translator ID
 								int i = 0; for (; i < 255; i++) if (ptp[i] == NULL) break;
-								
+
 								// Found Free Translator ID
 								if (i < 255) {
 									// Clear Memory
 									memset(internal, 0, sizeof(SceNetAdhocPtpStat));
-									
+
 									// Copy Infrastructure Socket ID
 									internal->id = tcpsocket;
-									
+
 									// Copy Address Information
 									internal->laddr = *saddr;
 									internal->paddr = *daddr;
 									internal->lport = sport;
 									internal->pport = dport;
-									
+
 									// Set Buffer Size
 									internal->rcv_sb_cc = bufsize;
-									
+
 									// Link PTP Socket
 									ptp[i] = internal;
-									
+
 									// Add Port Forward to Router
 									// sceNetPortOpen("TCP", sport);
-									
+
 									// Return PTP Socket Pointer
 									return i + 1;
 								}
-								
+
 								// Free Memory
 								free(internal);
 							}
@@ -1791,133 +1834,206 @@ static int sceNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int
 		// Valid Socket
 		if (id > 0 && id <= 255 && ptp[id - 1] != NULL) {
 			// Cast Socket
-			SceNetAdhocPtpStat * socket = ptp[id - 1];
+			SceNetAdhocPtpStat * lsocket = ptp[id - 1];
 			
 			// Listener Socket
-			if (socket->state == ADHOC_PTP_STATE_LISTEN) {
+			if (lsocket->state == ADHOC_PTP_STATE_LISTEN) {
 				// Valid Arguments
 				if (addr != NULL /*&& port != NULL*/) { //GTA:VCS seems to use 0 for the portPtr
 					// Address Information
-					sockaddr_in peeraddr;
-					memset(&peeraddr, 0, sizeof(peeraddr));
-					socklen_t peeraddrlen = sizeof(peeraddr);
-					// Local Address Information
-					sockaddr_in local;
-					memset(&local, 0, sizeof(local));
-					socklen_t locallen = sizeof(local);
-					
+
+					RELAY_PTP_ACCEPT * packet = (RELAY_PTP_ACCEPT *)malloc(sizeof(RELAY_PTP_ACCEPT));
+
 					// Grab Nonblocking Flag
-					uint32_t nbio = getBlockingFlag(socket->id);
+					uint32_t nbio = getBlockingFlag(lsocket->id);
 					// Switch to Nonblocking Behaviour
 					if (nbio == 0) {
 						// Overwrite Socket Option
-						changeBlockingMode(socket->id,1);
-					}
-					
-					// Accept Connection
-					int newsocket = accept(socket->id, (sockaddr *)&peeraddr, &peeraddrlen);
-					
-					// Blocking Behaviour
-					if (!flag && newsocket == -1) {
-						// Get Start Time
-						uint32_t starttime = (uint32_t)(real_time_now()*1000000.0);
-						
-						// Retry until Timeout hits
-						while ((timeout == 0 ||((uint32_t)(real_time_now()*1000000.0) - starttime) < (uint32_t)timeout) && newsocket == -1) {
-							// Accept Connection
-							newsocket = accept(socket->id, (sockaddr *)&peeraddr, &peeraddrlen);
-							
-							// Wait a bit...
-							sleep_ms(1);
-						}
+						changeBlockingMode(lsocket->id, 1);
 					}
 
-					if (newsocket == SOCKET_ERROR) {
-						int error = errno;
-						DEBUG_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: Socket Error (%i)", id, error);
+					int recvResult = recv(lsocket->id, (char *)packet, sizeof(RELAY_PTP_ACCEPT), 0);
+
+
+					// Grab Error Code
+					int errorcode = errno;
+
+					if (recvResult == SOCKET_ERROR && errorcode != EAGAIN) {
+						ERROR_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: Socket Error Receiving Peer Info (%i)", id, errorcode);
 					}
-					
+
+					//if (!flag && recvResult == -1) {
+						//uint32_t starttime = (uint32_t)(real_time_now()*1000000.0);
+
+						// Retry until Timeout hits
+						//while ((timeout == 0 || ((uint32_t)(real_time_now()*1000000.0) - starttime) < (uint32_t)timeout) && recvResult == -1) {
+							// Accept Connection
+							//recvResult = recv(lsocket->id, (char *)packet, sizeof(RELAY_PTP_ACCEPT), 0);
+
+							//if (recvResult > 0) {
+								//break;
+							//}
+							// Wait a bit...
+							//sleep_ms(1);
+						//}
+					//}
+
 					// Restore Blocking Behaviour
 					if (nbio == 0) {
 						// Restore Socket Option
-						changeBlockingMode(socket->id,0);
+						changeBlockingMode(lsocket->id, 0);
 					}
-					
-					// Accepted New Connection
-					if (newsocket > 0) {
-						// Do we need to Change socket buffer size to match the listener buffer size?
 
-						// Enable Port Re-use
-						setsockopt(newsocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&one, sizeof(one));
-						
-						// Grab Local Address
-						if (getsockname(newsocket, (sockaddr *)&local, &locallen) == 0) {
-							// Peer MAC
-							SceNetEtherAddr mac;
-							
-							// Find Peer MAC
-							if (resolveIP(peeraddr.sin_addr.s_addr, &mac)) {
-								// Allocate Memory
-								SceNetAdhocPtpStat * internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
-								
-								// Allocated Memory
-								if (internal != NULL) {
-									// Find Free Translator ID
-									int i = 0; for (; i < 255; i++) if (ptp[i] == NULL) break;
-									
-									// Found Free Translator ID
-									if (i < 255) {
-										// Clear Memory
-										memset(internal, 0, sizeof(SceNetAdhocPtpStat));
-										
-										// Copy Socket Descriptor to Structure
-										internal->id = newsocket;
+					if (recvResult > 0) {
+						// Accept Connection
+						INFO_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: got connect packet port [%02X:%02X:%02X:%02X:%02X:%02X]:%u->%u length %u", lsocket->id, packet->peerMac.data[0], packet->peerMac.data[1], packet->peerMac.data[2], packet->peerMac.data[3], packet->peerMac.data[4], packet->peerMac.data[5], packet->psrcPort,packet->pdstPort,recvResult);
+						int tcp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+						if (tcp > 0) {
+							int iResult = 0;
+							struct sockaddr_in server_addr;
+							server_addr.sin_family = AF_INET;
+							//server_addr.sin_port = htons(g_Config.iServerChannel); //27312 // Maybe read this from config too
+							// Resolve dns
+							addrinfo * resultAddr;
+							addrinfo * ptr;
+							in_addr serverIp;
+							serverIp.s_addr = INADDR_NONE;
 
-										// Set Buffer Size
-										if (getSockBufferSize(newsocket, SO_RCVBUF) < socket->rcv_sb_cc) setSockBufferSize(newsocket, SO_RCVBUF, socket->rcv_sb_cc);
-										if (getSockBufferSize(newsocket, SO_SNDBUF) < socket->snd_sb_cc) setSockBufferSize(newsocket, SO_SNDBUF, socket->snd_sb_cc);
-										internal->rcv_sb_cc = socket->rcv_sb_cc;
-										internal->snd_sb_cc = socket->snd_sb_cc;
-										
-										// Copy Local Address Data to Structure
-										getLocalMac(&internal->laddr);
-										internal->lport = ntohs(local.sin_port) - portOffset;
-										
-										// Copy Peer Address Data to Structure
-										internal->paddr = mac;
-										internal->pport = ntohs(peeraddr.sin_port) - portOffset;
-										
-										// Set Connected State
-										internal->state = ADHOC_PTP_STATE_ESTABLISHED;
-										
-										// Return Peer Address Information
-										*addr = internal->paddr;
-										if (port != NULL) *port = internal->pport;
-										
-										// Link PTP Socket
-										ptp[i] = internal;
-										
-										// Add Port Forward to Router
-										// sceNetPortOpen("TCP", internal->lport);
-
-										uint8_t * pip = (uint8_t *)&peeraddr.sin_addr.s_addr;
-										INFO_LOG(SCENET, "sceNetAdhocPtpAccept[%i->%i:%u]: Established (%u.%u.%u.%u:%u)", id, i+1, internal->lport, pip[0], pip[1], pip[2], pip[3], internal->pport);
-										
-										// Return Socket
-										return i + 1;
-									}
-									
-									// Free Memory
-									free(internal);
+							iResult = getaddrinfo(g_Config.proAdhocServer.c_str(), 0, NULL, &resultAddr);
+							for (ptr = resultAddr; ptr != NULL; ptr = ptr->ai_next) {
+								switch (ptr->ai_family) {
+								case AF_INET:
+									serverIp = ((sockaddr_in *)ptr->ai_addr)->sin_addr;
+									break;
 								}
 							}
-						}
-						
-						// Close Socket
-						closesocket(newsocket);
+							// Change socket buffer size when necessary
+							if (getSockBufferSize(tcp, SO_SNDBUF) < lsocket->rcv_sb_cc) setSockBufferSize(tcp, SO_SNDBUF, lsocket->rcv_sb_cc);
+							if (getSockBufferSize(tcp, SO_RCVBUF) < lsocket->snd_sb_cc) setSockBufferSize(tcp, SO_RCVBUF, lsocket->snd_sb_cc);
+							setsockopt(tcp, IPPROTO_TCP, TCP_NODELAY, (const char*)&one, sizeof(one));
+							// Binding Information for local Port
+							sockaddr_in saddr;
+							// addr.sin_len = sizeof(addr);
+							saddr.sin_family = AF_INET;
+							saddr.sin_addr = serverIp;
+							saddr.sin_port = htons(ptpRelayPort);
 
-						ERROR_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: Failed (Socket Closed)", id);
-					}
+							int newsocket = connect(tcp, (sockaddr *)&saddr, sizeof(saddr));
+							if (newsocket == SOCKET_ERROR) {
+								int error = errno;
+								ERROR_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: Socket Error (%i)", id, error);
+							}
+
+							//if (!flag && newsocket == -1) {
+								// Get Start Time
+								//uint32_t starttime = (uint32_t)(real_time_now()*1000000.0);
+
+								// Retry until Timeout hits
+								//while ((timeout == 0 || ((uint32_t)(real_time_now()*1000000.0) - starttime) < (uint32_t)timeout) && newsocket == -1) {
+									// Accept Connection
+									//newsocket = connect(tcp, (sockaddr *)&addr, sizeof(addr));
+
+									//if (newsocket != SOCKET_ERROR) {
+										//break;
+									//}
+									// Wait a bit...
+									//sleep_ms(1);
+								//}
+							//}
+
+							if (newsocket != SOCKET_ERROR) {
+								INFO_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: new socket connected to server (%i)", id, newsocket);
+								sockaddr_in peeraddr;
+								memset(&peeraddr, 0, sizeof(peeraddr));
+								socklen_t peeraddrlen = sizeof(peeraddr);
+
+								// Local Address Information
+								sockaddr_in local;
+								memset(&local, 0, sizeof(local));
+								socklen_t locallen = sizeof(local);
+
+								setsockopt(tcp, SOL_SOCKET, SO_REUSEADDR, (const char*)&one, sizeof(one));
+								if (getsockname(tcp, (sockaddr *)&local, &locallen) == 0) {
+									if (resolveMAC(&packet->peerMac, (uint32_t *)&peeraddr.sin_addr.s_addr)) {
+
+										RELAY_PTP_OPEN login_packet;
+										memset(&login_packet, 0, sizeof(login_packet));
+
+										login_packet.opcode = OPCODE_PTP_STATE_ACCEPT;
+										getLocalMac(&login_packet.srcmac);
+										login_packet.sport = packet->pdstPort;
+										login_packet.dstmac = packet->peerMac;
+										login_packet.dport = packet->psrcPort;
+
+										int sendResult = send(tcp, (const char *)&login_packet, sizeof(RELAY_PTP_OPEN), 0);
+
+										int error = errno;
+
+										if (sendResult == SOCKET_ERROR && error != EAGAIN) {
+											ERROR_LOG(SCENET, "Socket Error (%i) when tried to open relay", error);
+										}
+
+										if (sendResult > 0) {
+											SceNetAdhocPtpStat * internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
+
+											// Allocated Memory
+											if (internal != NULL) {
+												// Find Free Translator ID
+												int i = 0; for (; i < 255; i++) if (ptp[i] == NULL) break;
+
+												// Found Free Translator ID
+												if (i < 255) {
+													// Clear Memory
+													memset(internal, 0, sizeof(SceNetAdhocPtpStat));
+
+													// Copy Socket Descriptor to Structure
+													internal->id = tcp;
+
+													internal->rcv_sb_cc = lsocket->rcv_sb_cc;
+													internal->snd_sb_cc = lsocket->snd_sb_cc;
+
+													// Copy Local Address Data to Structure
+													getLocalMac(&internal->laddr);
+													internal->lport = packet->pdstPort;
+
+													// Copy Peer Address Data to Structure
+													internal->paddr = packet->peerMac;
+													internal->pport = packet->psrcPort;
+
+													// Set Connected State
+													internal->state = ADHOC_PTP_STATE_ESTABLISHED;
+
+													// Return Peer Address Information
+													*addr = internal->paddr;
+													if (port != NULL) *port = internal->pport;
+
+													// Link PTP Socket
+													ptp[i] = internal;
+
+													// Add Port Forward to Router
+													// sceNetPortOpen("TCP", internal->lport);
+													INFO_LOG(SCENET, "sceNetAdhocPtpAccept[%i->%i:%u]: Established ", id, i + 1, internal->lport);
+
+													// Return Socket
+													return i + 1;
+												}
+
+												// Free Memory
+												free(internal);
+											}
+												
+											
+										}
+
+									}
+								}
+							}
+							// Close Socket
+							closesocket(tcp);
+						}
+
+						ERROR_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: Failed (Socket cannot connect to server) %u", id,errorcode);
+					}					
 					
 					// Action would block
 					if (flag) return ERROR_NET_ADHOC_WOULD_BLOCK;
@@ -1973,10 +2089,10 @@ static int sceNetAdhocPtpConnect(int id, int timeout, int flag) {
 				// Setup Target Address
 				// sin.sin_len = sizeof(sin);
 				sin.sin_family = AF_INET;
-				sin.sin_port = htons(socket->pport + portOffset);
 				
 				// Grab Peer IP
 				if (resolveMAC(&socket->paddr, (uint32_t *)&sin.sin_addr.s_addr)) {
+
 					// Grab Nonblocking Flag
 					uint32_t nbio = getBlockingFlag(socket->id);
 					// Switch to Nonblocking Behaviour
@@ -1985,67 +2101,104 @@ static int sceNetAdhocPtpConnect(int id, int timeout, int flag) {
 						changeBlockingMode(socket->id, 1);
 					}
 					
-					// Connect Socket to Peer (Nonblocking)
-					int connectresult = connect(socket->id, (sockaddr *)&sin, sizeof(sin));
-					
+					RELAY_PTP_CONNECT * packet = (RELAY_PTP_CONNECT *)malloc(sizeof(RELAY_PTP_CONNECT));
+					int recvResult = recv(socket->id, (char *)packet, sizeof(RELAY_PTP_CONNECT), 0);
+
 					// Grab Error Code
 					int errorcode = errno;
 
-					if (connectresult == SOCKET_ERROR) {
-						ERROR_LOG(SCENET, "sceNetAdhocPtpConnect[%i]: Socket Error (%i)", id, errorcode);
+					if (recvResult == SOCKET_ERROR && errorcode != EAGAIN) {
+						ERROR_LOG(SCENET, "sceNetAdhocPtpConnect[%i]: Socket Error Receiving Opcode (%i)", id, errorcode);
 					}
-					
+					changeBlockingMode(socket->id, 0);
+
+					if (recvResult > 0) {
+						INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: got opcode %u", id, socket->lport, packet->opcode);
+						if (packet->opcode == OPCODE_PTP_STATE_ESTABLISHED) {
+							socket->state = ADHOC_PTP_STATE_ESTABLISHED;
+							return 0;
+						}
+						if (packet->opcode == OPCODE_PTP_STATE_CONNECT) {
+							if (flag) {
+								return ERROR_NET_ADHOC_WOULD_BLOCK;
+							}
+						}
+					}
+
+					uint8_t opcode = OPCODE_PTP_STATE_CONNECT;
+
 					// Restore Blocking Behaviour
 					if (nbio == 0) {
 						// Restore Socket Option
-						changeBlockingMode(socket->id,0);
+						changeBlockingMode(socket->id, 1);
 					}
-					
-					// Instant Connection (Lucky!)
-					if (connectresult == 0 || (connectresult == -1 && (errorcode == EISCONN /*|| errorcode == EALREADY)*/))) {
-						// Set Connected State
-						socket->state = ADHOC_PTP_STATE_ESTABLISHED;
-						
-						INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Already Connected", id, socket->lport);
-						// Success
-						return 0;
-					}
-					
-					// Connection in Progress
-					else if (connectresult == -1 && connectInProgress(errorcode)) {
-						// Nonblocking Mode
-						if (flag) return ERROR_NET_ADHOC_WOULD_BLOCK;
-						
-						// Blocking Mode
-						else {
-							// Grab Connection Start Time
-							uint32_t starttime = (uint32_t)(real_time_now()*1000000.0);
-							
-							// Peer Information (for Connection-Polling)
-							sockaddr_in peer;
-							memset(&peer, 0, sizeof(peer));
-							socklen_t peerlen = sizeof(peer);
-							// Wait for Connection
-							while ((timeout == 0 || ( (uint32_t)(real_time_now()*1000000.0) - starttime) < (uint32_t)timeout) && getpeername(socket->id, (sockaddr *)&peer, &peerlen) != 0) {
-								// Wait 1ms
-								sleep_ms(1);
-							}
-							
-							// Connected in Time
-							if (sin.sin_addr.s_addr == peer.sin_addr.s_addr/* && sin.sin_port == peer.sin_port*/) {
-								// Set Connected State
-								socket->state = ADHOC_PTP_STATE_ESTABLISHED;
+					int sendResult = send(socket->id, (char *)&opcode, 1, 0);
+					// Grab Error Code
+					errorcode = errno;
 
-								uint8_t * pip = (uint8_t *)&peer.sin_addr.s_addr;
-								INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Established (%u.%u.%u.%u:%u)", id, socket->lport, pip[0], pip[1], pip[2], pip[3], socket->pport);
-								
-								// Success
+					if (sendResult == SOCKET_ERROR) {
+						ERROR_LOG(SCENET, "sceNetAdhocPtpConnect[%i]: Socket Error Sending Opcode (%i)", id, errorcode);
+					}
+					// Restore Socket Option
+					changeBlockingMode(socket->id, 0);
+					
+					INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i]: send %u bytest to relay server", socket->id, sendResult);
+					if (sendResult > 0) {
+						RELAY_PTP_CONNECT * packet = (RELAY_PTP_CONNECT *)malloc(sizeof(RELAY_PTP_CONNECT));
+						if (nbio == 0) {
+							// Overwrite Socket Option
+							changeBlockingMode(socket->id, 1);
+						}
+						recvResult = recv(socket->id, (char *)packet, sizeof(RELAY_PTP_CONNECT), 0);
+
+						// Grab Error Code
+						errorcode = errno;
+
+						if (recvResult == SOCKET_ERROR && errorcode != EAGAIN) {
+							ERROR_LOG(SCENET, "sceNetAdhocPtpConnect[%i]: Socket Error Receiving Opcode (%i)", id, errorcode);
+						}
+
+						if (nbio == 0) {
+							// Overwrite Socket Option
+							changeBlockingMode(socket->id, 0);
+						}
+
+						if (recvResult > 0) {
+							INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: got opcode %u", id, socket->lport,packet->opcode);
+							if (packet->opcode == OPCODE_PTP_STATE_ESTABLISHED) {
+								socket->state = ADHOC_PTP_STATE_ESTABLISHED;
 								return 0;
 							}
-							
-							// Timeout occured
+						}
+
+						if (flag) {
+							return ERROR_NET_ADHOC_WOULD_BLOCK;
+						}
+						else {
+							if (nbio == 0) {
+								// Overwrite Socket Option
+								changeBlockingMode(socket->id, 1);
+							}
+							recvResult = recv(socket->id, (char *)packet, sizeof(RELAY_PTP_CONNECT), 0);
+							if (nbio == 0) {
+								// Overwrite Socket Option
+								changeBlockingMode(socket->id, 0);
+							}
+
+							if (recvResult == SOCKET_ERROR && errorcode != EAGAIN) {
+								ERROR_LOG(SCENET, "sceNetAdhocPtpConnect[%i]: Socket Error Receiving Opcode (%i)", id, errorcode);
+							}
+
+							if (recvResult > 0) {
+								INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: got opcode %u", id, socket->lport, packet->opcode);
+								if (packet->opcode == OPCODE_PTP_STATE_ESTABLISHED) {
+									socket->state = ADHOC_PTP_STATE_ESTABLISHED;
+									return 0;
+								}
+							}
 							return ERROR_NET_ADHOC_TIMEOUT;
 						}
+						
 					}
 				}
 				
@@ -2131,16 +2284,7 @@ static int sceNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int 
 		// Valid Address
 		if (saddr != NULL && isLocalMAC(saddr))
 		{
-			// Random Port required
-			if (sport == 0) {
-				// Find unused Port
-				// while (sport == 0 || __IsPTPPortInUse(sport))
-				// {
-				// 	// Generate Port Number
-				// 	sport = (uint16_t)_getRandomNumber(65535);
-				// }
-			}
-			
+		
 			// Valid Ports
 			if (!isPTPPortInUse(sport)) {
 				// Valid Arguments
@@ -2151,24 +2295,55 @@ static int sceNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int 
 					
 					// Valid Socket produced
 					if (tcpsocket > 0) {
+
+						int iResult = 0;
+						sockaddr_in server_addr;
+						server_addr.sin_family = AF_INET;
+						server_addr.sin_port = htons(ptpRelayPort); 
+						// Resolve dns
+						addrinfo * resultAddr;
+						addrinfo * ptr;
+						in_addr serverIp;
+						serverIp.s_addr = INADDR_NONE;
+
+						iResult = getaddrinfo(g_Config.proAdhocServer.c_str(), 0, NULL, &resultAddr);
+						for (ptr = resultAddr; ptr != NULL; ptr = ptr->ai_next) {
+							switch (ptr->ai_family) {
+							case AF_INET:
+								serverIp = ((sockaddr_in *)ptr->ai_addr)->sin_addr;
+								break;
+							}
+						}
 						// Change socket buffer size when necessary
 						if (getSockBufferSize(tcpsocket, SO_SNDBUF) < bufsize) setSockBufferSize(tcpsocket, SO_SNDBUF, bufsize);
 						if (getSockBufferSize(tcpsocket, SO_RCVBUF) < bufsize) setSockBufferSize(tcpsocket, SO_RCVBUF, bufsize);
 
 						// Enable Port Re-use
 						setsockopt(tcpsocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&one, sizeof(one));
-						
-						// Binding Information for local Port
-						sockaddr_in addr;
-						addr.sin_family = AF_INET;
-						addr.sin_addr.s_addr = INADDR_ANY;
-						addr.sin_port = htons(sport + portOffset);
-						
-						int iResult = 0;
+						setsockopt(tcpsocket, IPPROTO_TCP, TCP_NODELAY, (const char*)&one, sizeof(one));
+						server_addr.sin_addr = serverIp;
+						server_addr.sin_port = htons(ptpRelayPort);
+
 						// Bound Socket to local Port
-						if ((iResult = bind(tcpsocket, (sockaddr *)&addr, sizeof(addr))) == 0) {
+						if ((iResult = connect(tcpsocket, (sockaddr *)&server_addr, sizeof(server_addr))) == 0) {
+							RELAY_PTP_LISTEN login_packet;
+							memset(&login_packet, 0, sizeof(login_packet));
+
+							login_packet.opcode = OPCODE_PTP_STATE_LISTEN;
+							login_packet.srcmac = *saddr;
+							login_packet.sport = sport;
+							login_packet.backlog = backlog;
+
+							int sendResult = send(tcpsocket, (const char *)&login_packet, sizeof(RELAY_PTP_LISTEN), 0);
+
+							int error = errno;
+
+							if (sendResult == SOCKET_ERROR && error != EAGAIN) {
+								ERROR_LOG(SCENET, "Socket Error (%i) when tried to open listen socket", error);
+							}
+
 							// Switch into Listening Mode
-							if ((iResult = listen(tcpsocket, backlog)) == 0) {
+							if (sendResult > 0) {
 								// Allocate Memory
 								SceNetAdhocPtpStat * internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
 								
@@ -2200,7 +2375,7 @@ static int sceNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int 
 										
 										// Add Port Forward to Router
 										// sceNetPortOpen("TCP", sport);
-										
+										INFO_LOG(SCENET, "sceNetAdhocPtpListen[%d]: Listen Success (%d)",sport,i);
 										// Return PTP Socket Pointer
 										return i + 1;
 									}

@@ -635,13 +635,13 @@ void GameSettingsScreen::CreateViews() {
 
 	//server setting
 	networkingSettings->Add(new ItemHeader(n->T("Server Settings")));
-//#ifdef _WIN32
-//	networkingSettings->Add(new PopupTextInputChoice(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), "", 255, screenManager()));
-//#elif defined(__ANDROID__)
-//	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
-//#else
-//	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
-//#endif
+#ifdef _WIN32
+	networkingSettings->Add(new PopupTextInputChoice(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), "", 255, screenManager()));
+#elif defined(__ANDROID__)
+	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
+#else
+	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
+#endif
 	static const char *serverChannels[] = { "Midgard", "Asgard","Vanaheim","Alfheim","Helheim" };
 	networkingSettings->Add(new PopupMultiChoice(&g_Config.iServerChannel, "Server Channel", serverChannels, 27313, ARRAY_SIZE(serverChannels), "Server Channel", screenManager()));
 	//networkingSettings->Add(new PopupSliderChoice(&g_Config.iPortOffset, 0, 60000, n->T("Port offset", "Port offset(0 = PSP compatibility)"), 100, screenManager()));

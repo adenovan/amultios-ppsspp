@@ -185,6 +185,7 @@
     <ClCompile Include="..\ext\udis86\udis86.c" />
     <ClCompile Include="AVIDump.cpp" />
     <ClCompile Include="FileSystems\BlobFileSystem.cpp" />
+    <ClCompile Include="HLE\AmultiosAdhoc.cpp" />
     <ClCompile Include="HLE\AmultiosChatClient.cpp" />
     <ClCompile Include="HLE\KUBridge.cpp" />
     <ClCompile Include="HLE\sceUsbCam.cpp" />
@@ -531,6 +532,7 @@
     <ClInclude Include="..\ext\udis86\udis86.h" />
     <ClInclude Include="AVIDump.h" />
     <ClInclude Include="FileSystems\BlobFileSystem.h" />
+    <ClInclude Include="HLE\AmultiosAdhoc.h" />
     <ClInclude Include="HLE\AmultiosChatClient.h" />
     <ClInclude Include="HLE\KUBridge.h" />
     <ClInclude Include="HLE\sceUsbCam.h" />

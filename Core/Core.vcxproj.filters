@@ -684,6 +684,7 @@
     <ClCompile Include="HLE\sceVaudio.cpp">
       <Filter>HLE\Libraries</Filter>
     </ClCompile>
+    <ClCompile Include="HLE\AmultiosAdhoc.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ELF\ElfReader.h">
@@ -1258,6 +1259,7 @@
     <ClInclude Include="HLE\ThreadQueueList.h">
       <Filter>HLE</Filter>
     </ClInclude>
+    <ClInclude Include="HLE\AmultiosAdhoc.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CMakeLists.txt" />

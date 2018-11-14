@@ -83,6 +83,7 @@ enum ServerChannels {
 	CHANNEL_3 = 27315,
 	CHANNEL_4 = 27316,
 	CHANNEL_5 = 27317,
+	CHANNEL_6 = 27312
 };
 
 enum ChatPositions {

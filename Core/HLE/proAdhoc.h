@@ -50,6 +50,7 @@ class PointerWrap;
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <netinet/tcp.h>
 #endif
 
 #ifdef _MSC_VER
@@ -687,6 +688,19 @@ enum {
 #define OPCODE_AMULTIOS_LOGIN_SUCCESS 10
 #define OPCODE_AMULTIOS_LOGIN_FAILED 11
 
+//PDP RELAY OPCODE
+#define OPCODE_PDP_LOGIN 12
+#define OPCODE_PDP_RELAY_SINGLE 13
+#define OPCODE_PDP_RELAY_BROADCAST_GROUP 14
+
+//PTP RELAY OPCODE
+#define OPCODE_PTP_STATE_ACCEPT 15
+#define OPCODE_PTP_STATE_OPEN 16
+#define OPCODE_PTP_STATE_CONNECT 17
+#define OPCODE_PTP_STATE_LISTEN 18
+#define OPCODE_PTP_STATE_ESTABLISHED 19
+
+
 // PSP Product Code
 #define PRODUCT_CODE_LENGTH 9
 #define PIN_LENGTH 6
@@ -694,6 +708,59 @@ enum {
 #ifdef _MSC_VER 
 #pragma pack(push,1) 
 #endif
+
+typedef struct {
+	uint8_t opcode;
+	SceNetEtherAddr mac;
+	uint16_t port;
+}PACK RELAY_PDP_CREATE_LOGIN;
+
+typedef struct {
+	uint8_t opcode;
+	SceNetEtherAddr dmac;
+	uint16_t port;
+	uint16_t dataLength;
+}PACK RELAY_PDP_SINGLE;
+
+typedef struct {
+	uint8_t opcode;
+	SceNetEtherAddr smac;
+	uint16_t port;
+	uint16_t dataLength;
+}PACK RELAY_PDP_RECV;
+
+typedef struct {
+	uint8_t opcode;
+	uint16_t port;
+	uint16_t dataLength;
+}PACK RELAY_PDP_BROADCAST;
+
+typedef struct {
+	uint8_t opcode;
+	SceNetEtherAddr srcmac;
+	uint16_t sport;
+	SceNetEtherAddr dstmac;
+	uint16_t dport;
+}PACK RELAY_PTP_OPEN;
+
+typedef struct {
+	uint8_t opcode;
+	SceNetEtherAddr srcmac;
+	uint16_t sport;
+	uint16_t backlog;
+}PACK RELAY_PTP_LISTEN;
+
+typedef struct {
+	uint8_t opcode;
+} PACK RELAY_PTP_CONNECT;
+
+
+typedef struct {
+	uint8_t opcode;
+	SceNetEtherAddr peerMac;
+	uint16_t psrcPort;
+	uint16_t pdstPort;
+} PACK RELAY_PTP_ACCEPT;
 
 typedef struct {
   // Game Product Code (ex. ULUS12345)
@@ -713,7 +780,7 @@ typedef struct {
   SceNetAdhocctlProductCode game;
 } PACK SceNetAdhocctlLoginPacketC2S;
 
-// C2S Login Packet
+// C2S Login Packet Amultios
 typedef struct {
 	SceNetAdhocctlPacketBase base;
 	SceNetEtherAddr mac;
@@ -721,7 +788,6 @@ typedef struct {
 	SceNetAdhocctlProductCode game;
 	char pin[PIN_LENGTH];
 } PACK SceNetAdhocctlLoginPacketAmultiosC2S;
-
 
 // C2S Connect Packet
 typedef struct {

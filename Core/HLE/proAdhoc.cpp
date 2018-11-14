@@ -61,8 +61,6 @@ SceNetAdhocPdpStat * pdp[255];
 SceNetAdhocPtpStat * ptp[255];
 uint32_t localip;
 
-
-
 int isLocalMAC(const SceNetEtherAddr * addr) {
 	SceNetEtherAddr saddr;
 	getLocalMac(&saddr);
@@ -1439,8 +1437,8 @@ int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 	}
 	struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(g_Config.iServerChannel); //27312 // Maybe read this from config too
-
+	//server_addr.sin_port = htons(g_Config.iServerChannel); //27312 // Maybe read this from config too
+	server_addr.sin_port = htons(35000);
 	// Resolve dns
 	addrinfo * resultAddr;
 	addrinfo * ptr;
@@ -1480,14 +1478,14 @@ int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 	localip = getLocalIp(metasocket);
 
 	// Prepare Login Packet
-	SceNetAdhocctlLoginPacketAmultiosC2S packet;
-	packet.base.opcode = OPCODE_AMULTIOS_LOGIN;
+	SceNetAdhocctlLoginPacketC2S packet;
+	packet.base.opcode = OPCODE_LOGIN;
 	SceNetEtherAddr addres;
 	getLocalMac(&addres);
 	packet.mac = addres;
 	strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
 	memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
-	strcpy((char *)packet.pin, g_Config.sAmultiosPin.c_str());
+	//strcpy((char *)packet.pin, g_Config.sAmultiosPin.c_str());
 	int sent = send(metasocket, (char*)&packet, sizeof(packet), 0);
 	changeBlockingMode(metasocket, 1); // Change to non-blocking
 	if (sent > 0) {
