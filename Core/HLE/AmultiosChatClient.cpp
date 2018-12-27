@@ -153,7 +153,6 @@ void ChatMessages::Add(const std::string &text, const std::string &name, int roo
 
 void InitChat() {
 
-	//disable alt speed
 	int iResult = 0;
 	chatsocket = (int)INVALID_SOCKET;
 	chatsocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -163,7 +162,7 @@ void InitChat() {
 	}
 	struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(30000); //27312 // Maybe read this from config too
+	server_addr.sin_port = htons(amultios_port); //27312 // Maybe read this from config too
 
 	// Resolve dns
 	addrinfo * resultAddr;
@@ -199,14 +198,15 @@ void InitChat() {
 
 	// Prepare Login Packet
 	ChatLoginPacketC2S packet;
-	packet.base.opcode = OPCODE_AMULTIOS_CHAT_LOGIN;
+	memset(&packet, 0, sizeof(ChatLoginPacketC2S));
+	packet.base.opcode = OPCODE_AMULTIOS_LOGIN;
 	SceNetEtherAddr addres;
 	getLocalMac(&addres);
 	packet.mac = addres;
 	strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
 	strcpy((char *)packet.pin, g_Config.sAmultiosPin.c_str());
-	getServerName(packet.server);
-	int sent = send(chatsocket, (char*)&packet, sizeof(packet), 0);
+	strcpy((char *)packet.revision, PPSSPP_GIT_VERSION);
+	int sent = send(chatsocket, (char*)&packet, sizeof(ChatLoginPacketC2S), 0);
 	changeBlockingMode(chatsocket, 1); // Change to non-blocking
 	if (sent > 0) {
 		I18NCategory *n = GetI18NCategory("Networking");
@@ -214,7 +214,7 @@ void InitChat() {
 		if (g_Config.bEnableWlan && g_Config.bEnableNetworkChat) {
 			ChatClientRunning = true;
 			chatclientstatus = CHAT_CLIENT_WAITING;
-			ChatClientThread = std::thread(ChatClient, 30000);
+			ChatClientThread = std::thread(ChatClient, amultios_port);
 		}
 		return;
 	}
@@ -321,7 +321,6 @@ int ChatClient(int port) {
 
 		// Handle Packets
 		if (rxpos > 0) {
-
 			// Chat Packet
 			if (rx[0] == OPCODE_CHAT) {
 				DEBUG_LOG(SCENET, "Chat Client: Incoming OPCODE_CHAT");
@@ -330,8 +329,8 @@ int ChatClient(int port) {
 					// Cast Packet
 					SceNetAdhocctlChatPacketS2C * packet = (SceNetAdhocctlChatPacketS2C *)rx;
 					// Add Incoming Chat to HUD GROUP AND ALL
-					NOTICE_LOG(SCENET, "Received Group Chat message %s", packet->base.message);
-					cmList.Add((char *)packet->base.message, (char *)packet->name.data, CHAT_ADD_ALLGROUP);
+					NOTICE_LOG(SCENET, "Received Group Chat message %s from %s", packet->message,packet->name);
+					cmList.Add(packet->message,packet->name, CHAT_ADD_ALLGROUP);
 					//im new to pointer btw :( doesn't know its safe or not this should update the chat screen when data coming
 					cmList.Update(CHAT_ADD_ALLGROUP);
 					// Move RX Buffer
@@ -349,8 +348,8 @@ int ChatClient(int port) {
 					// Cast Packet
 					SceNetAdhocctlChatPacketS2C * packet = (SceNetAdhocctlChatPacketS2C *)rx;
 					// Add Incoming Chat to HUD ALL
-					NOTICE_LOG(SCENET, "Received Global chat message %s", packet->base.message);
-					cmList.Add((char *)packet->base.message, (char *)packet->name.data, CHAT_ADD_ALL);
+					NOTICE_LOG(SCENET, "Received Global chat message %s from %s ", packet->message,packet->name);
+					cmList.Add(packet->message, packet->name, CHAT_ADD_ALL);
 					cmList.Update(CHAT_ADD_ALL);
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlChatPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlChatPacketS2C));
@@ -367,7 +366,7 @@ int ChatClient(int port) {
 					// Cast Packet
 					SceNetAdhocctlChatPacketS2C * packet = (SceNetAdhocctlChatPacketS2C *)rx;
 					// Should we make more room?
-					NOTICE_LOG(SCENET, "Received Game Chat message %s", packet->base.message);
+					NOTICE_LOG(SCENET, "Received Game Chat message %s", packet->message);
 					cmList.Update(CHAT_ADD_ALL);
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlChatPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlChatPacketS2C));
@@ -382,16 +381,17 @@ int ChatClient(int port) {
 				if (rxpos >= (int)sizeof(SceNetAdhocctlNotifyPacketS2C)) {
 					// Cast Packet
 					SceNetAdhocctlNotifyPacketS2C * packet = (SceNetAdhocctlNotifyPacketS2C *)rx;
-					I18NCategory *n = GetI18NCategory("Networking");
-					host->NotifyUserMessage(n->T(packet->reason), 2.0);
+					//I18NCategory *n = GetI18NCategory("Networking");
+					//host->NotifyUserMessage(n->T(packet->reason), 2.0);
 					chatclientstatus = CHAT_CLIENT_CONNECTED;
+					cmList.Add(packet->reason, "",CHAT_ADD_ALL);
+					cmList.Update(CHAT_ADD_ALL);
+
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlNotifyPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlNotifyPacketS2C));
 
 					// Fix RX Buffer Length
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
-					cmList.Add("Connected to Amultios Chat Server", "",CHAT_ADD_ALL);
-					cmList.Update(CHAT_ADD_ALL);
 				}
 			}
 
@@ -402,16 +402,15 @@ int ChatClient(int port) {
 					SceNetAdhocctlNotifyPacketS2C * packet = (SceNetAdhocctlNotifyPacketS2C *)rx;
 					// Add Incoming Chat to HUD
 					NOTICE_LOG(SCENET, "Received rejected message %s", packet->reason);
-					I18NCategory *n = GetI18NCategory("Networking");
-					host->NotifyUserMessage(n->T(packet->reason), 2.0);
+					//I18NCategory *n = GetI18NCategory("Networking");
+					//host->NotifyUserMessage(n->T(packet->reason), 2.0);
+					cmList.Add(packet->reason,"", CHAT_ADD_ALL);
+					cmList.Update(CHAT_ADD_ALL);
 					// Move RX Buffer
 					memmove(rx, rx + sizeof(SceNetAdhocctlNotifyPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlNotifyPacketS2C));
 
 					// Fix RX Buffer Length
 					rxpos -= sizeof(SceNetAdhocctlNotifyPacketS2C);
-					cmList.Add("Cannot Connect To Amultios Server Login Failed", "", CHAT_ADD_ALL);
-					cmList.Add(packet->reason,"", CHAT_ADD_ALL);
-					cmList.Update(CHAT_ADD_ALL);
 					break;
 				}
 			}
@@ -466,6 +465,7 @@ void sendChat(std::string chatString) {
 	{
 		I18NCategory *n = GetI18NCategory("Networking");
 		SceNetAdhocctlChatPacketC2S chat;
+		memset(&chat, 0, sizeof(SceNetAdhocctlChatPacketC2S));
 		switch (chatGuiStatus) {
 			case CHAT_GUI_GROUP:
 				chat.base.opcode = OPCODE_CHAT;

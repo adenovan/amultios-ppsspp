@@ -296,6 +296,20 @@ typedef struct SceNetAdhocPdpStat{
   u32_le rcv_sb_cc;
 } PACK SceNetAdhocPdpStat;
 
+typedef struct SceNetAdhocPdpStatRelay {
+	s32_le id;
+	uint8_t rxbuf[65535];
+	uint32_t rxpos;
+} PACK SceNetAdhocPdpStatRelay;
+
+typedef struct SceNetAdhocPtpStatRelay {
+	SceNetEtherAddr laddr;
+	SceNetEtherAddr paddr;
+	u16_le lport;
+	u16_le pport;
+	uint8_t state;
+} PACK SceNetAdhocPtpStatRelay;
+
 // PTP Socket Status
 typedef struct SceNetAdhocPtpStat {
   u32_le next; // Changed the pointer to u32
@@ -684,9 +698,9 @@ enum {
 #define OPCODE_CONNECT_BSSID 6
 #define OPCODE_CHAT 7
 #define OPCODE_GLOBAL_CHAT 8
-#define OPCODE_AMULTIOS_LOGIN 9
-#define OPCODE_AMULTIOS_LOGIN_SUCCESS 10
-#define OPCODE_AMULTIOS_LOGIN_FAILED 11
+#define OPCODE_AMULTIOS_LOGIN 20
+#define OPCODE_AMULTIOS_LOGIN_SUCCESS 21
+#define OPCODE_AMULTIOS_LOGIN_FAILED 22
 
 //PDP RELAY OPCODE
 #define OPCODE_PDP_LOGIN 12
@@ -699,6 +713,7 @@ enum {
 #define OPCODE_PTP_STATE_CONNECT 17
 #define OPCODE_PTP_STATE_LISTEN 18
 #define OPCODE_PTP_STATE_ESTABLISHED 19
+#define OPCODE_PTP_HANDSHAKE_LOGIN 20
 
 
 // PSP Product Code
@@ -752,8 +767,16 @@ typedef struct {
 
 typedef struct {
 	uint8_t opcode;
+	SceNetEtherAddr srcmac;
+	uint16_t sport;
+	SceNetEtherAddr dstmac;
+	uint16_t dport;
 } PACK RELAY_PTP_CONNECT;
 
+typedef struct {
+	uint8_t opcode;
+	SceNetEtherAddr mac;
+} PACK RELAY_HANDSHAKE_LOGIN;
 
 typedef struct {
 	uint8_t opcode;
@@ -830,8 +853,9 @@ typedef struct {
 
 // S2C Chat Packet
 typedef struct {
-  SceNetAdhocctlChatPacketC2S base;
-  SceNetAdhocctlNickname name;
+	SceNetAdhocctlPacketBase base;
+	char message[64];
+	char name[128];
 } PACK SceNetAdhocctlChatPacketS2C;
 
 // S2C Notify Packet
@@ -886,19 +910,29 @@ extern bool IsAdhocctlInCB;
 
 // Aux vars
 extern int metasocket;
+extern int handshakersocket;
 extern SceNetAdhocctlParameter parameter;
 extern SceNetAdhocctlAdhocId product_code;
 extern std::thread friendFinderThread;
+extern std::thread handshakerThread;
 extern std::recursive_mutex peerlock;
 extern SceNetAdhocPdpStat * pdp[255];
 extern SceNetAdhocPtpStat * ptp[255];
+extern SceNetAdhocPdpStatRelay * pdp_relay[255];
+extern SceNetAdhocPtpStatRelay * ptp_relay[255];
 extern std::map<int, AdhocctlHandler> adhocctlHandlers;
 
 extern uint16_t portOffset;
+extern uint16_t amultios_port;
+extern uint16_t ctlPort;
+extern uint16_t ptpRelayPort;
+extern uint16_t pdpRelayPort;
+
 extern uint32_t fakePoolSize;
 extern SceNetAdhocMatchingContext * contexts;
 extern int one;                 
 extern bool friendFinderRunning;
+extern bool handshakerRunning;
 extern SceNetAdhocctlPeerInfo * friends;
 extern SceNetAdhocctlScanInfo * networks; 
 extern int threadStatus;
@@ -1007,6 +1041,8 @@ void freeFriendsRecursive(SceNetAdhocctlPeerInfo * node);
  * @return Unused Value - Return 0
  */
 int friendFinder();
+
+int handshaker();
 
 /**
 * Find Free Matching ID
@@ -1294,3 +1330,10 @@ const char* getMatchingEventStr(int code);
 
 // Convert Matching Opcode ID to String
 const char* getMatchingOpcodeStr(int code);
+
+
+void setRelayState(RELAY_PTP_CONNECT * packet);
+int getRelayState(int id);
+int sendRelayState(int id, int flag);
+bool compareMac(SceNetEtherAddr * mac1, SceNetEtherAddr * mac2);
+int initHandshaker();

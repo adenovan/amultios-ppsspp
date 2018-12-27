@@ -4,7 +4,7 @@
 #define CHAT_GROUPNAME_LENGTH 18
 
 // Login Amutios Lobby and Game Lobby
-#define OPCODE_AMULTIOS_CHAT_LOGIN 13
+#define OPCODE_AMULTIOS_CHAT_LOGIN 10
 // Login Group Lobby
 #define OPCODE_AMULTIOS_CHAT_CONNECT_GAME 14
 #define OPCODE_AMULTIOS_CHAT_CONNECT_GROUP 15
@@ -91,7 +91,9 @@ private:
 	bool updateChatFlag;
 };
 
-
+#ifdef _MSC_VER 
+#pragma pack(push, 1)
+#endif
 
 typedef struct ChatGroupName {
 	uint8_t data[CHAT_GROUPNAME_LENGTH];
@@ -102,10 +104,8 @@ typedef struct {
 	SceNetAdhocctlPacketBase base;
 	SceNetEtherAddr mac;
 	SceNetAdhocctlNickname name;
-	char server[SERVER_NAME_LENGTH];
 	char pin[PIN_LENGTH];
-	uint8_t enableGlobal;
-	uint8_t enableGame;
+	char revision[20];
 } PACK ChatLoginPacketC2S;
 
 // Connect Game Lobby Packet
@@ -125,7 +125,9 @@ typedef struct {
 	SceNetAdhocctlPacketBase base;
 } PACK ChatDisconnectPacketC2S;
 
-
+#ifdef _MSC_VER 
+#pragma pack(pop)
+#endif
 
 extern int chatsocket;
 extern std::thread ChatClientThread;

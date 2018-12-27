@@ -32,11 +32,17 @@
 #include "AmultiosChatClient.h"
 #include "i18n/i18n.h"
 
+uint16_t amultios_port = 34000;
+uint16_t ctlPort = 34001;
+uint16_t ptpRelayPort = 34002;
+uint16_t pdpRelayPort = 34003;
+
 uint16_t portOffset = g_Config.iPortOffset;
 uint32_t fakePoolSize                 = 0;
 SceNetAdhocMatchingContext * contexts = NULL;
 int one                               = 1;
 bool friendFinderRunning              = false;
+bool handshakerRunning				  = false;
 SceNetAdhocctlPeerInfo * friends      = NULL;
 SceNetAdhocctlScanInfo * networks     = NULL;
 SceNetAdhocctlScanInfo * newnetworks  = NULL;
@@ -53,12 +59,16 @@ int actionAfterMatchingMipsCall;
 uint8_t broadcastMAC[ETHER_ADDR_LEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 int metasocket;
+int handshakersocket;
 SceNetAdhocctlParameter parameter;
 SceNetAdhocctlAdhocId product_code;
 std::thread friendFinderThread;
+std::thread handshakerThread;
 std::recursive_mutex peerlock;
 SceNetAdhocPdpStat * pdp[255];
 SceNetAdhocPtpStat * ptp[255];
+SceNetAdhocPdpStatRelay * pdp_relay[255];
+SceNetAdhocPtpStatRelay * ptp_relay[255];
 uint32_t localip;
 
 int isLocalMAC(const SceNetEtherAddr * addr) {
@@ -987,6 +997,114 @@ void freeFriendsRecursive(SceNetAdhocctlPeerInfo * node) {
 	free(node);
 }
 
+int handshaker() {
+	int rxpos = 0;
+	uint8_t rx[1024];
+
+	while (handshakerRunning) {
+		// Wait for Incoming Data
+		int received = recv(handshakersocket, (char *)(rx + rxpos), sizeof(rx) - rxpos, 0);
+
+		// Free Network Lock
+		//_freeNetworkLock();
+
+		// Received Data
+		if (received > 0) {
+			// Fix Position
+			rxpos += received;
+
+			// Log Incoming Traffic
+			//printf("Received %d Bytes of Data from Server\n", received);
+			INFO_LOG(SCENET, "Received %d Bytes of Data from Handshaker socket", received);
+		}
+
+		if (rxpos > 0) {
+			if (rx[0] == OPCODE_PTP_STATE_CONNECT) {
+				if (rxpos >= (int)sizeof(RELAY_PTP_CONNECT)) {
+					// Cast Packet
+					RELAY_PTP_CONNECT * packet = (RELAY_PTP_CONNECT *)rx;
+					setRelayState(packet);
+					// Move RX Buffer
+					memmove(rx, rx + sizeof(RELAY_PTP_CONNECT), sizeof(rx) - sizeof(RELAY_PTP_CONNECT));
+
+					// Fix RX Buffer Length
+					rxpos -= sizeof(RELAY_PTP_CONNECT);
+				}
+			}
+			else if (rx[0] == OPCODE_PTP_STATE_ESTABLISHED) {
+				if (rxpos >= (int)sizeof(RELAY_PTP_CONNECT)) {
+					// Cast Packet
+					RELAY_PTP_CONNECT * packet = (RELAY_PTP_CONNECT *)rx;
+
+
+					setRelayState(packet);
+					// Move RX Buffer
+					memmove(rx, rx + sizeof(RELAY_PTP_CONNECT), sizeof(rx) - sizeof(RELAY_PTP_CONNECT));
+
+					// Fix RX Buffer Length
+					rxpos -= sizeof(RELAY_PTP_CONNECT);
+				}
+			}
+		}
+
+		//while (Core_IsStepping() && handshakerRunning) sleep_ms(1);
+	}
+	return 0;
+}
+
+void setRelayState(RELAY_PTP_CONNECT * packet){
+	INFO_LOG(SCENET, "Setting Relay State %u", packet->opcode);
+	int i = 0;
+	bool found = false;
+	for (; i < 255; i++) {
+		if (ptp_relay[i] != NULL && compareMac(&ptp_relay[i]->laddr, &packet->srcmac) && compareMac(&ptp_relay[i]->paddr, &packet->dstmac) && ptp_relay[i]->lport == (u16_le)packet->sport && ptp_relay[i]->pport == (u16_le)packet->dport) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found) {
+		ptp_relay[i]->state = packet->opcode;
+		INFO_LOG(SCENET, "Handhshaker set id %i to opcode %u", i, packet->opcode);
+	}
+	else {
+		WARN_LOG(SCENET, "ptp relay not found");
+	}
+}
+
+int sendRelayState(int id,int flag) {
+	if (ptp_relay[id] != NULL) {
+		RELAY_PTP_CONNECT packet;
+		memset(&packet, 0, sizeof(RELAY_PTP_CONNECT));
+
+		packet.opcode = OPCODE_PTP_STATE_CONNECT;
+		packet.srcmac = ptp_relay[id]->laddr;
+		packet.sport = ptp_relay[id]->lport;
+		packet.dstmac = ptp_relay[id]->paddr;
+		packet.dport = ptp_relay[id]->pport;
+
+		changeBlockingMode(handshakersocket, flag);
+		int sendResult = send(handshakersocket, (const char *)&packet, sizeof(RELAY_PTP_CONNECT), 0);
+		// Grab Error Code
+
+		if (sendResult == SOCKET_ERROR) {
+			ERROR_LOG(SCENET, "handshaker socket[%i]: Socket Error Sending (%i)", id, errno);
+		}
+		// Restore Socket Option
+		changeBlockingMode(handshakersocket, 1);
+
+		return 0;
+	}
+	return -1;
+}
+
+int getRelayState(int id) {
+	if (ptp_relay[id] != NULL) {
+		return ptp_relay[id]->state;
+	}
+	return 0;
+}
+
 
 int friendFinder(){
 	// Receive Buffer
@@ -1233,13 +1351,12 @@ int friendFinder(){
 					// Cast Packet
 					SceNetAdhocctlNotifyPacketS2C * packet = (SceNetAdhocctlNotifyPacketS2C *)rx;
 					// Add Incoming Chat to HUD
-					NOTICE_LOG(SCENET, "Received rejected message %s", packet->reason);
-					I18NCategory *n = GetI18NCategory("Networking");
-					host->NotifyUserMessage(n->T(packet->reason), 2.0);
 					if (ctlServerStatus == CTL_SERVER_WAITING) {
 						ctlServerStatus = CTL_SERVER_LOGEDIN;
 					}
 					// Move RX Buffer
+					cmList.Add(packet->reason, "", CHAT_ADD_ALL);
+					cmList.Update(CHAT_ADD_ALL);
 					memmove(rx, rx + sizeof(SceNetAdhocctlNotifyPacketS2C), sizeof(rx) - sizeof(SceNetAdhocctlNotifyPacketS2C));
 
 					// Fix RX Buffer Length
@@ -1252,9 +1369,8 @@ int friendFinder(){
 					// Cast Packet
 					SceNetAdhocctlNotifyPacketS2C * packet = (SceNetAdhocctlNotifyPacketS2C *)rx;
 					// Add Incoming Chat to HUD
-					NOTICE_LOG(SCENET, "Received rejected message %s", packet->reason);
-					I18NCategory *n = GetI18NCategory("Networking");
-					host->NotifyUserMessage(n->T(packet->reason), 2.0);
+					cmList.Add(packet->reason, "", CHAT_ADD_ALL);
+					cmList.Update(CHAT_ADD_ALL);
 					ctlServerStatus = CTL_SERVER_DISCONNECTED;
 
 					// Change State
@@ -1425,6 +1541,64 @@ int getPTPSocketCount(void) {
 	return counter;
 }
 
+int initHandshaker() {
+	int iResult = 0;
+	handshakersocket = (int)INVALID_SOCKET;
+	handshakersocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (handshakersocket == INVALID_SOCKET) {
+		ERROR_LOG(SCENET, "Invalid handshaker socket");
+		return -1;
+	}
+	struct sockaddr_in server_addr;
+	server_addr.sin_family = AF_INET;
+	//server_addr.sin_port = htons(g_Config.iServerChannel); //27312 // Maybe read this from config too
+	server_addr.sin_port = htons(ptpRelayPort);
+	// Resolve dns
+	addrinfo * resultAddr;
+	addrinfo * ptr;
+	in_addr serverIp;
+	serverIp.s_addr = INADDR_NONE;
+
+	//iResult = getaddrinfo("amultios.net", 0, NULL, &resultAddr);
+	iResult = getaddrinfo(g_Config.proAdhocServer.c_str(), 0, NULL, &resultAddr);
+	if (iResult != 0) {
+		ERROR_LOG(SCENET, "DNS Error (%s)\n", g_Config.proAdhocServer.c_str());
+		host->NotifyUserMessage("DNS Error connecting to " + g_Config.proAdhocServer, 8.0f);
+		return iResult;
+	}
+	for (ptr = resultAddr; ptr != NULL; ptr = ptr->ai_next) {
+		switch (ptr->ai_family) {
+		case AF_INET:
+			serverIp = ((sockaddr_in *)ptr->ai_addr)->sin_addr;
+			break;
+		}
+	}
+
+	server_addr.sin_addr = serverIp;
+	iResult = connect(handshakersocket, (sockaddr *)&server_addr, sizeof(server_addr));
+	if (iResult == SOCKET_ERROR) {
+		ERROR_LOG(SCENET, "Cannot Connect handshaker socket");
+		return iResult;
+	}
+
+	// Prepare Login Packet
+	RELAY_HANDSHAKE_LOGIN packet;
+	packet.opcode = OPCODE_PTP_HANDSHAKE_LOGIN;
+	SceNetEtherAddr addres;
+	getLocalMac(&addres);
+	packet.mac = addres;
+	//strcpy((char *)packet.pin, g_Config.sAmultiosPin.c_str());
+	int sent = send(handshakersocket, (char*)&packet, sizeof(RELAY_HANDSHAKE_LOGIN), 0);
+	changeBlockingMode(handshakersocket, 1); // Change to non-blocking
+	if (sent > 0) {
+		return 0;
+	}
+	else {
+		return -1;
+	}
+	return 0;
+}
+
 int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 	//disable alt speed
 	if(PSP_CoreParameter().fpsLimit == 1)PSP_CoreParameter().fpsLimit = 0;
@@ -1438,13 +1612,14 @@ int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 	struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
 	//server_addr.sin_port = htons(g_Config.iServerChannel); //27312 // Maybe read this from config too
-	server_addr.sin_port = htons(35000);
+	server_addr.sin_port = htons(ctlPort);
 	// Resolve dns
 	addrinfo * resultAddr;
 	addrinfo * ptr;
 	in_addr serverIp;
 	serverIp.s_addr = INADDR_NONE;
 
+	//iResult = getaddrinfo("amultios.net", 0, NULL, &resultAddr);
 	iResult = getaddrinfo(g_Config.proAdhocServer.c_str(),0,NULL,&resultAddr);
 	if (iResult != 0) {
 		ERROR_LOG(SCENET, "DNS Error (%s)\n", g_Config.proAdhocServer.c_str());
@@ -1485,12 +1660,9 @@ int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 	packet.mac = addres;
 	strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
 	memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
-	//strcpy((char *)packet.pin, g_Config.sAmultiosPin.c_str());
-	int sent = send(metasocket, (char*)&packet, sizeof(packet), 0);
+	int sent = send(metasocket, (char*)&packet, sizeof(SceNetAdhocctlLoginPacketC2S), 0);
 	changeBlockingMode(metasocket, 1); // Change to non-blocking
 	if (sent > 0) {
-		I18NCategory *n = GetI18NCategory("Networking");
-		host->NotifyUserMessage(n->T("Joining Adhoc Group Lobby "), 1.0);
 		ctlServerStatus = CTL_SERVER_WAITING;
 		return 0;
 	}
@@ -1544,6 +1716,10 @@ bool resolveIP(uint32_t ip, SceNetEtherAddr * mac) {
 	return false;
 }
 
+bool compareMac(SceNetEtherAddr * mac1, SceNetEtherAddr * mac2) {
+	return memcmp(mac1, mac2, sizeof(SceNetEtherAddr)) == 0;
+}
+
 bool resolveMAC(SceNetEtherAddr * mac, uint32_t * ip) {
 	// Get Local MAC Address
 	SceNetEtherAddr localMac;
@@ -1554,7 +1730,7 @@ bool resolveMAC(SceNetEtherAddr * mac, uint32_t * ip) {
 		sockaddr_in sockAddr;
 		getLocalIp(&sockAddr);
 		*ip = sockAddr.sin_addr.s_addr;
-		return true; // return succes
+		return true; // return success
 	}
 
 	// Multithreading Lock

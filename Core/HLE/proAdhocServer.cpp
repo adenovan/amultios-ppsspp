@@ -1129,10 +1129,10 @@ void spread_message(SceNetAdhocctlUserNode *user, const char *message)
 				memset(&packet, 0, sizeof(packet));
 
 				// Set Chat Opcode
-				packet.base.base.opcode = OPCODE_CHAT;
+				packet.base.opcode = OPCODE_CHAT;
 
 				// Set Chat Message
-				strcpy(packet.base.message, message);
+				strcpy(packet.message, message);
 
 				// Send Data
 				int iResult = send(user->stream, (const char*)&packet, sizeof(packet), 0);
@@ -1158,8 +1158,6 @@ void spread_message(SceNetAdhocctlUserNode *user, const char *message)
 			if(peer == user)
 			{
 				// Move Pointer
-				peer = peer->group_next;
-
 				// Continue Loop
 				continue;
 			}
@@ -1168,13 +1166,14 @@ void spread_message(SceNetAdhocctlUserNode *user, const char *message)
 			SceNetAdhocctlChatPacketS2C packet;
 
 			// Set Chat Opcode
-			packet.base.base.opcode = OPCODE_CHAT;
+			packet.base.opcode = OPCODE_CHAT;
 
 			// Set Chat Message
-			strcpy(packet.base.message, message);
+			strcpy(packet.message, message);
 
 			// Set Sender Nickname
-			packet.name = user->resolver.name;
+			strcpy(packet.name, (char *)user->resolver.name.data);
+			
 
 			// Send Data
 			int iResult = send(peer->stream, (const char*)&packet, sizeof(packet), 0);
@@ -1248,7 +1247,6 @@ void clear_user_rxbuf(SceNetAdhocctlUserNode * user, int clear)
 
 	// Move Buffer
 	memmove(user->rx, user->rx + clear, sizeof(user->rx) - clear);
-
 	// Fix RX Buffer Pointer
 	user->rxpos -= clear;
 }
