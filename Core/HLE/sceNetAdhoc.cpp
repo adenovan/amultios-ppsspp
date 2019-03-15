@@ -208,13 +208,14 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr) {
 				friendFinderThread = std::thread(friendFinder);
 			}
 
+			networkInited = true;
+
 			if (!handshakerRunning) {
 				if (initHandshaker() == 0) {
 					handshakerRunning = true;
 					handshakerThread = std::thread(handshaker);
 				}
 			}
-			networkInited = true;
 		} else {
 			WARN_LOG(SCENET, "sceNetAdhocctlInit: Failed to init the network but faking success");
 			networkInited = false;  // TODO: What needs to check this? Pretty much everything? Maybe we should just set netAdhocctlInited to false..
@@ -701,13 +702,21 @@ static int sceNetAdhocPdpRecv(int id, void *addr, void * port, void *buf, void *
 
 				// Acquire Network Lock
 				//_acquireNetworkLock();
-
+				int received = 0;
 				changeBlockingMode(socket->id, flag);
-				int received = recv(socket->id, (char *)rsocket->rxbuf + rsocket->rxpos, (sizeof(RELAY_PDP_RECV) + *len), 0);
+				
+				if (flag) {
+					received = recv(socket->id, (char *)rsocket->rxbuf + rsocket->rxpos, sizeof(rsocket->rxbuf) - rsocket->rxpos, 0);
+				}
+				else {
+					received = recv(socket->id, (char *)rsocket->rxbuf + rsocket->rxpos, (sizeof(RELAY_PDP_RECV) + *len), 0);
+				}
+
 				int error = errno;
 				if (received == SOCKET_ERROR && error != EAGAIN) {
 					//ERROR_LOG(SCENET, "Socket Error (%i) on sceNetAdhocPdpRecv Receive Header Error[size=%i]", error, *len);
 				}
+
 				changeBlockingMode(socket->id, 0);
 
 				if (received >= 0) {

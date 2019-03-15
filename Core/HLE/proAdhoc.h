@@ -916,6 +916,7 @@ extern SceNetAdhocctlAdhocId product_code;
 extern std::thread friendFinderThread;
 extern std::thread handshakerThread;
 extern std::recursive_mutex peerlock;
+extern std::mutex handshakelock;
 extern SceNetAdhocPdpStat * pdp[255];
 extern SceNetAdhocPtpStat * ptp[255];
 extern SceNetAdhocPdpStatRelay * pdp_relay[255];

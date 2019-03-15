@@ -65,6 +65,7 @@ SceNetAdhocctlAdhocId product_code;
 std::thread friendFinderThread;
 std::thread handshakerThread;
 std::recursive_mutex peerlock;
+std::mutex handshakelock;
 SceNetAdhocPdpStat * pdp[255];
 SceNetAdhocPtpStat * ptp[255];
 SceNetAdhocPdpStatRelay * pdp_relay[255];
@@ -1046,6 +1047,10 @@ int handshaker() {
 				}
 			}
 		}
+		else {
+			sleep_ms(1);
+
+		}
 
 		//while (Core_IsStepping() && handshakerRunning) sleep_ms(1);
 	}
@@ -1054,6 +1059,7 @@ int handshaker() {
 
 void setRelayState(RELAY_PTP_CONNECT * packet){
 	INFO_LOG(SCENET, "Setting Relay State %u", packet->opcode);
+	std::lock_guard<std::mutex> guard(handshakelock);
 	int i = 0;
 	bool found = false;
 	for (; i < 255; i++) {
@@ -1083,7 +1089,6 @@ int sendRelayState(int id,int flag) {
 		packet.dstmac = ptp_relay[id]->paddr;
 		packet.dport = ptp_relay[id]->pport;
 
-		changeBlockingMode(handshakersocket, flag);
 		int sendResult = send(handshakersocket, (const char *)&packet, sizeof(RELAY_PTP_CONNECT), 0);
 		// Grab Error Code
 
@@ -1091,7 +1096,6 @@ int sendRelayState(int id,int flag) {
 			ERROR_LOG(SCENET, "handshaker socket[%i]: Socket Error Sending (%i)", id, errno);
 		}
 		// Restore Socket Option
-		changeBlockingMode(handshakersocket, 1);
 
 		return 0;
 	}
@@ -1099,6 +1103,7 @@ int sendRelayState(int id,int flag) {
 }
 
 int getRelayState(int id) {
+	std::lock_guard<std::mutex> guard(handshakelock);
 	if (ptp_relay[id] != NULL) {
 		return ptp_relay[id]->state;
 	}
