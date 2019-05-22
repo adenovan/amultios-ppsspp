@@ -23,7 +23,6 @@
 #include "base/timeutil.h"
 #include "math/lin/matrix4x4.h"
 #include "math/dataconv.h"
-#include "i18n/i18n.h"
 #include "ext/native/file/vfs.h"
 #include "ext/native/thin3d/thin3d.h"
 
@@ -618,7 +617,6 @@ void FramebufferManagerVulkan::CompilePostShader() {
 	} else {
 		return;
 	}
-	I18NCategory *gr = GetI18NCategory("Graphics");
 
 	// TODO: Delete the old pipeline?
 

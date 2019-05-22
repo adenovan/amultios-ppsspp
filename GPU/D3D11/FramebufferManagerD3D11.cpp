@@ -24,7 +24,6 @@
 #include "base/basictypes.h"
 #include "file/vfs.h"
 #include "file/zip_read.h"
-#include "i18n/i18n.h"
 
 #include "Common/ColorConv.h"
 #include "Common/MathUtil.h"
@@ -266,7 +265,6 @@ void FramebufferManagerD3D11::CompilePostShader() {
 	} else {
 		return;
 	}
-	I18NCategory *gr = GetI18NCategory("Graphics");
 
 	UINT flags = D3DCOMPILE_ENABLE_BACKWARDS_COMPATIBILITY;
 	std::vector<uint8_t> byteCode;
