@@ -10,6 +10,7 @@ set(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS ON CACHE BOOL "let's not use exceptions
 
 add_subdirectory(glslang)
 add_subdirectory(snappy)
+add_subdirectory(paho-mqtt-c)
 add_subdirectory(udis86)
 add_subdirectory(SPIRV-Cross-build)
 if(USE_DISCORD AND NOT IOS)
