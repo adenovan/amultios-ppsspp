@@ -1602,6 +1602,8 @@ add_library(${CoreLibName} ${CoreLinkType}
 	Core/HLE/proAdhoc.cpp
 	Core/HLE/proAdhocServer.h
 	Core/HLE/proAdhocServer.cpp
+	Core/HLE/amultios.cpp
+	Core/HLE/amultios.h
 	Core/HLE/sceOpenPSID.cpp
 	Core/HLE/sceOpenPSID.h
 	Core/HLE/sceP3da.cpp
@@ -1791,6 +1793,9 @@ if(USE_DISCORD AND NOT IOS)
 	add_definitions(-DUSE_DISCORD=1)
 	target_link_libraries(${CoreLibName} discord-rpc)
 endif()
+
+include_directories(ext/paho-mqtt-c/src)
+target_link_libraries(${CoreLibName} paho-mqtt3c)
 
 setup_target_project(${CoreLibName} Core)
 

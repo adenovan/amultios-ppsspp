@@ -36,6 +36,7 @@
 #include "Core/HLE/proAdhoc.h"
 #include "Core/HLE/sceNet.h"
 #include "Core/HLE/proAdhocServer.h"
+#include "Core/HLE/amultios.h"
 
 // shared in sceNetAdhoc.h since it need to be used from sceNet.cpp also
 // TODO: Make accessor functions instead, and throw all this state in a struct.
@@ -161,6 +162,7 @@ void __NetAdhocInit() {
 
 u32 sceNetAdhocInit() {
 	// Library uninitialized
+	connectAmultios();
 	INFO_LOG(SCENET, "sceNetAdhocInit() at %08x", currentMIPS->pc);
 	if (!netAdhocInited) {
 		// Clear Translator Memory
