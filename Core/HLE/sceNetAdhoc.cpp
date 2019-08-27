@@ -162,7 +162,6 @@ void __NetAdhocInit() {
 
 u32 sceNetAdhocInit() {
 	// Library uninitialized
-	connectAmultios();
 	INFO_LOG(SCENET, "sceNetAdhocInit() at %08x", currentMIPS->pc);
 	if (!netAdhocInited) {
 		// Clear Translator Memory
@@ -180,7 +179,7 @@ u32 sceNetAdhocInit() {
 		if (threadAdhocID > 0) {
 			__KernelStartThread(threadAdhocID, 0, 0);
 		}
-
+		connectAmultios();
 		// Return Success
 		return 0;
 	}
@@ -195,6 +194,14 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr) {
 		return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
 	
 	if(g_Config.bEnableWlan) {
+
+		if(initSceNetAdhocctl((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MQTTCLIENT_SUCCESS){
+			if(!ctlRunning){
+				ctlRunning = true;
+				ctlThread = std::thread(ctl_run);
+			}
+		}
+
 		if (initNetwork((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == 0) {
 			if (!friendFinderRunning) {
 				friendFinderRunning = true;
@@ -1131,6 +1138,11 @@ int sceNetAdhocctlTerm() {
 	if (netAdhocctlInited) {
 		netAdhocctlInited = false;
 		friendFinderRunning = false;
+		ctlRunning = false;
+		if(ctlThread.joinable()){
+			ctlThread.join();
+		}
+		
 		if (friendFinderThread.joinable()) {
 			friendFinderThread.join();
 		}
@@ -1450,6 +1462,7 @@ int sceNetAdhocTerm() {
 		// if (_manage_modules != 0) sceUtilityUnloadModule(PSP_MODULE_NET_INET);
 		// Library shutdown
 		netAdhocInited = false;
+		disconnectAmultios();
 		return 0;
 	} else {
 		// Seems to return this when called a second time after being terminated without another initialisation

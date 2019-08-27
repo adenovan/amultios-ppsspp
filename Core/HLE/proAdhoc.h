@@ -641,7 +641,7 @@ enum {
 // P2P only seen in P2P mode after connection accept
 // Requester only seen in P2P and PARENT mode after connection request
 #define PSP_ADHOC_MATCHING_PEER_OFFER				1
-#define PSP_ADHOC_MATCHING_PEER_PARENT				2
+#define PSP_ADHOC_MATCHING_PEER_PARENT			2
 #define PSP_ADHOC_MATCHING_PEER_CHILD				3
 #define PSP_ADHOC_MATCHING_PEER_P2P					4
 #define PSP_ADHOC_MATCHING_PEER_INCOMING_REQUEST	5
@@ -704,6 +704,13 @@ typedef struct {
   SceNetAdhocctlPacketBase base;
   SceNetAdhocctlGroupName group;
 } PACK SceNetAdhocctlConnectPacketC2S;
+
+// C2S Connect Packet
+typedef struct {
+  SceNetAdhocctlPacketBase base;
+  SceNetEtherAddr mac;
+  SceNetAdhocctlGroupName group;
+} PACK SceNetAdhocctlConnectPacketC2SMQtt;
 
 // C2S Chat Packet
 typedef struct {

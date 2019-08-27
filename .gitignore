@@ -19,6 +19,7 @@
 *.exp
 *.qdact
 controls.ini
+Amultios
 Debug
 Release
 Windows/.vs
@@ -89,6 +90,7 @@ android/assets/lang
 android/assets/flash0
 ppge_atlas.zim.png
 local.properties
+config/
 
 # For vim
 *.swp
