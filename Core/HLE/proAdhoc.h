@@ -705,13 +705,6 @@ typedef struct {
   SceNetAdhocctlGroupName group;
 } PACK SceNetAdhocctlConnectPacketC2S;
 
-// C2S Connect Packet
-typedef struct {
-  SceNetAdhocctlPacketBase base;
-  SceNetEtherAddr mac;
-  SceNetAdhocctlGroupName group;
-} PACK SceNetAdhocctlConnectPacketC2SMQtt;
-
 // C2S Chat Packet
 typedef struct {
   SceNetAdhocctlPacketBase base;

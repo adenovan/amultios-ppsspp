@@ -637,6 +637,7 @@ void GameSettingsScreen::CreateViews() {
 
 	networkingSettings->Add(new Choice(n->T("Adhoc Multiplayer forum")))->OnClick.Handle(this, &GameSettingsScreen::OnAdhocGuides);
 
+	networkingSettings->Add(new CheckBox(&g_Config.bAmultiosMode, n->T("Amultios Online Mode", "Online Through Internet")));
 	networkingSettings->Add(new CheckBox(&g_Config.bEnableWlan, n->T("Enable networking", "Enable networking/wlan (beta)")));
 	networkingSettings->Add(new CheckBox(&g_Config.bDiscordPresence, n->T("Send Discord Presence information")));
 

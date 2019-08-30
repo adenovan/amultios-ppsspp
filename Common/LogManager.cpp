@@ -94,6 +94,7 @@ static const LogNameTableEntry logTable[] = {
 	{LogTypes::SASMIX,     "SASMIX"},
 	{LogTypes::SAVESTATE,  "SAVESTATE"},
 	{LogTypes::FRAMEBUF,   "FRAMEBUF"},
+	{LogTypes::AMULTIOS,   "AMULTIOS"},
 
 	{LogTypes::SCEAUDIO,   "SCEAUDIO"},
 	{LogTypes::SCECTRL,    "SCECTRL"},
@@ -117,7 +118,7 @@ LogManager::LogManager() {
 			FLOG("Bad logtable at %i", (int)i);
 		}
 		truncate_cpy(log_[logTable[i].logType].m_shortName, logTable[i].name);
-		log_[logTable[i].logType].enabled = true;
+		log_[logTable[i].logType].enabled = false;
 #if defined(_DEBUG)
 		log_[logTable[i].logType].level = LogTypes::LDEBUG;
 #else
@@ -196,9 +197,9 @@ void LogManager::LoadConfig(IniFile::Section *section, bool debugDefaults) {
 	for (int i = 0; i < LogTypes::NUMBER_OF_LOGS; i++) {
 		bool enabled = false;
 		int level = 0;
-		section->Get((std::string(log_[i].m_shortName) + "Enabled").c_str(), &enabled, true);
+		section->Get((std::string(log_[i].m_shortName) + "Enabled").c_str(), &enabled, false);
 		section->Get((std::string(log_[i].m_shortName) + "Level").c_str(), &level, debugDefaults ? (int)LogTypes::LDEBUG : (int)LogTypes::LERROR);
-		log_[i].enabled = enabled;
+		log_[i].enabled = false;
 		log_[i].level = (LogTypes::LOG_LEVELS)level;
 	}
 }

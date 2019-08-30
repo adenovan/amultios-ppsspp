@@ -179,7 +179,11 @@ u32 sceNetAdhocInit() {
 		if (threadAdhocID > 0) {
 			__KernelStartThread(threadAdhocID, 0, 0);
 		}
-		connectAmultios();
+
+		if(g_Config.bAmultiosMode){
+			AmultiosNetAdhocInit();
+		}
+
 		// Return Success
 		return 0;
 	}
@@ -193,15 +197,21 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr) {
 	if (netAdhocctlInited)
 		return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
 	
-	if(g_Config.bEnableWlan) {
-
-		if(initSceNetAdhocctl((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MQTTCLIENT_SUCCESS){
-			if(!ctlRunning){
-				ctlRunning = true;
-				ctlThread = std::thread(ctl_run);
-			}
+	if(g_Config.bAmultiosMode){
+		if(AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MQTTCLIENT_SUCCESS){
+				if(!ctlRunning){
+					ctlRunning = true;
+					ctlThread = std::thread(ctl_run);
+				}
+				networkInited = true;
+		}else{
+			networkInited = false;
 		}
+		netAdhocctlInited = true; 
+		return 0;
+	}
 
+	if(g_Config.bEnableWlan) {
 		if (initNetwork((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == 0) {
 			if (!friendFinderRunning) {
 				friendFinderRunning = true;
@@ -1327,6 +1337,10 @@ int sceNetAdhocctlCreate(const char *groupName) {
 		return -1;
 	}
 
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocctlCreate(groupName);
+	}
+
 	const SceNetAdhocctlGroupName * groupNameStruct = (const SceNetAdhocctlGroupName *)groupName;
 	// Library initialized
 	if (netAdhocctlInited) {
@@ -1461,8 +1475,11 @@ int sceNetAdhocTerm() {
 		// Unload Internet Modules (Just keep it in memory... unloading crashes?!)
 		// if (_manage_modules != 0) sceUtilityUnloadModule(PSP_MODULE_NET_INET);
 		// Library shutdown
+
+		if(g_Config.bAmultiosMode){
+			AmultiosNetAdhocTerm();
+		}
 		netAdhocInited = false;
-		disconnectAmultios();
 		return 0;
 	} else {
 		// Seems to return this when called a second time after being terminated without another initialisation
