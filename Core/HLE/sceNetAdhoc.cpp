@@ -887,6 +887,9 @@ static int sceNetAdhocctlGetAdhocId(u32 productStructAddr) {
 static int sceNetAdhocctlScan() {
 	INFO_LOG(SCENET, "sceNetAdhocctlScan() at %08x", currentMIPS->pc);
 
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocctlScan();
+	}
 	// Library initialized
 	if (netAdhocctlInited) {
 		// Not connected
@@ -1147,20 +1150,24 @@ int sceNetAdhocctlTerm() {
 
 	if (netAdhocctlInited) {
 		netAdhocctlInited = false;
-		friendFinderRunning = false;
-		ctlRunning = false;
-		if(ctlThread.joinable()){
-			ctlThread.join();
+
+		if(g_Config.bAmultiosMode){
+			ctlRunning = false;
+			if(ctlThread.joinable()){
+				ctlThread.join();
+			}
+		}else{
+			friendFinderRunning = false;
+			if (friendFinderThread.joinable()) {
+				friendFinderThread.join();
+			}
+			// Free stuff here
+			closesocket(metasocket);
+			metasocket = (int)INVALID_SOCKET;
 		}
-		
-		if (friendFinderThread.joinable()) {
-			friendFinderThread.join();
-		}
+
 		//May also need to clear Handlers
 		adhocctlHandlers.clear();
-		// Free stuff here
-		closesocket(metasocket);
-		metasocket = (int)INVALID_SOCKET;
 /*#ifdef _MSC_VER
 		WSACleanup(); // Might be better to call WSAStartup/WSACleanup from sceNetInit/sceNetTerm isn't? since it's the first/last network function being used, even better to put it in __NetInit/__NetShutdown as it's only called once
 #endif*/
