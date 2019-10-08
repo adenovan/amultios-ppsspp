@@ -21,14 +21,16 @@
 #include <cmath>
 #include "math/math_util.h"
 
+#include "Core/Compatibility.h"
+#include "Core/Config.h"
 #include "Core/MemMap.h"
+#include "Core/Reporting.h"
+#include "Core/System.h"
 #include "Core/MIPS/MIPS.h"
 #include "Core/MIPS/MIPSTables.h"
 #include "Core/MIPS/MIPSAnalyst.h"
 #include "Core/MIPS/MIPSCodeUtils.h"
 #include "Common/CPUDetect.h"
-#include "Core/Config.h"
-#include "Core/Reporting.h"
 
 #include "Core/MIPS/ARM/ArmJit.h"
 #include "Core/MIPS/ARM/ArmRegCache.h"
@@ -1380,7 +1382,7 @@ namespace MIPSComp
 
 	void ArmJit::Comp_Vmmov(MIPSOpcode op) {
 		NEON_IF_AVAILABLE(CompNEON_Vmmov);
-		CONDITIONAL_DISABLE(VFPU_MTX);
+		CONDITIONAL_DISABLE(VFPU_MTX_VMMOV);
 
 		// This probably ignores prefixes for all sane intents and purposes.
 		if (_VS == _VD) {
@@ -1467,13 +1469,17 @@ namespace MIPSComp
 	}
 
 	void ArmJit::Comp_Vmmul(MIPSOpcode op) {
-		CONDITIONAL_DISABLE(VFPU_MTX);
-		if (js.HasUnknownPrefix()) {
+		CONDITIONAL_DISABLE(VFPU_MTX_VMMUL);
+		if (!js.HasNoPrefix()) {
 			DISABLE;
 		}
 		NEON_IF_AVAILABLE(CompNEON_Vmmul);
 
-		// TODO: This probably ignores prefixes?
+		if (PSP_CoreParameter().compat.flags().MoreAccurateVMMUL) {
+			// Fall back to interpreter, which has the accurate implementation.
+			// Later we might do something more optimized here.
+			DISABLE;
+		}
 
 		MatrixSize sz = GetMtxSize(op);
 		int n = GetMatrixSide(sz);
@@ -1516,7 +1522,7 @@ namespace MIPSComp
 
 	void ArmJit::Comp_Vtfm(MIPSOpcode op) {
 		NEON_IF_AVAILABLE(CompNEON_Vtfm);
-		CONDITIONAL_DISABLE(VFPU_MTX);
+		CONDITIONAL_DISABLE(VFPU_MTX_VTFM);
 		if (js.HasUnknownPrefix()) {
 			DISABLE;
 		}

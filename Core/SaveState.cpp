@@ -152,11 +152,12 @@ namespace SaveState
 
 		void ScheduleCompress(std::vector<u8> *result, const std::vector<u8> *state, const std::vector<u8> *base)
 		{
-			auto th = new std::thread([=]{
+			if (compressThread_.joinable())
+				compressThread_.join();
+			compressThread_ = std::thread([=]{
 				setCurrentThreadName("SaveStateCompress");
 				Compress(*result, *state, *base);
 			});
-			th->detach();
 		}
 
 		void Compress(std::vector<u8> &result, const std::vector<u8> &state, const std::vector<u8> &base)
@@ -207,6 +208,9 @@ namespace SaveState
 
 		void Clear()
 		{
+			if (compressThread_.joinable())
+				compressThread_.join();
+
 			// This lock is mainly for shutdown.
 			std::lock_guard<std::mutex> guard(lock_);
 			first_ = 0;
@@ -232,6 +236,7 @@ namespace SaveState
 		StateBuffer bases_[2];
 		std::vector<int> baseMapping_;
 		std::mutex lock_;
+		std::thread compressThread_;
 
 		int base_;
 		int baseUsage_;
@@ -630,9 +635,9 @@ namespace SaveState
 		// Okay, first, let's give the rewind state a shot - maybe we can at least not reset entirely.
 		// Even if this was a rewind, maybe we can still load a previous one.
 		CChunkFileReader::Error result;
-		do
+		do {
 			result = rewindStates.Restore();
-		while (result == CChunkFileReader::ERROR_BROKEN_STATE);
+		} while (result == CChunkFileReader::ERROR_BROKEN_STATE);
 
 		if (result == CChunkFileReader::ERROR_NONE) {
 			return true;

@@ -42,6 +42,7 @@
 #include "GPU/GPUState.h"
 #include "UI/MiscScreens.h"
 #include "UI/DevScreens.h"
+#include "UI/ControlMappingScreen.h"
 #include "UI/GameSettingsScreen.h"
 
 #ifdef _WIN32
@@ -78,7 +79,10 @@ void DevMenu::CreatePopupContents(UI::ViewGroup *parent) {
 	items->Add(new Choice(sy->T("Developer Tools")))->OnClick.Handle(this, &DevMenu::OnDeveloperTools);
 	items->Add(new Choice(dev->T("Jit Compare")))->OnClick.Handle(this, &DevMenu::OnJitCompare);
 	items->Add(new Choice(dev->T("Shader Viewer")))->OnClick.Handle(this, &DevMenu::OnShaderView);
-	items->Add(new CheckBox(&g_Config.bShowAllocatorDebug, dev->T("Allocator Viewer")));
+	if (g_Config.iGPUBackend == (int)GPUBackend::VULKAN) {
+		items->Add(new CheckBox(&g_Config.bShowAllocatorDebug, dev->T("Allocator Viewer")));
+		items->Add(new CheckBox(&g_Config.bShowGpuProfile, dev->T("GPU Profile")));
+	}
 	items->Add(new Choice(dev->T("Toggle Freeze")))->OnClick.Handle(this, &DevMenu::OnFreezeFrame);
 	items->Add(new Choice(dev->T("Dump Frame GPU Commands")))->OnClick.Handle(this, &DevMenu::OnDumpFrame);
 	items->Add(new Choice(dev->T("Toggle Audio Debug")))->OnClick.Handle(this, &DevMenu::OnToggleAudioDebug);
@@ -338,7 +342,10 @@ static const JitDisableFlag jitDisableFlags[] = {
 	{ MIPSComp::JitDisable::FPU_COMP, "FPU_COMP" },
 	{ MIPSComp::JitDisable::FPU_XFER, "FPU_XFER" },
 	{ MIPSComp::JitDisable::VFPU_VEC, "VFPU_VEC" },
-	{ MIPSComp::JitDisable::VFPU_MTX, "VFPU_MTX" },
+	{ MIPSComp::JitDisable::VFPU_MTX_VTFM, "VFPU_MTX_VTFM" },
+	{ MIPSComp::JitDisable::VFPU_MTX_VMSCL, "VFPU_MTX_VMSCL" },
+	{ MIPSComp::JitDisable::VFPU_MTX_VMMUL, "VFPU_MTX_VMMUL" },
+	{ MIPSComp::JitDisable::VFPU_MTX_VMMOV, "VFPU_MTX_VMMOV" },
 	{ MIPSComp::JitDisable::VFPU_COMP, "VFPU_COMP" },
 	{ MIPSComp::JitDisable::VFPU_XFER, "VFPU_XFER" },
 	{ MIPSComp::JitDisable::LSU, "LSU" },
@@ -350,6 +357,8 @@ static const JitDisableFlag jitDisableFlags[] = {
 	{ MIPSComp::JitDisable::POINTERIFY, "Pointerify" },
 	{ MIPSComp::JitDisable::STATIC_ALLOC, "Static regalloc" },
 	{ MIPSComp::JitDisable::CACHE_POINTERS, "Cached pointers" },
+	{ MIPSComp::JitDisable::REGALLOC_GPR, "GPR Regalloc across instructions" },
+	{ MIPSComp::JitDisable::REGALLOC_FPR, "FPR Regalloc across instructions" },
 };
 
 void JitDebugScreen::CreateViews() {
@@ -431,6 +440,9 @@ void SystemInfoScreen::CreateViews() {
 
 	deviceSpecs->Add(new ItemHeader(si->T("System Information")));
 	deviceSpecs->Add(new InfoItem(si->T("System Name", "Name"), System_GetProperty(SYSPROP_NAME)));
+#if PPSSPP_PLATFORM(ANDROID)
+	deviceSpecs->Add(new InfoItem(si->T("System Version"), StringFromInt(System_GetPropertyInt(SYSPROP_SYSTEMVERSION))));
+#endif
 	deviceSpecs->Add(new InfoItem(si->T("Lang/Region"), System_GetProperty(SYSPROP_LANGREGION)));
 	std::string board = System_GetProperty(SYSPROP_BOARDNAME);
 	if (!board.empty())

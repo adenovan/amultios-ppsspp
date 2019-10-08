@@ -150,7 +150,9 @@ SPIRV_CROSS_FILES := \
   $(SRC)/ext/SPIRV-Cross/spirv_cfg.cpp \
   $(SRC)/ext/SPIRV-Cross/spirv_cross.cpp \
   $(SRC)/ext/SPIRV-Cross/spirv_cross_util.cpp \
-  $(SRC)/ext/SPIRV-Cross/spirv_glsl.cpp
+  $(SRC)/ext/SPIRV-Cross/spirv_glsl.cpp \
+  $(SRC)/ext/SPIRV-Cross/spirv_parser.cpp \
+  $(SRC)/ext/SPIRV-Cross/spirv_cross_parsed_ir.cpp
 
 EXEC_AND_LIB_FILES := \
   $(ARCH_FILES) \
@@ -243,6 +245,7 @@ EXEC_AND_LIB_FILES := \
   $(SRC)/GPU/Common/ShaderUniforms.cpp \
   $(SRC)/GPU/Debugger/Breakpoints.cpp \
   $(SRC)/GPU/Debugger/Debugger.cpp \
+  $(SRC)/GPU/Debugger/Playback.cpp \
   $(SRC)/GPU/Debugger/Record.cpp \
   $(SRC)/GPU/Debugger/Stepping.cpp \
   $(SRC)/GPU/GLES/FramebufferManagerGLES.cpp \
@@ -391,6 +394,7 @@ EXEC_AND_LIB_FILES := \
   $(SRC)/Core/HLE/sceUsbAcc.cpp \
   $(SRC)/Core/HLE/sceUsbCam.cpp \
   $(SRC)/Core/HLE/sceUsbGps.cpp \
+  $(SRC)/Core/HLE/sceUsbMic.cpp \
   $(SRC)/Core/HLE/sceUtility.cpp \
   $(SRC)/Core/HLE/sceVaudio.cpp \
   $(SRC)/Core/HLE/scePspNpDrm_user.cpp \

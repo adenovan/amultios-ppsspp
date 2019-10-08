@@ -108,6 +108,9 @@
 #if defined(USING_QT_UI)
 #include <QFontDatabase>
 #endif
+#if PPSSPP_PLATFORM(UWP)
+#include <dwrite_3.h>
+#endif
 
 // The new UI framework, for initialization
 
@@ -315,6 +318,8 @@ static void PostLoadConfig() {
 		g_Config.currentDirectory = g_Config.externalDirectory;
 #elif defined(IOS)
 		g_Config.currentDirectory = g_Config.internalDataDirectory;
+#elif PPSSPP_PLATFORM(SWITCH)
+		g_Config.currentDirectory = "/";
 #else
 		if (getenv("HOME") != nullptr)
 			g_Config.currentDirectory = getenv("HOME");
@@ -389,9 +394,9 @@ static void CheckFailedGPUBackends() {
 		WARN_LOG(LOADER, "Failed graphics backend switched from %d to %d", lastBackend, g_Config.iGPUBackend);
 	// And then let's - for now - add the current to the failed list.
 	if (g_Config.sFailedGPUBackends.empty()) {
-		g_Config.sFailedGPUBackends = StringFromFormat("%d", g_Config.iGPUBackend);
+		g_Config.sFailedGPUBackends = GPUBackendToString((GPUBackend)g_Config.iGPUBackend);
 	} else if (g_Config.sFailedGPUBackends.find("ALL") == std::string::npos) {
-		g_Config.sFailedGPUBackends += StringFromFormat(",%d", g_Config.iGPUBackend);
+		g_Config.sFailedGPUBackends += "," + GPUBackendToString((GPUBackend)g_Config.iGPUBackend);
 	}
 
 	if (System_GetPropertyBool(SYSPROP_SUPPORTS_PERMISSIONS)) {
@@ -443,12 +448,17 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 	// Packed assets are included in app
 	VFSRegister("", new DirectoryAssetReader(external_dir));
 #endif
-#if !defined(MOBILE_DEVICE) && !defined(_WIN32)
+#if !defined(MOBILE_DEVICE) && !defined(_WIN32) && !PPSSPP_PLATFORM(SWITCH)
 	VFSRegister("", new DirectoryAssetReader((File::GetExeDirectory() + "assets/").c_str()));
 	VFSRegister("", new DirectoryAssetReader((File::GetExeDirectory()).c_str()));
 	VFSRegister("", new DirectoryAssetReader("/usr/share/ppsspp/assets/"));
 #endif
+#if PPSSPP_PLATFORM(SWITCH)
+	std::string assetPath = savegame_dir + "assets/";
+	VFSRegister("", new DirectoryAssetReader(assetPath.c_str()));
+#else
 	VFSRegister("", new DirectoryAssetReader("assets/"));
+#endif
 	VFSRegister("", new DirectoryAssetReader(savegame_dir));
 
 #if (defined(MOBILE_DEVICE) || !defined(USING_QT_UI)) && !PPSSPP_PLATFORM(UWP)
@@ -478,6 +488,9 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 #elif defined(IOS)
 	g_Config.memStickDirectory = user_data_path;
 	g_Config.flash0Directory = std::string(external_dir) + "/flash0/";
+#elif PPSSPP_PLATFORM(SWITCH)
+	g_Config.memStickDirectory = g_Config.internalDataDirectory + "config/ppsspp/";
+	g_Config.flash0Directory = g_Config.internalDataDirectory + "assets/flash0/";
 #elif !defined(_WIN32)
 	std::string config;
 	if (getenv("XDG_CONFIG_HOME") != NULL)
@@ -511,6 +524,7 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 	LogManager *logman = LogManager::GetInstance();
 
 #ifdef __ANDROID__
+	// On early versions of Android we don't need to ask permission.
 	CreateDirectoriesAndroid();
 #endif
 
@@ -646,7 +660,10 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 	// Note to translators: do not translate this/add this to PPSSPP-lang's files.
 	// It's intended to be custom for every user.
 	// Only add it to your own personal copies of PPSSPP.
-#if defined(USING_WIN_UI) && !PPSSPP_PLATFORM(UWP)
+#if PPSSPP_PLATFORM(UWP)
+	// Roboto font is loaded in TextDrawerUWP.
+	g_Config.sFont = des->T("Font", "Roboto");
+#elif defined(USING_WIN_UI) && !PPSSPP_PLATFORM(UWP)
 	// TODO: Could allow a setting to specify a font file to load?
 	// TODO: Make this a constant if we can sanely load the font on other systems?
 	AddFontResourceEx(L"assets/Roboto-Condensed.ttf", FR_PRIVATE, NULL);
@@ -676,7 +693,7 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 
 	if (!boot_filename.empty() && stateToLoad != NULL) {
 		SaveState::Load(stateToLoad, [](SaveState::Status status, const std::string &message, void *) {
-			if (!message.empty()) {
+			if (!message.empty() && (!g_Config.bDumpFrames || !g_Config.bDumpVideoOutput)) {
 				osm.Show(message, status == SaveState::Status::SUCCESS ? 2.0 : 5.0);
 			}
 		});
@@ -729,7 +746,7 @@ static UI::Style MakeStyle(uint32_t fg, uint32_t bg) {
 }
 
 static void UIThemeInit() {
-#if (defined(USING_WIN_UI) && !PPSSPP_PLATFORM(UWP)) || defined(USING_QT_UI)
+#if defined(USING_WIN_UI) || PPSSPP_PLATFORM(UWP) || defined(USING_QT_UI)
 	ui_theme.uiFont = UI::FontStyle(UBUNTU24, g_Config.sFont.c_str(), 22);
 	ui_theme.uiFontSmall = UI::FontStyle(UBUNTU24, g_Config.sFont.c_str(), 15);
 	ui_theme.uiFontSmaller = UI::FontStyle(UBUNTU24, g_Config.sFont.c_str(), 12);
@@ -774,6 +791,7 @@ bool NativeInitGraphics(GraphicsContext *graphicsContext) {
 	Core_SetGraphicsContext(graphicsContext);
 	g_draw = graphicsContext->GetDrawContext();
 	_assert_msg_(G3D, g_draw, "No draw context available!");
+	_assert_msg_(G3D, g_draw->GetVshaderPreset(VS_COLOR_2D) != nullptr, "Failed to compile presets");
 
 	ui_draw2d.SetAtlas(&ui_atlas);
 	ui_draw2d_front.SetAtlas(&ui_atlas);
@@ -861,10 +879,11 @@ void NativeShutdownGraphics() {
 	winAudioBackend = nullptr;
 #endif
 
+	ShutdownWebServer();
+	UIBackgroundShutdown();
+
 	delete g_gameInfoCache;
 	g_gameInfoCache = nullptr;
-
-	UIBackgroundShutdown();
 
 	delete uiContext;
 	uiContext = nullptr;
@@ -951,6 +970,12 @@ void RenderOverlays(UIContext *dc, void *userdata) {
 void NativeRender(GraphicsContext *graphicsContext) {
 	g_GameManager.Update();
 
+	if (GetUIState() != UISTATE_INGAME) {
+		// Note: We do this from NativeRender so that the graphics context is
+		// guaranteed valid, to be safe - g_gameInfoCache messes around with textures.
+		UpdateBackgroundAudio();
+	}
+
 	float xres = dp_xres;
 	float yres = dp_yres;
 
@@ -972,10 +997,12 @@ void NativeRender(GraphicsContext *graphicsContext) {
 		ortho.setOrthoD3D(0.0f, xres, yres, 0.0f, -1.0f, 1.0f);
 		break;
 	case GPUBackend::OPENGL:
+	default:
 		ortho.setOrtho(0.0f, xres, yres, 0.0f, -1.0f, 1.0f);
 		break;
 	}
 
+	// Compensate for rotated display if needed.
 	if (g_display_rotation != DisplayRotation::ROTATE_0) {
 		ortho = ortho * g_display_rot_matrix;
 	}
@@ -990,6 +1017,7 @@ void NativeRender(GraphicsContext *graphicsContext) {
 	}
 
 	if (resized) {
+		ILOG("Resized flag set - recalculating bounds");
 		resized = false;
 
 		if (uiContext) {
@@ -997,7 +1025,6 @@ void NativeRender(GraphicsContext *graphicsContext) {
 			// The UI now supports any offset but not the EmuScreen yet.
 			uiContext->SetBounds(Bounds(0, 0, dp_xres, dp_yres));
 			// uiContext->SetBounds(Bounds(dp_xres/2, 0, dp_xres / 2, dp_yres / 2));
-
 
 			// OSX 10.6 and SDL 1.2 bug.
 #if defined(__APPLE__) && !defined(USING_QT_UI)
@@ -1008,14 +1035,6 @@ void NativeRender(GraphicsContext *graphicsContext) {
 			}
 #endif
 		}
-
-		// Test lost/restore on PC
-#if 0
-		if (gpu) {
-			gpu->DeviceLost();
-			gpu->DeviceRestore();
-		}
-#endif
 
 		graphicsContext->Resize();
 		screenManager->resized();
@@ -1094,9 +1113,15 @@ void HandleGlobalMessage(const std::string &msg, const std::string &value) {
 #endif
 		// We must have failed to load the config before, so load it now to avoid overwriting the old config
 		// with a freshly generated one.
+		// NOTE: If graphics backend isn't what's in the config (due to error fallback, or not matching the default
+		// and then getting permission), it will get out of sync. So we save and restore g_Config.iGPUBackend.
+		// Ideally we should simply reinitialize graphics to the mode from the config, but there are potential issues
+		// and I can't risk it before 1.9.0.
+		int gpuBackend = g_Config.iGPUBackend;
 		ILOG("Reloading config after storage permission grant.");
 		g_Config.Load();
 		PostLoadConfig();
+		g_Config.iGPUBackend = gpuBackend;
 	}
 }
 
@@ -1262,6 +1287,7 @@ void NativeMessageReceived(const char *message, const char *value) {
 void NativeResized() {
 	// NativeResized can come from any thread so we just set a flag, then process it later.
 	if (g_graphicsInited) {
+		ILOG("NativeResized - setting flag");
 		resized = true;
 	} else {
 		ILOG("NativeResized ignored, not initialized");

@@ -60,9 +60,22 @@ void DispatchEvents() {
 }
 
 void RemoveQueuedEvents(View *v) {
-	for (size_t i = 0; i < g_dispatchQueue.size(); i++) {
-		if (g_dispatchQueue[i].params.v == v)
-			g_dispatchQueue.erase(g_dispatchQueue.begin() + i);
+	for (auto it = g_dispatchQueue.begin(); it != g_dispatchQueue.end(); ) {
+		if (it->params.v == v) {
+			it = g_dispatchQueue.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
+
+void RemoveQueuedEvents(Event *e) {
+	for (auto it = g_dispatchQueue.begin(); it != g_dispatchQueue.end(); ) {
+		if (it->e == e) {
+			it = g_dispatchQueue.erase(it);
+		} else {
+			++it;
+		}
 	}
 }
 
@@ -155,6 +168,11 @@ EventReturn Event::Dispatch(EventParams &e) {
 		}
 	}
 	return UI::EVENT_SKIPPED;
+}
+
+Event::~Event() {
+	handlers_.clear();
+	RemoveQueuedEvents(this);
 }
 
 View::~View() {
@@ -346,6 +364,8 @@ bool IsDPadKey(const KeyInput &key) {
 
 bool IsAcceptKey(const KeyInput &key) {
 	if (confirmKeys.empty()) {
+		// This path is pretty much not used, confirmKeys should be set.
+		// TODO: Get rid of this stuff?
 		if (key.deviceId == DEVICE_ID_KEYBOARD) {
 			return key.keyCode == NKCODE_SPACE || key.keyCode == NKCODE_ENTER || key.keyCode == NKCODE_Z;
 		} else {
@@ -358,6 +378,8 @@ bool IsAcceptKey(const KeyInput &key) {
 
 bool IsEscapeKey(const KeyInput &key) {
 	if (cancelKeys.empty()) {
+		// This path is pretty much not used, cancelKeys should be set.
+		// TODO: Get rid of this stuff?
 		if (key.deviceId == DEVICE_ID_KEYBOARD) {
 			return key.keyCode == NKCODE_ESCAPE || key.keyCode == NKCODE_BACK;
 		} else {
@@ -370,6 +392,8 @@ bool IsEscapeKey(const KeyInput &key) {
 
 bool IsTabLeftKey(const KeyInput &key) {
 	if (tabLeftKeys.empty()) {
+		// This path is pretty much not used, tabLeftKeys should be set.
+		// TODO: Get rid of this stuff?
 		return key.keyCode == NKCODE_BUTTON_L1;
 	} else {
 		return MatchesKeyDef(tabLeftKeys, key);
@@ -378,6 +402,8 @@ bool IsTabLeftKey(const KeyInput &key) {
 
 bool IsTabRightKey(const KeyInput &key) {
 	if (tabRightKeys.empty()) {
+		// This path is pretty much not used, tabRightKeys should be set.
+		// TODO: Get rid of this stuff?
 		return key.keyCode == NKCODE_BUTTON_R1;
 	} else {
 		return MatchesKeyDef(tabRightKeys, key);
@@ -390,6 +416,7 @@ bool Clickable::Key(const KeyInput &key) {
 		return false;
 	}
 	// TODO: Replace most of Update with this.
+
 	bool ret = false;
 	if (key.flags & KEY_DOWN) {
 		if (IsAcceptKey(key)) {
@@ -940,7 +967,7 @@ bool TextEdit::Key(const KeyInput &input) {
 	if (!HasFocus())
 		return false;
 	bool textChanged = false;
-	// Process navigation keys. These aren't chars.
+	// Process hardcoded navigation keys. These aren't chars.
 	if (input.flags & KEY_DOWN) {
 		switch (input.keyCode) {
 		case NKCODE_CTRL_LEFT:

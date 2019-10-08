@@ -21,6 +21,7 @@
 
 #include "base/colorutil.h"
 #include "base/logging.h"
+#include "base/display.h"
 #include "i18n/i18n.h"
 #include "input/keycodes.h"
 #include "input/input_state.h"
@@ -130,7 +131,7 @@ void ControlMapper::Refresh() {
 	LinearLayout *rightColumn = root->Add(new LinearLayout(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, 1.0f)));
 	rightColumn->SetSpacing(2.0f);
 	std::vector<KeyDef> mappings;
-	KeyMap::KeyFromPspButton(pspKey_, &mappings);
+	KeyMap::KeyFromPspButton(pspKey_, &mappings, false);
 
 	for (size_t i = 0; i < mappings.size(); i++) {
 		std::string deviceName = GetDeviceName(mappings[i].deviceId);
@@ -432,9 +433,7 @@ public:
 	JoystickHistoryView(int xAxis, int xDevice, int xDir, int yAxis, int yDevice, int yDir, UI::LayoutParams *layoutParams = nullptr)
 		: UI::InertView(layoutParams),
 			xAxis_(xAxis), xDir_(xDir),
-			yAxis_(yAxis), yDir_(yDir),
-			curX_(0.0f), curY_(0.0f),
-			maxCount_(500) {}
+			yAxis_(yAxis), yDir_(yDir) {}
 	void Draw(UIContext &dc) override;
 	void Update() override;
 	void Axis(const AxisInput &input) override {
@@ -448,8 +447,6 @@ public:
 
 private:
 	struct Location {
-		Location() : x(0.0f), y(0.0f) {}
-		Location(float xx, float yy) : x(xx), y(yy) {}
 		float x;
 		float y;
 	};
@@ -459,40 +456,46 @@ private:
 	int yAxis_;
 	int yDir_;
 
-	float curX_;
-	float curY_;
+	float curX_ = 0.0f;
+	float curY_ = 0.0f;
 
 	std::deque<Location> locations_;
-	int maxCount_;
+	int maxCount_ = 500;
 };
 
 void JoystickHistoryView::Draw(UIContext &dc) {
 	if (xAxis_ > -1 && yAxis_ > -1) {
 		const AtlasImage &image = dc.Draw()->GetAtlas()->images[I_CROSS];
 		float minRadius = std::min(bounds_.w, bounds_.h) * 0.5f - image.w;
-
+		dc.BeginNoTex();
+		dc.Draw()->RectOutline(bounds_.centerX() - minRadius, bounds_.centerY() - minRadius, minRadius * 2.0f, minRadius * 2.0f, 0x80FFFFFF);
+		dc.Flush();
+		dc.Begin();
 		int a = maxCount_ - (int)locations_.size();
 		for (auto iter = locations_.begin(); iter != locations_.end(); ++iter) {
 			float x = bounds_.centerX() + minRadius * iter->x;
 			float y = bounds_.centerY() - minRadius * iter->y;
 			float alpha = (float)a / maxCount_;
-			if (alpha < 0.0f) alpha = 0.0f;
+			if (alpha < 0.0f) {
+				alpha = 0.0f;
+			}
 			dc.Draw()->DrawImage(I_CROSS, x, y, 0.8f, colorAlpha(0xFFFFFF, alpha), ALIGN_CENTER);
 			a++;
 		}
-		dc.BeginNoTex();
-		dc.Draw()->RectOutline(bounds_.centerX() - minRadius, bounds_.centerY() - minRadius, minRadius * 2, minRadius * 2, 0x80FFFFFF);
 		dc.Flush();
-		dc.Begin();
 	} else {
+		dc.Begin();
 		dc.DrawText("N/A", bounds_.centerX(), bounds_.centerY(), 0xFFFFFFFF, ALIGN_CENTER);
+		dc.Flush();
 	}
 }
 
 void JoystickHistoryView::Update() {
-	locations_.push_back(Location(curX_, curY_));
-	if ((int)locations_.size() > maxCount_) {
-		locations_.pop_front();
+	if (xAxis_ > -1 && yAxis_ > -1) {
+		locations_.push_back(Location{ curX_, curY_ });
+		if ((int)locations_.size() > maxCount_) {
+			locations_.pop_front();
+		}
 	}
 }
 
@@ -521,12 +524,11 @@ bool AnalogTestScreen::axis(const AxisInput &axis) {
 	// This is mainly to catch axis events that would otherwise get translated
 	// into arrow keys, since seeing keyboard arrow key events appear when using
 	// a controller would be confusing for the user.
-	char buf[512];
-
 	if (IgnoreAxisForMapping(axis.axisId))
 		return false;
 
 	if (axis.value > AXIS_BIND_THRESHOLD || axis.value < -AXIS_BIND_THRESHOLD) {
+		char buf[512];
 		snprintf(buf, sizeof(buf), "Axis: %d (value %1.3f) Device ID: %d",
 			axis.axisId, axis.value, axis.deviceId);
 		// Null-check just in case they weren't created yet.
@@ -568,4 +570,127 @@ void AnalogTestScreen::CreateViews() {
 	lastKeyEvent_ = root_->Add(new TextView("-", new LayoutParams(FILL_PARENT, WRAP_CONTENT)));
 
 	root_->Add(new Button(di->T("Back")))->OnClick.Handle<UIScreen>(this, &UIScreen::OnBack);
+}
+
+bool TouchTestScreen::touch(const TouchInput &touch) {
+	UIDialogScreenWithBackground::touch(touch);
+	if (touch.flags & TOUCH_DOWN) {
+		bool found = false;
+		for (int i = 0; i < MAX_TOUCH_POINTS; i++) {
+			if (touches_[i].id == touch.id) {
+				WLOG("Double touch");
+				touches_[i].x = touch.x;
+				touches_[i].y = touch.y;
+				found = true;
+			}
+		}
+		if (!found) {
+			for (int i = 0; i < MAX_TOUCH_POINTS; i++) {
+				if (touches_[i].id == -1) {
+					touches_[i].id = touch.id;
+					touches_[i].x = touch.x;
+					touches_[i].y = touch.y;
+					break;
+				}
+			}
+		}
+	}
+	if (touch.flags & TOUCH_MOVE) {
+		bool found = false;
+		for (int i = 0; i < MAX_TOUCH_POINTS; i++) {
+			if (touches_[i].id == touch.id) {
+				touches_[i].x = touch.x;
+				touches_[i].y = touch.y;
+				found = true;
+			}
+		}
+		if (!found) {
+			WLOG("Move without touch down: %d", touch.id);
+		}
+	}
+	if (touch.flags & TOUCH_UP) {
+		bool found = false;
+		for (int i = 0; i < MAX_TOUCH_POINTS; i++) {
+			if (touches_[i].id == touch.id) {
+				found = true;
+				touches_[i].id = -1;
+				break;
+			}
+		}
+		if (!found) {
+			WLOG("Touch release without touch down");
+		}
+	}
+	return true;
+}
+
+void TouchTestScreen::CreateViews() {
+	using namespace UI;
+
+	I18NCategory *di = GetI18NCategory("Dialog");
+	I18NCategory *gr = GetI18NCategory("Graphics");
+	root_ = new LinearLayout(ORIENT_VERTICAL);
+	LinearLayout *theTwo = new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(1.0f));
+	root_->Add(theTwo);
+	root_->Add(new CheckBox(&g_Config.bImmersiveMode, gr->T("FullScreen", "Full Screen")))->OnClick.Handle(this, &TouchTestScreen::OnImmersiveModeChange);
+	root_->Add(new Button(di->T("Back")))->OnClick.Handle<UIScreen>(this, &UIScreen::OnBack);
+}
+
+#if PPSSPP_PLATFORM(ANDROID)
+extern int display_xres;
+extern int display_yres;
+#endif
+
+void TouchTestScreen::render() {
+	UIDialogScreenWithBackground::render();
+	UIContext *ui_context = screenManager()->getUIContext();
+	ui_context->BeginNoTex();
+	for (int i = 0; i < MAX_TOUCH_POINTS; i++) {
+		if (touches_[i].id != -1) {
+			ui_context->Draw()->Circle(touches_[i].x, touches_[i].y, 100.0, 3.0, 80, 0.0f, 0xFFFFFFFF, 1.0);
+		}
+	}
+	ui_context->Flush();
+
+	ui_context->Begin();
+
+	char buffer[1024];
+	for (int i = 0; i < MAX_TOUCH_POINTS; i++) {
+		if (touches_[i].id != -1) {
+			ui_context->Draw()->Circle(touches_[i].x, touches_[i].y, 100.0, 3.0, 80, 0.0f, 0xFFFFFFFF, 1.0);
+			snprintf(buffer, sizeof(buffer), "%0.1fx%0.1f", touches_[i].x, touches_[i].y);
+			ui_context->DrawText(buffer, touches_[i].x, touches_[i].y + (touches_[i].y > dp_yres - 100.0f ? -135.0f : 95.0f), 0xFFFFFFFF, ALIGN_HCENTER | FLAG_DYNAMIC_ASCII);
+		}
+	}
+
+	snprintf(buffer, sizeof(buffer),
+#if PPSSPP_PLATFORM(ANDROID)
+		"display_res: %dx%d\n"
+#endif
+		"dp_res: %dx%d\n"
+		"pixel_res: %dx%d\n"
+		"g_dpi: %f\n"
+		"g_dpi_scale: %0.3fx%0.3f\n"
+		"g_dpi_scale_real: %0.3fx%0.3f\n",
+#if PPSSPP_PLATFORM(ANDROID)
+		display_xres, display_yres,
+#endif
+		dp_xres, dp_yres,
+		pixel_xres, pixel_yres,
+		g_dpi,
+		g_dpi_scale_x, g_dpi_scale_y,
+		g_dpi_scale_real_x, g_dpi_scale_real_y);
+
+	ui_context->DrawTextShadow(buffer, 20.0f, dp_yres / 2.0f, 0xFFFFFFFF, ALIGN_VCENTER | FLAG_DYNAMIC_ASCII);
+	ui_context->Flush();
+}
+
+void RecreateActivity();
+
+UI::EventReturn TouchTestScreen::OnImmersiveModeChange(UI::EventParams &e) {
+	System_SendMessage("immersive", "");
+	if (g_Config.iAndroidHwScale != 0) {
+		RecreateActivity();
+	}
+	return UI::EVENT_DONE;
 }

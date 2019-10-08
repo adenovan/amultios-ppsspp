@@ -92,9 +92,16 @@ bool AndroidVulkanContext::InitAPI() {
 	ILOG("Creating Vulkan context");
 	Version gitVer(PPSSPP_GIT_VERSION);
 
+	if (!VulkanLoad()) {
+		ELOG("Failed to load Vulkan driver library");
+		return false;
+	}
+
 	if (!g_Vulkan) {
+		// TODO: Assert if g_Vulkan already exists here?
 		g_Vulkan = new VulkanContext();
 	}
+
 	VulkanContext::CreateInfo info{};
 	info.app_name = "PPSSPP";
 	info.app_ver = gitVer.ToInteger();
@@ -102,7 +109,6 @@ bool AndroidVulkanContext::InitAPI() {
 	VkResult res = g_Vulkan->CreateInstance(info);
 	if (res != VK_SUCCESS) {
 		ELOG("Failed to create vulkan context: %s", g_Vulkan->InitError().c_str());
-		System_SendMessage("toast", "No Vulkan compatible device found. Using OpenGL instead.");
 		VulkanSetAvailable(false);
 		delete g_Vulkan;
 		g_Vulkan = nullptr;
@@ -135,8 +141,18 @@ bool AndroidVulkanContext::InitAPI() {
 }
 
 bool AndroidVulkanContext::InitFromRenderThread(ANativeWindow *wnd, int desiredBackbufferSizeX, int desiredBackbufferSizeY, int backbufferFormat, int androidVersion) {
-	ILOG("InitSurfaceAndroid: desiredwidth=%d desiredheight=%d", desiredBackbufferSizeX, desiredBackbufferSizeY);
-	g_Vulkan->InitSurface(WINDOWSYSTEM_ANDROID, (void *)wnd, nullptr);
+	ILOG("AndroidVulkanContext::InitFromRenderThread: desiredwidth=%d desiredheight=%d", desiredBackbufferSizeX, desiredBackbufferSizeY);
+	if (!g_Vulkan) {
+		ELOG("AndroidVulkanContext::InitFromRenderThread: No Vulkan context");
+		return false;
+	}
+
+	VkResult res = g_Vulkan->InitSurface(WINDOWSYSTEM_ANDROID, (void *)wnd, nullptr);
+	if (res != VK_SUCCESS) {
+		ELOG("g_Vulkan->InitSurface failed: '%s'", VulkanResultToString(res));
+		return false;
+	}
+
 	if (g_validate_) {
 		int bits = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
 		g_Vulkan->InitDebugMsgCallback(&Vulkan_Dbg, bits, &g_LogOptions);
@@ -195,7 +211,7 @@ void AndroidVulkanContext::SwapBuffers() {
 }
 
 void AndroidVulkanContext::Resize() {
-	ILOG("AndroidVulkanContext::Resize begin (%d, %d)", g_Vulkan->GetBackbufferWidth(), g_Vulkan->GetBackbufferHeight());
+	ILOG("AndroidVulkanContext::Resize begin (oldsize: %dx%d)", g_Vulkan->GetBackbufferWidth(), g_Vulkan->GetBackbufferHeight());
 
 	draw_->HandleEvent(Draw::Event::LOST_BACKBUFFER, g_Vulkan->GetBackbufferWidth(), g_Vulkan->GetBackbufferHeight());
 	g_Vulkan->DestroyObjects();
@@ -204,7 +220,7 @@ void AndroidVulkanContext::Resize() {
 	g_Vulkan->ReinitSurface();
 	g_Vulkan->InitObjects();
 	draw_->HandleEvent(Draw::Event::GOT_BACKBUFFER, g_Vulkan->GetBackbufferWidth(), g_Vulkan->GetBackbufferHeight());
-	ILOG("AndroidVulkanContext::Resize end (%d, %d)", g_Vulkan->GetBackbufferWidth(), g_Vulkan->GetBackbufferHeight());
+	ILOG("AndroidVulkanContext::Resize end (final size: %dx%d)", g_Vulkan->GetBackbufferWidth(), g_Vulkan->GetBackbufferHeight());
 }
 
 void AndroidVulkanContext::SwapInterval(int interval) {

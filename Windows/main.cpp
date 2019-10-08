@@ -26,6 +26,7 @@
 
 #include <Wbemidl.h>
 #include <shellapi.h>
+#include <ShlObj.h>
 #include <mmsystem.h>
 
 #include "base/NativeApp.h"
@@ -96,6 +97,14 @@ static std::string gpuDriverVersion;
 
 HMENU g_hPopupMenus;
 int g_activeWindow = 0;
+
+void OpenDirectory(const char *path) {
+	PIDLIST_ABSOLUTE pidl = ILCreateFromPath(ConvertUTF8ToWString(ReplaceAll(path, "/", "\\")).c_str());
+	if (pidl) {
+		SHOpenFolderAndSelectItems(pidl, 0, NULL, 0);
+		ILFree(pidl);
+	}
+}
 
 void LaunchBrowser(const char *url) {
 	ShellExecute(NULL, L"open", ConvertUTF8ToWString(url).c_str(), NULL, NULL, SW_SHOWNORMAL);
@@ -563,7 +572,9 @@ int WINAPI WinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPSTR szCmdLin
 
 #ifndef _DEBUG
 	// See #11719 - too many Vulkan drivers crash on basic init.
-	VulkanSetAvailable(DetectVulkanInExternalProcess());
+	if (g_Config.IsBackendEnabled(GPUBackend::VULKAN, false)) {
+		VulkanSetAvailable(DetectVulkanInExternalProcess());
+	}
 #endif
 
 	if (iCmdShow == SW_MAXIMIZE) {
@@ -662,8 +673,6 @@ int WINAPI WinMain(HINSTANCE _hInstance, HINSTANCE hPrevInstance, LPSTR szCmdLin
 	MainThread_Stop();
 
 	VFSShutdown();
-
-	InputDevice::StopPolling();
 
 	MainWindow::DestroyDebugWindows();
 	DialogManager::DestroyAll();

@@ -238,6 +238,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -271,6 +272,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <StringPooling>true</StringPooling>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -300,6 +302,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <StringPooling>true</StringPooling>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -329,6 +332,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <StringPooling>true</StringPooling>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -370,6 +374,7 @@
     <ClCompile Include="HLE\KUBridge.cpp" />
     <ClCompile Include="HLE\sceUsbAcc.cpp" />
     <ClCompile Include="HLE\sceUsbCam.cpp" />
+    <ClCompile Include="HLE\sceUsbMic.cpp" />
     <ClCompile Include="MIPS\IR\IRAsm.cpp" />
     <ClCompile Include="MIPS\IR\IRCompALU.cpp" />
     <ClCompile Include="MIPS\IR\IRCompBranch.cpp" />
@@ -897,6 +902,7 @@
     <ClInclude Include="HLE\KUBridge.h" />
     <ClInclude Include="HLE\sceUsbAcc.h" />
     <ClInclude Include="HLE\sceUsbCam.h" />
+    <ClInclude Include="HLE\sceUsbMic.h" />
     <ClInclude Include="MIPS\IR\IRFrontend.h" />
     <ClInclude Include="MIPS\IR\IRInst.h" />
     <ClInclude Include="MIPS\IR\IRInterpreter.h" />

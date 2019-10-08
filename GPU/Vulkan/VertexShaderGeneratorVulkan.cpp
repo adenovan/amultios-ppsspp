@@ -47,9 +47,6 @@ static const char *vulkan_glsl_preamble =
 // texcoord = 2
 // fog = 3
 
-
-
-
 #undef WRITE
 
 #define WRITE p+=sprintf
@@ -178,8 +175,7 @@ bool GenerateVulkanGLSLVertexShader(const VShaderID &id, char *buffer) {
 		if (!useHWTransform && doTextureTransform && !isModeThrough) {
 			WRITE(p, "layout (location = %d) in vec3 texcoord;\n", (int)PspAttributeLocation::TEXCOORD);
 			texcoordInVec3 = true;
-		}
-		else
+		} else
 			WRITE(p, "layout (location = %d) in vec2 texcoord;\n", (int)PspAttributeLocation::TEXCOORD);
 	}
 	if (hasColor) {
@@ -213,7 +209,6 @@ bool GenerateVulkanGLSLVertexShader(const VShaderID &id, char *buffer) {
 		WRITE(p, "  return vec4(v.x, v.y, z * v.w, v.w);\n");
 		WRITE(p, "}\n\n");
 	}
-	WRITE(p, "out gl_PerVertex { vec4 gl_Position; };\n");
 
 	if (doBezier || doSpline) {
 		WRITE(p, "struct TessData {\n");
@@ -634,12 +629,17 @@ bool GenerateVulkanGLSLVertexShader(const VShaderID &id, char *buffer) {
 		const char *outMin = "projPos.x < base.cullRangeMin.x || projPos.y < base.cullRangeMin.y || projPos.z < base.cullRangeMin.z";
 		const char *outMax = "projPos.x > base.cullRangeMax.x || projPos.y > base.cullRangeMax.y || projPos.z > base.cullRangeMax.z";
 		WRITE(p, "    if (%s || %s) {\n", outMin, outMax);
-		WRITE(p, "      outPos.w = base.cullRangeMax.w;\n");
+		WRITE(p, "      outPos.xyzw = vec4(base.cullRangeMax.w);\n");
 		WRITE(p, "    }\n");
 		WRITE(p, "  }\n");
 	}
 	WRITE(p, "  gl_Position = outPos;\n");
+	WRITE(p, "  gl_PointSize = 1.0;\n");
 
+	if (gstate_c.Supports(GPU_NEEDS_Z_EQUAL_W_HACK)) {
+		// See comment in GPU_Vulkan.cpp.
+		WRITE(p, "  if (gl_Position.z == gl_Position.w) gl_Position.z *= 0.999999;\n");
+	}
 	WRITE(p, "}\n");
 	return true;
 }

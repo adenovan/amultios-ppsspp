@@ -44,6 +44,8 @@ PPSSPPDebugARM64.exe.manifest
 PPSSPPDebugARM.exe.manifest
 assets/flash0
 UWP/icph
+UWP/Content/*
+!UWP/Content/.empty
 UWP/.vs
 .vs
 .vscode
@@ -91,6 +93,7 @@ android/assets/flash0
 ppge_atlas.zim.png
 local.properties
 config/
+r.sh
 
 # For vim
 *.swp
@@ -110,3 +113,6 @@ debian/ppsspp/
 
 # YouCompleteMe file
 .ycm_extra_conf.pyc
+
+# RenderDoc
+*.rdc

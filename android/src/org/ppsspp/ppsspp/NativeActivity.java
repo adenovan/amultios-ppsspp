@@ -31,6 +31,7 @@ import android.text.InputType;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
+import android.view.DisplayCutout;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.InputDevice;
@@ -85,6 +86,9 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 
 	private boolean sustainedPerfSupported;
 
+	private boolean navigationHidden;
+	private View navigationCallbackView = null;
+
 	// audioFocusChangeListener to listen to changes in audio state
 	private AudioFocusChangeListener audioFocusChangeListener;
 	private AudioManager audioManager;
@@ -106,6 +110,8 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 	private InputDeviceState inputPlayerC;
 	private String inputPlayerADesc;
 
+	private PowerSaveModeReceiver mPowerSaveModeReceiver = null;
+
 	private static LocationHelper mLocationHelper;
 	private static CameraHelper mCameraHelper;
 
@@ -113,6 +119,11 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 	private float refreshRate;
 	private int pixelWidth;
 	private int pixelHeight;
+
+	private int safeInsetLeft = 0;
+	private int safeInsetRight = 0;
+	private int safeInsetTop = 0;
+	private int safeInsetBottom = 0;
 
 	private static final String[] permissionsForStorage = {
 		Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -311,7 +322,6 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 		javaGL = "true".equalsIgnoreCase(NativeApp.queryConfig("androidJavaGL"));
 
 		sendInitialGrants();
-		PowerSaveModeReceiver.initAndSend(this);
 
 		// OK, config should be initialized, we can query for screen rotation.
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
@@ -403,17 +413,24 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 	@SuppressLint("InlinedApi")
 	@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
 	private void updateSystemUiVisibility() {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+			setupSystemUiCallback();
+		}
+
+		// Compute our _desired_ systemUiVisibility
 		int flags = 0;
 		if (useLowProfileButtons()) {
 			flags |= View.SYSTEM_UI_FLAG_LOW_PROFILE;
 		}
 		if (useImmersive()) {
-			flags |= View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+			flags |= View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN;
 		}
-		if (getWindow().getDecorView() != null) {
-			getWindow().getDecorView().setSystemUiVisibility(flags);
+
+		View decorView = getWindow().peekDecorView();
+		if (decorView != null) {
+			decorView.setSystemUiVisibility(flags);
 		} else {
-			Log.e(TAG, "updateSystemUiVisibility: decor view not yet created, ignoring");
+			Log.e(TAG, "updateSystemUiVisibility: decor view not yet created, ignoring for now");
 		}
 		updateDisplayMeasurements();
 	}
@@ -451,20 +468,32 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 		sz.y = NativeApp.getDesiredBackbufferHeight();
 	}
 
+	private SurfaceView getSurfaceView() {
+		if (mGLSurfaceView != null) {
+			return mGLSurfaceView;
+		} else {
+			return mSurfaceView;
+		}
+	}
+
 	@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
 	public void updateDisplayMeasurements() {
 		Display display = getWindowManager().getDefaultDisplay();
 
+		// Early in startup, we don't have a view to query. Do our best to get some kind of size
+		// that can be used by config default heuristics, and so on.
 		DisplayMetrics metrics = new DisplayMetrics();
-		if (useImmersive() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || !isInMultiWindowMode()) {
-				display.getRealMetrics(metrics);
-			} else {
-				// multi-window mode
-				display.getMetrics(metrics);
-			}
+		if (navigationHidden && Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+			display.getRealMetrics(metrics);
 		} else {
 			display.getMetrics(metrics);
+		}
+
+		// Later on, we have the exact pixel size so let's just use it.
+		SurfaceView view = getSurfaceView();
+		if (view != null) {
+			metrics.widthPixels = view.getWidth();
+			metrics.heightPixels = view.getHeight();
 		}
 		densityDpi = metrics.densityDpi;
 		refreshRate = display.getRefreshRate();
@@ -487,6 +516,10 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 		if (!initialized) {
 			Initialize();
 			initialized = true;
+		}
+
+		if (mPowerSaveModeReceiver == null) {
+			mPowerSaveModeReceiver = new PowerSaveModeReceiver(this);
 		}
 
 		// OK, config should be initialized, we can query for screen rotation.
@@ -519,13 +552,13 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 			// http://grokbase.com/t/gg/android-developers/11bj40jm4w/fall-back
 
 			// Needed to avoid banding on Ouya?
-			if (Build.MANUFACTURER == "OUYA") {
+			if (Build.MANUFACTURER.equals("OUYA")) {
 				mGLSurfaceView.getHolder().setFormat(PixelFormat.RGBX_8888);
 				mGLSurfaceView.setEGLConfigChooser(new NativeEGLConfigChooser());
 			} else {
 				// Tried to mess around with config choosers (NativeEGLConfigChooser) here but fail completely on Xperia Play.
 				// On the other hand, I think from ICS we should be safe to at least require 8888 and stencil...
-				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH && !Build.MANUFACTURER.equals("Amazon")) {
 					mGLSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 8);
 				}
 			}
@@ -534,9 +567,6 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 		} else {
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
 				updateSystemUiVisibility();
-				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-					setupSystemUiCallback();
-				}
 			}
 
 			mSurfaceView = new NativeSurfaceView(NativeActivity.this);
@@ -573,6 +603,7 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 		}
 
 		Log.d(TAG, "Surface created. pixelWidth=" + pixelWidth + ", pixelHeight=" + pixelHeight + " holder: " + holder.toString() + " or: " + requestedOr);
+		NativeApp.setDisplayParameters(pixelWidth, pixelHeight, (int) densityDpi, refreshRate);
 		getDesiredBackbufferSize(desiredSize);
 
 		// Note that desiredSize might be 0,0 here - but that's fine when calling setFixedSize! It means auto.
@@ -596,7 +627,9 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 			return;
 		}
 		Log.w(TAG, "Surface changed. Resolution: " + width + "x" + height + " Format: " + format);
+		// The window size might have changed (immersive mode, native fullscreen on some devices)
 		NativeApp.backbufferResize(width, height, format);
+		updateDisplayMeasurements();
 		mSurface = holder.getSurface();
 		if (!javaGL) {
 			// If we got a surface, this starts the thread. If not, it doesn't.
@@ -662,14 +695,26 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 
 	@TargetApi(Build.VERSION_CODES.KITKAT)
 	void setupSystemUiCallback() {
-		getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(new OnSystemUiVisibilityChangeListener() {
+		final View decorView = getWindow().peekDecorView();
+		if (decorView == null || decorView == navigationCallbackView) {
+			return;
+		}
+
+		decorView.setOnSystemUiVisibilityChangeListener(new OnSystemUiVisibilityChangeListener() {
 			@Override
 			public void onSystemUiVisibilityChange(int visibility) {
-				if (visibility == 0) {
-					updateSystemUiVisibility();
-				}
+				// Called when the system UI's visibility changes, regardless of
+				// whether it's because of our or system actions.
+				// We will try to force it to follow our preference but will not stupidly
+				// act as if it's visible if it's not.
+				navigationHidden = ((visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) != 0);
+				// TODO: Check here if it's the state we want.
+				Log.i(TAG, "SystemUiVisibilityChange! visibility=" + visibility + " navigationHidden: " + navigationHidden);
+				Log.i(TAG, "decorView: " + decorView.getWidth() + "x" + decorView.getHeight());
+				updateDisplayMeasurements();
 			}
 		});
+		navigationCallbackView = decorView;
 	}
 
 	@Override
@@ -703,6 +748,10 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 			mSurfaceView.onDestroy();
 			mSurfaceView = null;
 		}
+		if (mPowerSaveModeReceiver != null) {
+			mPowerSaveModeReceiver.destroy(this);
+			mPowerSaveModeReceiver = null;
+		}
 		// TODO: Can we ensure that the GL thread has stopped rendering here?
 		// I've seen crashes that seem to indicate that sometimes it hasn't...
 		NativeApp.audioShutdown();
@@ -711,6 +760,7 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 			NativeApp.shutdown();
 			initialized = false;
 		}
+		navigationCallbackView = null;
 	}
 
 	@Override
@@ -730,6 +780,9 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 			} else {
 				Log.e(TAG, "mGLSurfaceView really shouldn't be null in onPause");
 			}
+		}
+		if (mCameraHelper != null) {
+			mCameraHelper.pause();
 		}
 		Log.i(TAG, "onPause completed");
 	}
@@ -770,6 +823,9 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 				mSurfaceView.onResume();
 			}
 		}
+		if (mCameraHelper != null) {
+			mCameraHelper.resume();
+		}
 
 		gainAudioFocus(this.audioManager, this.audioFocusChangeListener);
 		NativeApp.resume();
@@ -781,6 +837,33 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 	}
 
 	@Override
+	public void onAttachedToWindow() {
+		Log.i(TAG, "onAttachedToWindow");
+		super.onAttachedToWindow();
+
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+			DisplayCutout cutout = getWindow().getDecorView().getRootWindowInsets().getDisplayCutout();
+			if (cutout != null) {
+				safeInsetLeft = cutout.getSafeInsetLeft();
+				safeInsetRight = cutout.getSafeInsetRight();
+				safeInsetTop = cutout.getSafeInsetTop();
+				safeInsetBottom = cutout.getSafeInsetBottom();
+				Log.i(TAG, "Safe insets: left: " + safeInsetLeft + " right: " + safeInsetRight + " top: " + safeInsetTop + " bottom: " + safeInsetBottom);
+			} else {
+				Log.i(TAG, "Cutout was null");
+				safeInsetLeft = 0;
+				safeInsetRight = 0;
+				safeInsetTop = 0;
+				safeInsetBottom = 0;
+			}
+		}
+
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+			setupSystemUiCallback();
+		}
+	}
+
+	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
 		Log.i(TAG, "onConfigurationChanged");
 		super.onConfigurationChanged(newConfig);
@@ -788,7 +871,7 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 			updateSystemUiVisibility();
 		}
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-			densityDpi = (float) newConfig.densityDpi;
+			densityDpi = (float)newConfig.densityDpi;
 		}
 	}
 
@@ -1325,6 +1408,12 @@ public abstract class NativeActivity extends Activity implements SurfaceHolder.C
 			} else {
 				// Only keep the screen bright ingame.
 				window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+			}
+		} else if (command.equals("event")) {
+			if (params.equals("exitgame")) {
+				if (mCameraHelper != null) {
+					mCameraHelper.stopCamera();
+				}
 			}
 		}
 		return false;

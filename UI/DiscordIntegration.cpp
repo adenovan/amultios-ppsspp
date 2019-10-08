@@ -1,3 +1,4 @@
+
 #include <ctime>
 #include <cassert>
 
@@ -31,13 +32,17 @@ Discord g_Discord;
 
 static const char *ppsspp_app_id = "423397985041383434";
 
+#ifdef ENABLE_DISCORD
 // No context argument? What?
 static void handleDiscordError(int errCode, const char *message) {
 	ERROR_LOG(SYSTEM, "Discord error code %d: '%s'", errCode, message);
 }
+#endif
 
 Discord::~Discord() {
-	assert(!initialized_);
+	if (initialized_) {
+		ERROR_LOG(SYSTEM, "Discord destructor running though g_Discord.Shutdown() has not been called.");
+	}
 }
 
 bool Discord::IsEnabled() const {

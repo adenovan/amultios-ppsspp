@@ -280,6 +280,7 @@ namespace MainWindow {
 		// Movie menu
 		TranslateMenuItem(menu, ID_FILE_DUMPFRAMES);
 		TranslateMenuItem(menu, ID_FILE_USEFFV1);
+		TranslateMenuItem(menu, ID_FILE_DUMP_VIDEO_OUTPUT);
 		TranslateMenuItem(menu, ID_FILE_DUMPAUDIO);
 
 		// Skip display multipliers x1-x10
@@ -447,7 +448,7 @@ namespace MainWindow {
 	}
 
 	static void SaveStateActionFinished(SaveState::Status status, const std::string &message, void *userdata) {
-		if (!message.empty()) {
+		if (!message.empty() && (!g_Config.bDumpFrames || !g_Config.bDumpVideoOutput)) {
 			osm.Show(message, status == SaveState::Status::SUCCESS ? 2.0 : 5.0);
 		}
 		PostMessage(MainWindow::GetHWND(), WM_USER_SAVESTATE_FINISH, 0, 0);
@@ -1034,6 +1035,10 @@ namespace MainWindow {
 			g_Config.bUseFFV1 = !g_Config.bUseFFV1;
 			break;
 
+		case ID_FILE_DUMP_VIDEO_OUTPUT:
+			g_Config.bDumpVideoOutput = !g_Config.bDumpVideoOutput;
+			break;
+
 		case ID_FILE_DUMPAUDIO:
 			g_Config.bDumpAudio = !g_Config.bDumpAudio;
 			break;
@@ -1083,6 +1088,7 @@ namespace MainWindow {
 		CHECKITEM(ID_OPTIONS_IGNOREWINKEY, g_Config.bIgnoreWindowsKey);
 		CHECKITEM(ID_FILE_DUMPFRAMES, g_Config.bDumpFrames);
 		CHECKITEM(ID_FILE_USEFFV1, g_Config.bUseFFV1);
+		CHECKITEM(ID_FILE_DUMP_VIDEO_OUTPUT, g_Config.bDumpVideoOutput);
 		CHECKITEM(ID_FILE_DUMPAUDIO, g_Config.bDumpAudio);
 
 		static const int displayrotationitems[] = {
@@ -1284,14 +1290,11 @@ namespace MainWindow {
 			CheckMenuItem(menu, savestateSlot[i], MF_BYCOMMAND | ((i == g_Config.iCurrentStateSlot) ? MF_CHECKED : MF_UNCHECKED));
 		}
 
-		bool allowD3D11 = DoesVersionMatchWindows(6, 0, 0, 0, true);
-		bool allowVulkan = VulkanMayBeAvailable();
+		bool allowD3D9 = g_Config.IsBackendEnabled(GPUBackend::DIRECT3D9);
+		bool allowD3D11 = g_Config.IsBackendEnabled(GPUBackend::DIRECT3D11);
+		bool allowOpenGL = g_Config.IsBackendEnabled(GPUBackend::OPENGL);
+		bool allowVulkan = g_Config.IsBackendEnabled(GPUBackend::VULKAN);
 
-#if PPSSPP_API(ANY_GL)
-		bool allowOpenGL = true;
-#else
-		bool allowOpenGL = false;
-#endif
 		switch (GetGPUBackend()) {
 		case GPUBackend::DIRECT3D9:
 			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D9, MF_GRAYED);
@@ -1304,7 +1307,7 @@ namespace MainWindow {
 			CheckMenuItem(menu, ID_OPTIONS_VULKAN, MF_UNCHECKED);
 			break;
 		case GPUBackend::OPENGL:
-			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D9, MF_ENABLED);
+			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D9, allowD3D9 ? MF_ENABLED : MF_GRAYED);
 			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D11, allowD3D11 ? MF_ENABLED : MF_GRAYED);
 			EnableMenuItem(menu, ID_OPTIONS_OPENGL, MF_GRAYED);
 			EnableMenuItem(menu, ID_OPTIONS_VULKAN, allowVulkan ? MF_ENABLED : MF_GRAYED);
@@ -1314,7 +1317,7 @@ namespace MainWindow {
 			CheckMenuItem(menu, ID_OPTIONS_VULKAN, MF_UNCHECKED);
 			break;
 		case GPUBackend::VULKAN:
-			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D9, MF_ENABLED);
+			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D9, allowD3D9 ? MF_ENABLED : MF_GRAYED);
 			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D11, allowD3D11 ? MF_ENABLED : MF_GRAYED);
 			EnableMenuItem(menu, ID_OPTIONS_OPENGL, allowOpenGL ? MF_ENABLED : MF_GRAYED);
 			EnableMenuItem(menu, ID_OPTIONS_VULKAN, MF_GRAYED);
@@ -1324,7 +1327,7 @@ namespace MainWindow {
 			CheckMenuItem(menu, ID_OPTIONS_VULKAN, MF_CHECKED);
 			break;
 		case GPUBackend::DIRECT3D11:
-			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D9, MF_ENABLED);
+			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D9, allowD3D9 ? MF_ENABLED : MF_GRAYED);
 			EnableMenuItem(menu, ID_OPTIONS_DIRECT3D11, MF_GRAYED);
 			EnableMenuItem(menu, ID_OPTIONS_OPENGL, allowOpenGL ? MF_ENABLED : MF_GRAYED);
 			EnableMenuItem(menu, ID_OPTIONS_VULKAN, allowVulkan ? MF_ENABLED : MF_GRAYED);

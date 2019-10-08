@@ -97,6 +97,10 @@ inline float vfpu_clamp(float v, float min, float max) {
 	return v >= max ? max : (v <= min ? min : v);
 }
 
+float vfpu_dot(float a[4], float b[4]);
+float vfpu_sqrt(float a);
+float vfpu_rsqrt(float a);
+
 #define VFPU_FLOAT16_EXP_MAX    0x1f
 #define VFPU_SH_FLOAT16_SIGN    15
 #define VFPU_MASK_FLOAT16_SIGN  0x1
@@ -121,27 +125,27 @@ enum MatrixSize {
 	M_Invalid = -1
 };
 
-static u32 VFPU_SWIZZLE(int x, int y, int z, int w) {
+inline u32 VFPU_SWIZZLE(int x, int y, int z, int w) {
 	return (x << 0) | (y << 2) | (z << 4) | (w << 6);
 }
 
-static u32 VFPU_MASK(int x, int y, int z, int w) {
+inline u32 VFPU_MASK(int x, int y, int z, int w) {
 	return (x << 0) | (y << 1) | (z << 2) | (w << 3);
 }
 
-static u32 VFPU_ANY_SWIZZLE() {
+inline u32 VFPU_ANY_SWIZZLE() {
 	return 0x000000FF;
 }
 
-static u32 VFPU_ABS(int x, int y, int z, int w) {
+inline u32 VFPU_ABS(int x, int y, int z, int w) {
 	return VFPU_MASK(x, y, z, w) << 8;
 }
 
-static u32 VFPU_CONST(int x, int y, int z, int w) {
+inline u32 VFPU_CONST(int x, int y, int z, int w) {
 	return VFPU_MASK(x, y, z, w) << 12;
 }
 
-static u32 VFPU_NEGATE(int x, int y, int z, int w) {
+inline u32 VFPU_NEGATE(int x, int y, int z, int w) {
 	return VFPU_MASK(x, y, z, w) << 16;
 }
 
@@ -157,7 +161,7 @@ enum class VFPUConst {
 	SIXTH,
 };
 
-static u32 VFPU_MAKE_CONSTANTS(VFPUConst x, VFPUConst y, VFPUConst z, VFPUConst w) {
+inline u32 VFPU_MAKE_CONSTANTS(VFPUConst x, VFPUConst y, VFPUConst z, VFPUConst w) {
 	u32 result = 0;
 	if (x != VFPUConst::NONE) {
 		// This sets the constant flag and the swizzle/abs flags for the right constant.

@@ -68,9 +68,11 @@ enum DefaultMaps {
 	DEFAULT_MAPPING_SHIELD,
 	DEFAULT_MAPPING_OUYA,
 	DEFAULT_MAPPING_XPERIA_PLAY,
+	DEFAULT_MAPPING_MOQI_I7S,
 };
 
 const float AXIS_BIND_THRESHOLD = 0.75f;
+const float AXIS_BIND_THRESHOLD_MOUSE = 0.01f;
 
 typedef std::map<int, std::vector<KeyDef>> KeyMapping;
 
@@ -108,7 +110,7 @@ namespace KeyMap {
 	// buttons. You should have already translated
 	// your platform's keys to KeyMap keys.
 	bool KeyToPspButton(int deviceId, int key, std::vector<int> *pspKeys);
-	bool KeyFromPspButton(int btn, std::vector<KeyDef> *keys);
+	bool KeyFromPspButton(int btn, std::vector<KeyDef> *keys, bool ignoreMouse);
 
 	int TranslateKeyCodeToAxis(int keyCode, int &direction);
 	int TranslateKeyCodeFromAxis(int axisId, int direction);
@@ -140,6 +142,7 @@ namespace KeyMap {
 	bool IsNvidiaShieldTV(const std::string &name);
 	bool IsXperiaPlay(const std::string &name);
 	bool IsOuya(const std::string &name);
+	bool IsMOQII7S(const std::string &name);
 	bool HasBuiltinController(const std::string &name);
 
 	const std::set<std::string> &GetSeenPads();

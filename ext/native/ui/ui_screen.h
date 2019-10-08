@@ -84,6 +84,7 @@ protected:
 	virtual bool FillVertical() const { return false; }
 	virtual UI::Size PopupWidth() const { return 550; }
 	virtual bool ShowButtons() const { return true; }
+	virtual bool CanComplete(DialogResult result) { return true; }
 	virtual void OnCompleted(DialogResult result) {}
 
 	virtual void update() override;
@@ -109,7 +110,7 @@ private:
 
 class ListPopupScreen : public PopupScreen {
 public:
-	ListPopupScreen(std::string title) : PopupScreen(title), showButtons_(false) {}
+	ListPopupScreen(std::string title) : PopupScreen(title) {}
 	ListPopupScreen(std::string title, const std::vector<std::string> &items, int selected, std::function<void(int)> callback, bool showButtons = false)
 		: PopupScreen(title, "OK", "Cancel"), adaptor_(items, selected), callback_(callback), showButtons_(showButtons) {
 	}
@@ -135,13 +136,13 @@ protected:
 	virtual bool ShowButtons() const override { return showButtons_; }
 	virtual void CreatePopupContents(UI::ViewGroup *parent) override;
 	UI::StringVectorListAdaptor adaptor_;
-	UI::ListView *listView_;
+	UI::ListView *listView_ = nullptr;
 
 private:
 	UI::EventReturn OnListChoice(UI::EventParams &e);
 
 	std::function<void(int)> callback_;
-	bool showButtons_;
+	bool showButtons_ = false;
 	std::set<int> hidden_;
 };
 
@@ -169,7 +170,7 @@ namespace UI {
 class SliderPopupScreen : public PopupScreen {
 public:
 	SliderPopupScreen(int *value, int minValue, int maxValue, const std::string &title, int step = 1, const std::string &units = "")
-	: PopupScreen(title, "OK", "Cancel"), units_(units), value_(value), minValue_(minValue), maxValue_(maxValue), step_(step) {}
+		: PopupScreen(title, "OK", "Cancel"), units_(units), value_(value), minValue_(minValue), maxValue_(maxValue), step_(step) {}
 	virtual void CreatePopupContents(ViewGroup *parent) override;
 
 	void SetNegativeDisable(const std::string &str) {
@@ -185,12 +186,12 @@ private:
 	EventReturn OnTextChange(EventParams &params);
 	EventReturn OnSliderChange(EventParams &params);
 	virtual void OnCompleted(DialogResult result) override;
-	Slider *slider_;
-	UI::TextEdit *edit_;
+	Slider *slider_ = nullptr;
+	UI::TextEdit *edit_ = nullptr;
 	std::string units_;
 	std::string negativeLabel_;
 	int *value_;
-	int sliderValue_;
+	int sliderValue_ = 0;
 	int minValue_;
 	int maxValue_;
 	int step_;
@@ -225,7 +226,7 @@ private:
 
 class TextEditPopupScreen : public PopupScreen {
 public:
-	TextEditPopupScreen(std::string *value, std::string &placeholder, const std::string &title, int maxLen)
+	TextEditPopupScreen(std::string *value, const std::string &placeholder, const std::string &title, int maxLen)
 		: PopupScreen(title, "OK", "Cancel"), value_(value), placeholder_(placeholder), maxLen_(maxLen) {}
 	virtual void CreatePopupContents(ViewGroup *parent) override;
 

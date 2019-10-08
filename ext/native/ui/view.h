@@ -240,9 +240,7 @@ struct HandlerRegistration {
 class Event {
 public:
 	Event() {}
-	~Event() {
-		handlers_.clear();
-	}
+	~Event();
 	// Call this from input thread or whatever, it doesn't matter
 	void Trigger(EventParams &e);
 	// Call this from UI thread
@@ -552,8 +550,8 @@ private:
 	float paddingLeft_;
 	float paddingRight_;
 	int step_;
-	int repeat_;
-	int repeatCode_;
+	int repeat_ = 0;
+	int repeatCode_ = 0;
 };
 
 class SliderFloat : public Clickable {
@@ -580,7 +578,7 @@ private:
 	float paddingLeft_;
 	float paddingRight_;
 	int repeat_;
-	int repeatCode_;
+	int repeatCode_ = 0;
 };
 
 // Basic button that modifies a bitfield based on the pressed status. Supports multitouch.

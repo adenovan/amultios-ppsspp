@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "base/logging.h"
+#include "base/display.h"
 #include "thin3d/thin3d.h"
 #include "Common/Log.h"
 #include "Common/ColorConv.h"

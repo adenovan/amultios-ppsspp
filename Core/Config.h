@@ -21,7 +21,9 @@
 #include <map>
 #include <vector>
 
+#include "ppsspp_config.h"
 #include "Common/CommonTypes.h"
+#include "Core/ConfigValues.h"
 
 extern const char *PPSSPP_GIT_VERSION;
 
@@ -60,26 +62,26 @@ public:
 	bool bScreenshotsAsPNG;
 	bool bUseFFV1;
 	bool bDumpFrames;
+	bool bDumpVideoOutput;
 	bool bDumpAudio;
 	bool bSaveLoadResetsAVdumping;
 	bool bEnableLogging;
 	bool bDumpDecryptedEboot;
 	bool bFullscreenOnDoubleclick;
-#if defined(USING_WIN_UI)
+
+	// These four are Win UI only
 	bool bPauseOnLostFocus;
 	bool bTopMost;
 	bool bIgnoreWindowsKey;
 	bool bRestartRequired;
-#endif
-#if defined(USING_WIN_UI) || defined(USING_QT_UI)
+
 	std::string sFont;
-#endif
 
 	bool bPauseWhenMinimized;
 
-#if !defined(MOBILE_DEVICE)
+	// Not used on mobile devices.
 	bool bPauseExitsEmulator;
-#endif
+
 	bool bPauseMenuExitsEmulator;
 
 	// Core
@@ -122,12 +124,12 @@ public:
 	// GFX
 	int iGPUBackend;
 	std::string sFailedGPUBackends;
+	std::string sDisabledGPUBackends;
 	// We have separate device parameters for each backend so it doesn't get erased if you switch backends.
 	// If not set, will use the "best" device.
 	std::string sVulkanDevice;
-#ifdef _WIN32
-	std::string sD3D11Device;
-#endif
+	std::string sD3D11Device;  // Windows only
+
 	bool bSoftwareRendering;
 	bool bHardwareTransform; // only used in the GLES backend
 	bool bSoftwareSkinning;  // may speed up some games
@@ -147,11 +149,6 @@ public:
 	int iFrameSkipType;
 	bool bAutoFrameSkip;
 	bool bFrameSkipUnthrottle;
-
-	bool bEnableCardboard; // Cardboard Master Switch
-	int iCardboardScreenSize; // Screen Size (in %)
-	int iCardboardXShift; // X-Shift of Screen (in %)
-	int iCardboardYShift; // Y-Shift of Screen (in %)
 
 	int iWindowX;
 	int iWindowY;
@@ -198,6 +195,7 @@ public:
 	int iAudioLatency; // 0 = low , 1 = medium(default) , 2 = high
 	int iAudioBackend;
 	int iGlobalVolume;
+	int iAltSpeedVolume;
 	bool bExtraAudioBuffering;  // For bluetooth
 
 	// UI
@@ -237,6 +235,7 @@ public:
 	bool bLogFrameDrops;
 	bool bShowDebugStats;
 	bool bShowAudioDebug;
+	bool bShowGpuProfile;
 	bool bAudioResampler;
 
 	//Analog stick tilting
@@ -287,6 +286,7 @@ public:
 	ConfigTouchPos touchLKey;
 	ConfigTouchPos touchRKey;
 	ConfigTouchPos touchAnalogStick;
+	ConfigTouchPos touchRightAnalogStick;
 
 	ConfigTouchPos touchCombo0;
 	ConfigTouchPos touchCombo1;
@@ -366,9 +366,7 @@ public:
 	int iPSPModel;
 	int iFirmwareVersion;
 	// TODO: Make this work with your platform, too!
-#if defined(USING_WIN_UI)
 	bool bBypassOSKWithKeyboard;
-#endif
 
 	// Debugger
 	int iDisasmWindowX;
@@ -411,11 +409,11 @@ public:
 	void RestoreDefaults();
 
 	//per game config managment, should maybe be in it's own class
-	void changeGameSpecific(const std::string &gameId = "");
+	void changeGameSpecific(const std::string &gameId = "", const std::string &title = "");
 	bool createGameConfig(const std::string &game_id);
 	bool deleteGameConfig(const std::string& pGameId);
-	bool loadGameConfig(const std::string &game_id);
-	bool saveGameConfig(const std::string &pGameId);
+	bool loadGameConfig(const std::string &game_id, const std::string &title);
+	bool saveGameConfig(const std::string &pGameId, const std::string &title);
 	void unloadGameConfig();
 	std::string getGameConfigFile(const std::string &gameId);
 	bool hasGameConfig(const std::string &game_id);
@@ -440,12 +438,14 @@ public:
 
 	bool IsPortrait() const;
 	int NextValidBackend();
+	bool IsBackendEnabled(GPUBackend backend, bool validate = true);
 
 protected:
 	void LoadStandardControllerIni();
 
 private:
 	std::string gameId_;
+	std::string gameIdTitle_;
 	std::string iniFilename_;
 	std::string controllerIniFilename_;
 	std::vector<std::string> searchPath_;

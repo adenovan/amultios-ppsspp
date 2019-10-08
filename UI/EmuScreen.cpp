@@ -107,7 +107,7 @@ static void __EmuScreenVblank()
 	if (g_Config.bDumpFrames && !startDumping)
 	{
 		avi.Start(PSP_CoreParameter().renderWidth, PSP_CoreParameter().renderHeight);
-		osm.Show(sy->T("AVI Dump started."), 3.0f);
+		osm.Show(sy->T("AVI Dump started."), 0.5f);
 		startDumping = true;
 	}
 	if (g_Config.bDumpFrames && startDumping)
@@ -117,7 +117,7 @@ static void __EmuScreenVblank()
 	else if (!g_Config.bDumpFrames && startDumping)
 	{
 		avi.Stop();
-		osm.Show(sy->T("AVI Dump stopped."), 3.0f);
+		osm.Show(sy->T("AVI Dump stopped."), 1.0f);
 		startDumping = false;
 	}
 #endif
@@ -202,7 +202,7 @@ void EmuScreen::bootGame(const std::string &filename) {
 		return;
 
 	if (!info->id.empty()) {
-		g_Config.loadGameConfig(info->id);
+		g_Config.loadGameConfig(info->id, info->GetTitle());
 		// Reset views in case controls are in a different place.
 		RecreateViews();
 
@@ -238,7 +238,6 @@ void EmuScreen::bootGame(const std::string &filename) {
 
 	// Preserve the existing graphics context.
 	coreParam.graphicsContext = PSP_CoreParameter().graphicsContext;
-	coreParam.thin3d = screenManager()->getDrawContext();
 	coreParam.enableSound = g_Config.bEnableSound;
 	coreParam.fileToStart = filename;
 	coreParam.mountIso = "";
@@ -347,7 +346,7 @@ EmuScreen::~EmuScreen() {
 	if (g_Config.bDumpFrames && startDumping)
 	{
 		avi.Stop();
-		osm.Show("AVI Dump stopped.", 3.0f);
+		osm.Show("AVI Dump stopped.", 1.0f);
 		startDumping = false;
 	}
 #endif
@@ -371,7 +370,7 @@ void EmuScreen::dialogFinished(const Screen *dialog, DialogResult result) {
 }
 
 static void AfterSaveStateAction(SaveState::Status status, const std::string &message, void *) {
-	if (!message.empty()) {
+	if (!message.empty() && (!g_Config.bDumpFrames || !g_Config.bDumpVideoOutput)) {
 		osm.Show(message, status == SaveState::Status::SUCCESS ? 2.0 : 5.0);
 	}
 }
@@ -884,9 +883,10 @@ void EmuScreen::processAxis(const AxisInput &axis, int direction) {
 	KeyMap::AxisToPspButton(axis.deviceId, axis.axisId, -direction, &resultsOpposite);
 
 	int axisState = 0;
-	if ((direction == 1 && axis.value >= AXIS_BIND_THRESHOLD)) {
+	float threshold = axis.deviceId == DEVICE_ID_MOUSE ? AXIS_BIND_THRESHOLD_MOUSE : AXIS_BIND_THRESHOLD;
+	if (direction == 1 && axis.value >= threshold) {
 		axisState = 1;
-	} else if (direction == -1 && axis.value <= -AXIS_BIND_THRESHOLD) {
+	} else if (direction == -1 && axis.value <= -threshold) {
 		axisState = -1;
 	} else {
 		axisState = 0;
@@ -1358,6 +1358,11 @@ void EmuScreen::renderUI() {
 	if (g_Config.iGPUBackend == (int)GPUBackend::VULKAN && g_Config.bShowAllocatorDebug) {
 		DrawAllocatorVis(ctx, gpu);
 	}
+
+	if (g_Config.iGPUBackend == (int)GPUBackend::VULKAN && g_Config.bShowGpuProfile) {
+		DrawProfilerVis(ctx, gpu);
+	}
+
 #endif
 
 #ifdef USE_PROFILER

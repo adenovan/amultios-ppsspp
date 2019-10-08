@@ -20,6 +20,7 @@
 #include "math/math_util.h"
 
 #include "Common/CPUDetect.h"
+#include "Core/Compatibility.h"
 #include "Core/Config.h"
 #include "Core/MemMap.h"
 #include "Core/MIPS/MIPS.h"
@@ -29,6 +30,7 @@
 #include "Core/MIPS/IR/IRFrontend.h"
 #include "Core/MIPS/IR/IRRegCache.h"
 #include "Core/Reporting.h"
+#include "Core/System.h"
 
 
 // All functions should have CONDITIONAL_DISABLE, so we can narrow things down to a file quickly.
@@ -1062,7 +1064,7 @@ namespace MIPSComp {
 	}
 
 	void IRFrontend::Comp_Vmmov(MIPSOpcode op) {
-		CONDITIONAL_DISABLE(VFPU_MTX);
+		CONDITIONAL_DISABLE(VFPU_MTX_VMMOV);
 		if (!js.HasNoPrefix()) {
 			DISABLE;
 		}
@@ -1085,7 +1087,6 @@ namespace MIPSComp {
 		GetMatrixRegs(sregs, sz, vs);
 		GetMatrixRegs(dregs, sz, vd);
 
-		// Rough overlap check.
 		switch (GetMatrixOverlap(vs, vd, sz)) {
 		case OVERLAP_EQUAL:
 			// In-place transpose
@@ -1122,7 +1123,7 @@ namespace MIPSComp {
 	}
 
 	void IRFrontend::Comp_Vmscl(MIPSOpcode op) {
-		CONDITIONAL_DISABLE(VFPU_MTX);
+		CONDITIONAL_DISABLE(VFPU_MTX_VMSCL);
 		if (!js.HasNoPrefix()) {
 			DISABLE;
 		}
@@ -1238,8 +1239,14 @@ namespace MIPSComp {
 	// This may or may not be a win when using the IR interpreter...
 	// Many more instructions to interpret.
 	void IRFrontend::Comp_Vmmul(MIPSOpcode op) {
-		CONDITIONAL_DISABLE(VFPU_MTX);
+		CONDITIONAL_DISABLE(VFPU_MTX_VMMUL);
 		if (!js.HasNoPrefix()) {
+			DISABLE;
+		}
+
+		if (PSP_CoreParameter().compat.flags().MoreAccurateVMMUL) {
+			// Fall back to interpreter, which has the accurate implementation.
+			// Later we might do something more optimized here.
 			DISABLE;
 		}
 
@@ -1326,7 +1333,7 @@ namespace MIPSComp {
 	}
 
 	void IRFrontend::Comp_Vtfm(MIPSOpcode op) {
-		CONDITIONAL_DISABLE(VFPU_MTX);
+		CONDITIONAL_DISABLE(VFPU_MTX_VTFM);
 		if (!js.HasNoPrefix()) {
 			DISABLE;
 		}

@@ -103,8 +103,10 @@ extern ScreenManager *screenManager;
 
 #define TIMER_CURSORUPDATE 1
 #define TIMER_CURSORMOVEUPDATE 2
+#define TIMER_WHEELRELEASE 3
 #define CURSORUPDATE_INTERVAL_MS 1000
 #define CURSORUPDATE_MOVE_TIMESPAN_MS 500
+#define WHEELRELEASE_DELAY_MS 16
 
 namespace MainWindow
 {
@@ -254,6 +256,17 @@ namespace MainWindow
 				ClipCursor(NULL);
 			}
 		}
+	}
+
+	void ReleaseMouseWheel() {
+			// For simplicity release both wheel events
+			KeyInput key;
+			key.deviceId = DEVICE_ID_MOUSE;
+			key.flags = KEY_UP;
+			key.keyCode = NKCODE_EXT_MOUSEWHEEL_DOWN;
+			NativeKey(key);
+			key.keyCode = NKCODE_EXT_MOUSEWHEEL_UP;
+			NativeKey(key);
 	}
 
 	static void HandleSizeChange(int newSizingType) {
@@ -769,21 +782,7 @@ namespace MainWindow
 			}
 			break;
 
-    case WM_TIMER:
-			// Hack: Take the opportunity to also show/hide the mouse cursor in fullscreen mode.
-			switch (wParam) {
-			case TIMER_CURSORUPDATE:
-				CorrectCursor();
-				return 0;
-
-			case TIMER_CURSORMOVEUPDATE:
-				hideCursor = true;
-				KillTimer(hWnd, TIMER_CURSORMOVEUPDATE);
-				return 0;
-			}
-			break;
-
-		// For some reason, need to catch this here rather than in DisplayProc.
+		// Wheel events have to stay in WndProc for compatibility with older Windows(7). See #12156
 		case WM_MOUSEWHEEL:
 			{
 				int wheelDelta = (short)(wParam >> 16);
@@ -796,10 +795,30 @@ namespace MainWindow
 				} else {
 					key.keyCode = NKCODE_EXT_MOUSEWHEEL_UP;
 				}
-				// There's no separate keyup event for mousewheel events, let's pass them both together.
-				// This also means it really won't work great for key mapping :( Need to build a 1 frame delay or something.
-				key.flags = KEY_DOWN | KEY_UP | KEY_HASWHEELDELTA | (wheelDelta << 16);
+				// There's no separate keyup event for mousewheel events,
+				// so we release it with a slight delay.
+				key.flags = KEY_DOWN | KEY_HASWHEELDELTA | (wheelDelta << 16);
+				SetTimer(hwndMain, TIMER_WHEELRELEASE, WHEELRELEASE_DELAY_MS, 0);
 				NativeKey(key);
+			}
+			break;
+
+		case WM_TIMER:
+			// Hack: Take the opportunity to also show/hide the mouse cursor in fullscreen mode.
+			switch (wParam) {
+			case TIMER_CURSORUPDATE:
+				CorrectCursor();
+				return 0;
+
+			case TIMER_CURSORMOVEUPDATE:
+				hideCursor = true;
+				KillTimer(hWnd, TIMER_CURSORMOVEUPDATE);
+				return 0;
+			// Hack: need to release wheel event with a delay for games to register it was "pressed down".
+			case TIMER_WHEELRELEASE:
+				ReleaseMouseWheel();
+				KillTimer(hWnd, TIMER_WHEELRELEASE);
+				return 0;
 			}
 			break;
 
@@ -888,6 +907,7 @@ namespace MainWindow
 		case WM_DESTROY:
 			KillTimer(hWnd, TIMER_CURSORUPDATE);
 			KillTimer(hWnd, TIMER_CURSORMOVEUPDATE);
+			KillTimer(hWnd, TIMER_WHEELRELEASE);
 			PostQuitMessage(0);
 			break;
 

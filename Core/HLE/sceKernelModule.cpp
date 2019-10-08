@@ -58,7 +58,7 @@
 #include "Core/HLE/KernelWaitHelpers.h"
 #include "Core/ELF/ParamSFO.h"
 
-#include "GPU/Debugger/Record.h"
+#include "GPU/Debugger/Playback.h"
 #include "GPU/GPU.h"
 #include "GPU/GPUInterface.h"
 #include "GPU/GPUState.h"
@@ -1626,6 +1626,7 @@ bool __KernelLoadExec(const char *filename, u32 paramPtr, std::string *error_str
 			if (param_argp) delete[] param_argp;
 			if (param_key) delete[] param_key;
 		}
+		__KernelShutdown();
 		return false;
 	}
 

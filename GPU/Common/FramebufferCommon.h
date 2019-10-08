@@ -46,15 +46,6 @@ namespace Draw {
 	class Framebuffer;
 }
 
-struct CardboardSettings {
-	bool enabled;
-	float leftEyeXPosition;
-	float rightEyeXPosition;
-	float screenYPosition;
-	float screenWidth;
-	float screenHeight;
-};
-
 class VulkanFBO;
 
 struct PostShaderUniforms {
@@ -77,7 +68,7 @@ struct VirtualFramebuffer {
 	bool firstFrameSaved;
 
 	u32 fb_address;
-	u32 z_address;
+	u32 z_address;  // If 0, it's a "RAM" framebuffer.
 	int fb_stride;
 	int z_stride;
 
@@ -155,7 +146,12 @@ enum DrawTextureFlags {
 	DRAWTEX_LINEAR = 1,
 	DRAWTEX_KEEP_TEX = 2,
 	DRAWTEX_KEEP_STENCIL_ALPHA = 4,
+	DRAWTEX_TO_BACKBUFFER = 8,
 };
+
+inline DrawTextureFlags operator | (const DrawTextureFlags &lhs, const DrawTextureFlags &rhs) {
+	return DrawTextureFlags((u32)lhs | (u32)rhs);
+}
 
 enum class TempFBO {
 	DEPAL,
@@ -320,9 +316,6 @@ protected:
 	virtual void Bind2DShader() = 0;
 	virtual void BindPostShader(const PostShaderUniforms &uniforms) = 0;
 
-	// Cardboard Settings Calculator
-	void GetCardboardSettings(CardboardSettings *cardboardSettings);
-
 	bool UpdateSize();
 	void SetNumExtraFBOs(int num);
 
@@ -334,7 +327,7 @@ protected:
 	void CopyFramebufferForColorTexture(VirtualFramebuffer *dst, VirtualFramebuffer *src, int flags);
 
 	void EstimateDrawingSize(u32 fb_address, GEBufferFormat fb_format, int viewport_width, int viewport_height, int region_width, int region_height, int scissor_width, int scissor_height, int fb_stride, int &drawing_width, int &drawing_height);
-	u32 FramebufferByteSize(const VirtualFramebuffer *vfb) const;
+	u32 ColorBufferByteSize(const VirtualFramebuffer *vfb) const;
 
 	void NotifyRenderFramebufferCreated(VirtualFramebuffer *vfb);
 	void NotifyRenderFramebufferUpdated(VirtualFramebuffer *vfb, bool vfbFormatChanged);

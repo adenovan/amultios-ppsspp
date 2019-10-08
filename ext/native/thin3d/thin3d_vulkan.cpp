@@ -429,30 +429,6 @@ public:
 
 	void FlushState() override {}
 
-	// From Sascha's code
-	static std::string FormatDriverVersion(const VkPhysicalDeviceProperties &props) {
-		if (props.vendorID == VULKAN_VENDOR_NVIDIA) {
-			// 10 bits = major version (up to r1023)
-			// 8 bits = minor version (up to 255)
-			// 8 bits = secondary branch version/build version (up to 255)
-			// 6 bits = tertiary branch/build version (up to 63)
-			uint32_t major = (props.driverVersion >> 22) & 0x3ff;
-			uint32_t minor = (props.driverVersion >> 14) & 0x0ff;
-			uint32_t secondaryBranch = (props.driverVersion >> 6) & 0x0ff;
-			uint32_t tertiaryBranch = (props.driverVersion) & 0x003f;
-			return StringFromFormat("%d.%d.%d.%d (%08x)", major, minor, secondaryBranch, tertiaryBranch, props.driverVersion);
-		} else if (props.vendorID == VULKAN_VENDOR_ARM) {
-			// ARM just puts a hash here, let's just output it as is.
-			return StringFromFormat("%08x", props.driverVersion);
-		} else {
-			// Standard scheme, use the standard macros.
-			uint32_t major = VK_VERSION_MAJOR(props.driverVersion);
-			uint32_t minor = VK_VERSION_MINOR(props.driverVersion);
-			uint32_t branch = VK_VERSION_PATCH(props.driverVersion);
-			return StringFromFormat("%d.%d.%d (%08x)", major, minor, branch, props.driverVersion);
-		}
-	}
-
 	std::string GetInfoString(InfoField info) const override {
 		// TODO: Make these actually query the right information
 		switch (info) {
@@ -805,7 +781,7 @@ VKContext::VKContext(VulkanContext *vulkan, bool splitSubmit)
 
 	VkDescriptorPoolCreateInfo dp{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 	dp.flags = 0;   // Don't want to mess around with individually freeing these, let's go dynamic each frame.
-	dp.maxSets = 200;  // 200 textures per frame should be enough for the UI...
+	dp.maxSets = 4096;  // 200 textures per frame was not enough for the UI.
 	dp.pPoolSizes = dpTypes;
 	dp.poolSizeCount = ARRAY_SIZE(dpTypes);
 
@@ -879,7 +855,7 @@ VKContext::~VKContext() {
 }
 
 void VKContext::BeginFrame() {
-	renderManager_.BeginFrame();
+	renderManager_.BeginFrame(g_Config.bShowGpuProfile);
 
 	FrameData &frame = frame_[vulkan_->GetCurFrame()];
 	push_ = frame.pushBuffer;
@@ -1059,17 +1035,19 @@ Pipeline *VKContext::CreateGraphicsPipeline(const PipelineDesc &desc) {
 }
 
 void VKContext::SetScissorRect(int left, int top, int width, int height) {
-	VkRect2D scissor{ {left, top}, {(uint32_t)width, (uint32_t)height} };
+	VkRect2D scissor{ {(int32_t)left, (int32_t)top}, {(uint32_t)width, (uint32_t)height} };
 	renderManager_.SetScissor(scissor);
 }
 
 void VKContext::SetViewports(int count, Viewport *viewports) {
 	if (count > 0) {
+		// Ignore viewports more than the first.
 		VkViewport viewport;
-		viewport.x = viewports[0].TopLeftX;
-		viewport.y = viewports[0].TopLeftY;
-		viewport.width = viewports[0].Width;
-		viewport.height = viewports[0].Height;
+		FRect rc{ viewports[0].TopLeftX , viewports[0].TopLeftY, viewports[0].Width, viewports[0].Height };
+		viewport.x = rc.x;
+		viewport.y = rc.y;
+		viewport.width = rc.w;
+		viewport.height = rc.h;
 		viewport.minDepth = viewports[0].MinDepth;
 		viewport.maxDepth = viewports[0].MaxDepth;
 		renderManager_.SetViewport(viewport);

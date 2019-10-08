@@ -17,6 +17,7 @@
 // https://github.com/hrydgard/ppsspp and http://www.ppsspp.org/.
 
 #include <thread>
+
 #include "base/logging.h"
 #include "base/timeutil.h"
 #include "profiler/profiler.h"
@@ -136,6 +137,7 @@ void GPU_Vulkan::LoadCache(std::string filename) {
 	// it can just memcpy the finished shader binaries out of the pipeline cache file.
 	bool result = shaderManagerVulkan_->LoadCache(f);
 	if (result) {
+		// WARNING: See comment in LoadCache if you are tempted to flip the second parameter to true.
 		result = pipelineManager_->LoadCache(f, false, shaderManagerVulkan_, draw_, drawEngine_.GetPipelineLayout());
 	}
 	fclose(f);
@@ -159,6 +161,7 @@ void GPU_Vulkan::SaveCache(std::string filename) {
 	if (!f)
 		return;
 	shaderManagerVulkan_->SaveCache(f);
+	// WARNING: See comment in LoadCache if you are tempted to flip the second parameter to true.
 	pipelineManager_->SaveCache(f, false, shaderManagerVulkan_, draw_);
 	INFO_LOG(G3D, "Saved Vulkan pipeline cache");
 	fclose(f);
@@ -169,9 +172,10 @@ GPU_Vulkan::~GPU_Vulkan() {
 	// Note: We save the cache in DeviceLost
 	DestroyDeviceObjects();
 	framebufferManagerVulkan_->DestroyAllFBOs();
-	vulkan2D_.Shutdown();
 	depalShaderCache_.Clear();
+	depalShaderCache_.DeviceLost();
 	drawEngine_.DeviceLost();
+	vulkan2D_.Shutdown();
 	delete textureCacheVulkan_;
 	delete pipelineManager_;
 	delete shaderManagerVulkan_;
@@ -195,15 +199,23 @@ void GPU_Vulkan::CheckGPUFeatures() {
 		features |= GPU_SUPPORTS_ACCURATE_DEPTH;
 		break;
 	case VULKAN_VENDOR_ARM:
-		// Also required on older ARM Mali drivers, like the one on many Galaxy S7.
-		if (!PSP_CoreParameter().compat.flags().DisableAccurateDepth ||
-			  vulkan_->GetPhysicalDeviceProperties().properties.driverVersion <= VK_MAKE_VERSION(428, 811, 2674)) {
+	{
+		// This check is probably not exactly accurate. But old drivers had problems with reverse-Z, just like AMD and Qualcomm.
+		bool driverTooOld = IsHashMaliDriverVersion(vulkan_->GetPhysicalDeviceProperties().properties)
+			|| VK_VERSION_MAJOR(vulkan_->GetPhysicalDeviceProperties().properties.driverVersion) < 14;
+		if (!PSP_CoreParameter().compat.flags().DisableAccurateDepth || driverTooOld) {
 			features |= GPU_SUPPORTS_ACCURATE_DEPTH;
 		}
+		// These GPUs (up to some certain hardware version?) has a bug where draws where gl_Position.w == .z
+		// corrupt the depth buffer. This is easily worked around by simply scaling Z down a tiny bit when this case
+		// is detected. See: https://github.com/hrydgard/ppsspp/issues/11937
+		features |= GPU_NEEDS_Z_EQUAL_W_HACK;
 		break;
+	}
 	default:
-		if (!PSP_CoreParameter().compat.flags().DisableAccurateDepth)
+		if (!PSP_CoreParameter().compat.flags().DisableAccurateDepth) {
 			features |= GPU_SUPPORTS_ACCURATE_DEPTH;
+		}
 		break;
 	}
 
@@ -473,6 +485,9 @@ void GPU_Vulkan::InitDeviceObjects() {
 		hacks |= QUEUE_HACK_MGS2_ACID;
 	if (PSP_CoreParameter().compat.flags().SonicRivalsHack)
 		hacks |= QUEUE_HACK_SONIC;
+	if (PSP_CoreParameter().compat.flags().RenderPassMerge)
+		hacks |= QUEUE_HACK_RENDERPASS_MERGE;
+
 	if (hacks) {
 		rm->GetQueueRunner()->EnableHacks(hacks);
 	}
@@ -635,4 +650,9 @@ std::string GPU_Vulkan::DebugGetShaderString(std::string id, DebugShaderType typ
 	} else {
 		return std::string();
 	}
+}
+
+std::string GPU_Vulkan::GetGpuProfileString() {
+	VulkanRenderManager *rm = (VulkanRenderManager *)draw_->GetNativeObject(Draw::NativeObject::RENDER_MANAGER);
+	return rm->GetGpuProfileString();
 }

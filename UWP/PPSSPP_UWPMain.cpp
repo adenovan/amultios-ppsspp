@@ -42,6 +42,7 @@ using namespace Concurrency;
 // UGLY!
 PPSSPP_UWPMain *g_main;
 extern WindowsAudioBackend *winAudioBackend;
+std::string langRegion;
 // TODO: Use Microsoft::WRL::ComPtr<> for D3D11 objects?
 // TODO: See https://github.com/Microsoft/Windows-universal-samples/tree/master/Samples/WindowsAudioSession for WASAPI with UWP
 // TODO: Low latency input: https://github.com/Microsoft/Windows-universal-samples/tree/master/Samples/LowLatencyInput/cpp
@@ -76,7 +77,6 @@ PPSSPP_UWPMain::PPSSPP_UWPMain(App ^app, const std::shared_ptr<DX::DeviceResourc
 
 	wchar_t lcCountry[256];
 
-	std::string langRegion;
 	if (0 != GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNAME, lcCountry, 256)) {
 		langRegion = ConvertWStringToUTF8(lcCountry);
 		for (size_t i = 0; i < langRegion.size(); i++) {
@@ -170,12 +170,6 @@ bool PPSSPP_UWPMain::Render() {
 	time_update();
 	auto context = m_deviceResources->GetD3DDeviceContext();
 
-	auto bounds = Windows::UI::ViewManagement::ApplicationView::GetForCurrentView()->VisibleBounds;
-
-	int boundTop = bounds.Top;
-	int boundLeft = bounds.Left;
-	int boundedWidth = bounds.Width;
-	int boundedHeight = bounds.Height;
 
 	switch (m_deviceResources->ComputeDisplayRotation()) {
 	case DXGI_MODE_ROTATION_IDENTITY: g_display_rotation = DisplayRotation::ROTATE_0; break;
@@ -198,8 +192,6 @@ bool PPSSPP_UWPMain::Render() {
 	}
 
 	g_dpi = m_deviceResources->GetActualDpi();
-	pixel_xres = (g_dpi / 96.0f) * boundedWidth;
-	pixel_yres = (g_dpi / 96.0f) * boundedHeight;
 
 	if (System_GetPropertyInt(SYSPROP_DEVICE_TYPE) == DEVICE_TYPE_MOBILE) {
 		// Boost DPI a bit to look better.
@@ -345,7 +337,7 @@ std::string System_GetProperty(SystemProperty prop) {
 	case SYSPROP_NAME:
 		return "Windows 10 Universal";
 	case SYSPROP_LANGREGION:
-		return "en_US";  // TODO UWP
+		return langRegion;
 	case SYSPROP_CLIPBOARD_TEXT:
 		/* TODO: Need to either change this API or do this on a thread in an ugly fashion.
 		DataPackageView ^view = Clipboard::GetContent();
@@ -429,7 +421,19 @@ void System_SendMessage(const char *command, const char *parameter) {
 				g_main->LoadStorageFile(file);
 			}
 		});
+	} else if (!strcmp(command, "toggle_fullscreen")) {
+		auto view = Windows::UI::ViewManagement::ApplicationView::GetForCurrentView();
+		if (strcmp(parameter, "0") == 0) {
+			view->ExitFullScreenMode();
+		}
+		else if (strcmp(parameter, "1") == 0){
+			view->TryEnterFullScreenMode();
+		}
 	}
+}
+
+void OpenDirectory(const char *path) {
+	// Unsupported
 }
 
 void LaunchBrowser(const char *url) {

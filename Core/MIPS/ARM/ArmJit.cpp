@@ -111,7 +111,7 @@ ArmJit::ArmJit(MIPSState *mips) : blocks(mips, this), gpr(mips, &js, &jo), fpr(m
 	AllocCodeSpace(1024 * 1024 * 16);  // 32MB is the absolute max because that's what an ARM branch instruction can reach, backwards and forwards.
 	GenerateFixedCode();
 
-	INFO_LOG(JIT, "ARM JIT initialized: %d MB of code space", GetSpaceLeft() / (1024 * 1024));
+	INFO_LOG(JIT, "ARM JIT initialized: %lld MB of code space", (long long)(GetSpaceLeft() / (1024 * 1024)));
 
 	js.startDefaultPrefix = mips_->HasDefaultPrefix();
 
@@ -328,8 +328,6 @@ const u8 *ArmJit::DoJit(u32 em_address, JitBlock *b)
 	gpr.Start(analysis);
 	fpr.Start(analysis);
 
-	int partialFlushOffset = 0;
-
 	js.numInstructions = 0;
 	while (js.compiling)
 	{
@@ -349,16 +347,14 @@ const u8 *ArmJit::DoJit(u32 em_address, JitBlock *b)
 	
 		js.compilerPC += 4;
 		js.numInstructions++;
-#if !PPSSPP_ARCH(ARMV7)
-		if ((GetCodePtr() - b->checkedEntry - partialFlushOffset) > 3200)
-		{
-			// We need to prematurely flush as we are out of range
-			FixupBranch skip = B_CC(CC_AL);
-			FlushLitPool();
-			SetJumpTarget(skip);
-			partialFlushOffset = GetCodePtr() - b->checkedEntry;
+
+		if (jo.Disabled(JitDisable::REGALLOC_GPR)) {
+			gpr.FlushAll();
 		}
-#endif
+		if (jo.Disabled(JitDisable::REGALLOC_FPR)) {
+			fpr.FlushAll();
+			FlushPrefixV();
+		}
 
 		// Safety check, in case we get a bunch of really large jit ops without a lot of branching.
 		if (GetSpaceLeft() < 0x800 || js.numInstructions >= JitBlockCache::MAX_BLOCK_INSTRUCTIONS)
