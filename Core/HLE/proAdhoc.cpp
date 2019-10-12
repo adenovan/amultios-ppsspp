@@ -1546,6 +1546,8 @@ bool resolveMAC(SceNetEtherAddr * mac, uint32_t * ip) {
 	return false;
 }
 
+
+
 bool validNetworkName(const SceNetAdhocctlGroupName * group_name) {
 	// Result
 	bool valid = true;

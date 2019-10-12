@@ -262,6 +262,10 @@ static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 u
 		return -1;
 	}
 
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPdpCreate(mac,port,bufferSize,unknown);
+	}
+
 	int retval = ERROR_NET_ADHOC_NOT_INITIALIZED;
 	// Library is initialized
 	SceNetEtherAddr * saddr = (SceNetEtherAddr *)mac;
@@ -410,6 +414,11 @@ static int sceNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int
 	if (!g_Config.bEnableWlan) {
 		return -1;
 	}
+
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPdpSend(id,mac,port,data,len,timeout,flag);
+	}
+
 	SceNetEtherAddr * daddr = (SceNetEtherAddr *)mac;
 	uint16_t dport = (uint16_t)port;
 	
@@ -1070,52 +1079,57 @@ static u32 sceNetAdhocctlDisconnect() {
 	}
 	*/
 
+
 	// Library initialized
 	if (netAdhocctlInited) {
 		// Connected State (Adhoc Mode)
-		if (threadStatus != ADHOCCTL_STATE_DISCONNECTED) { // (threadStatus == ADHOCCTL_STATE_CONNECTED) 
-			// Clear Network Name
-			memset(&parameter.group_name, 0, sizeof(parameter.group_name));
+		if(g_Config.bAmultiosMode){
+			AmultiosNetAdhocctlDisconnect();
+		}else{
+			if (threadStatus != ADHOCCTL_STATE_DISCONNECTED) { // (threadStatus == ADHOCCTL_STATE_CONNECTED) 
+				// Clear Network Name
+				memset(&parameter.group_name, 0, sizeof(parameter.group_name));
 
-			// Set Disconnected State
-			threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+				// Set Disconnected State
+				threadStatus = ADHOCCTL_STATE_DISCONNECTED;
 
-			// Set HUD Connection Status
-			//setConnectionStatus(0);
+				// Set HUD Connection Status
+				//setConnectionStatus(0);
 
-			// Prepare Packet
-			uint8_t opcode = OPCODE_DISCONNECT;
+				// Prepare Packet
+				uint8_t opcode = OPCODE_DISCONNECT;
 
-			// Acquire Network Lock
-			//_acquireNetworkLock();
+				// Acquire Network Lock
+				//_acquireNetworkLock();
 
-			// Send Disconnect Request Packet
-			int iResult = send(metasocket, (const char *)&opcode, 1, 0);
-			if (iResult == SOCKET_ERROR) {
-				ERROR_LOG(SCENET, "Socket error (%i) when sending", errno);
+				// Send Disconnect Request Packet
+				int iResult = send(metasocket, (const char *)&opcode, 1, 0);
+				if (iResult == SOCKET_ERROR) {
+					ERROR_LOG(SCENET, "Socket error (%i) when sending", errno);
+				}
+
+				// Free Network Lock
+				//_freeNetworkLock();
+
+				// Multithreading Lock
+				//peerlock.lock();
+
+				// Clear Peer List
+				freeFriendsRecursive(friends);
+				INFO_LOG(SCENET, "Cleared Peer List.");
+
+				// Delete Peer Reference
+				friends = NULL;
+
+				// Clear Group List
+				//freeGroupsRecursive(networks);
+
+				// Delete Group Reference
+				//networks = NULL;
+
+				// Multithreading Unlock
+				//peerlock.unlock();
 			}
-
-			// Free Network Lock
-			//_freeNetworkLock();
-
-			// Multithreading Lock
-			//peerlock.lock();
-
-			// Clear Peer List
-			freeFriendsRecursive(friends);
-			INFO_LOG(SCENET, "Cleared Peer List.");
-
-			// Delete Peer Reference
-			friends = NULL;
-
-			// Clear Group List
-			//freeGroupsRecursive(networks);
-
-			// Delete Group Reference
-			//networks = NULL;
-
-			// Multithreading Unlock
-			//peerlock.unlock();
 		}
 		
 		// Notify Event Handlers (even if we weren't connected, not doing this will freeze games like God Eater, which expect this behaviour)
@@ -1156,6 +1170,7 @@ int sceNetAdhocctlTerm() {
 			if(ctlThread.joinable()){
 				ctlThread.join();
 			}
+			AmultiosNetAdhocctlTerm();
 		}else{
 			friendFinderRunning = false;
 			if (friendFinderThread.joinable()) {
