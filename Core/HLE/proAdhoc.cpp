@@ -1468,6 +1468,7 @@ int initNetwork(SceNetAdhocctlAdhocId *adhoc_id){
 
 bool isBroadcastMAC(const SceNetEtherAddr * addr) {
 	// Broadcast MAC
+	//NOTICE_LOG(AMULTIOS,"MAC Checking %02x%02x%02x%02x%02x%02x",addr->data[0],addr->data[1],addr->data[2],addr->data[3],addr->data[4],addr->data[5]);
 	if (memcmp(addr->data, "\xFF\xFF\xFF\xFF\xFF\xFF", ETHER_ADDR_LEN) == 0) return true;
 	// Normal MAC
 	return false;

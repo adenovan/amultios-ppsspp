@@ -1803,7 +1803,7 @@ if(USE_DISCORD AND NOT IOS)
 endif()
 
 include_directories(ext/paho-mqtt-c/src)
-target_link_libraries(${CoreLibName} paho-mqtt3c)
+target_link_libraries(${CoreLibName} paho-mqtt3a)
 
 setup_target_project(${CoreLibName} Core)
 

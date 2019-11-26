@@ -90,6 +90,15 @@ void __NetAdhocShutdown() {
 		kernelMemory.Free(dummyThreadHackAddr);
 		dummyThreadHackAddr = 0;
 	}
+
+	if(g_Config.bAmultiosMode){
+		ctlRunning = false;
+		if (ctlThread.joinable()) {
+			ctlThread.join();
+		}
+		ptpRunning = false;
+		pdpRunning = false;
+	}
 }
 
 void __NetAdhocDoState(PointerWrap &p) {
@@ -140,6 +149,9 @@ static int getBlockingFlag(int id) {
 }
 
 void __NetAdhocInit() {
+	ctlRunning = false;
+	ptpRunning = false;
+	pdpRunning = false;
 	friendFinderRunning = false;
 	netAdhocInited = false;
 	netAdhocctlInited = false;
@@ -157,6 +169,13 @@ void __NetAdhocInit() {
 	if (g_Config.bEnableWlan && g_Config.bEnableAdhocServer) {
 		adhocServerRunning = true;
 		adhocServerThread = std::thread(proAdhocServerThread, SERVER_PORT);
+	}
+
+	if(g_Config.bAmultiosMode){
+		ctlRunning = true;
+		ptpRunning = true;
+		pdpRunning = true;
+		ctlThread = std::thread(__AMULTIOS_CTL_INIT);
 	}
 }
 
@@ -180,10 +199,7 @@ u32 sceNetAdhocInit() {
 			__KernelStartThread(threadAdhocID, 0, 0);
 		}
 
-		if(g_Config.bAmultiosMode){
-			AmultiosNetAdhocInit();
-		}
-
+		AmultiosNetAdhocInit();
 		// Return Success
 		return 0;
 	}
@@ -198,13 +214,9 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr) {
 		return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
 	
 	if(g_Config.bAmultiosMode){
-		if(AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MQTTCLIENT_SUCCESS){
-				if(!ctlRunning){
-					ctlRunning = true;
-					ctlThread = std::thread(ctl_run);
-				}
+		if(AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MQTTASYNC_SUCCESS){
 				networkInited = true;
-		}else{
+		}else{ 
 			networkInited = false;
 		}
 		netAdhocctlInited = true; 
@@ -262,9 +274,9 @@ static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 u
 		return -1;
 	}
 
-	if(g_Config.bAmultiosMode){
-		return AmultiosNetAdhocPdpCreate(mac,port,bufferSize,unknown);
-	}
+	// if(g_Config.bAmultiosMode){
+	// 	return AmultiosNetAdhocPdpCreate(mac,port,bufferSize,unknown);
+	// }
 
 	int retval = ERROR_NET_ADHOC_NOT_INITIALIZED;
 	// Library is initialized
@@ -415,9 +427,9 @@ static int sceNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int
 		return -1;
 	}
 
-	if(g_Config.bAmultiosMode){
-		return AmultiosNetAdhocPdpSend(id,mac,port,data,len,timeout,flag);
-	}
+	// if(g_Config.bAmultiosMode){
+	// 	return AmultiosNetAdhocPdpSend(id,mac,port,data,len,timeout,flag);
+	// }
 
 	SceNetEtherAddr * daddr = (SceNetEtherAddr *)mac;
 	uint16_t dport = (uint16_t)port;
@@ -590,6 +602,10 @@ static int sceNetAdhocPdpRecv(int id, void *addr, void * port, void *buf, void *
 	if (!g_Config.bEnableWlan) {
 		return -1;
 	}
+
+	// if(g_Config.bAmultiosMode){
+	// 	return AmultiosNetAdhocPdpRecv(id,addr,port,buf,dataLength,timeout,flag);
+	// }
 
 	SceNetEtherAddr *saddr = (SceNetEtherAddr *)addr;
 	uint16_t * sport = (uint16_t *)port; //Looking at Quake3 sourcecode (net_adhoc.c) this is an "int" (32bit) but changing here to 32bit will cause FF-Type0 to see duplicated Host (thinking it was from a different host)
@@ -829,6 +845,10 @@ static int sceNetAdhocPdpDelete(int id, int unknown) {
 		return 0;
 	}
 	*/
+
+	// if(g_Config.bAmultiosMode){
+	// 	return AmultiosNetAdhocPdpDelete(id,unknown);
+	// }
 
 	// Library is initialized
 	if (netAdhocInited) {
@@ -1166,10 +1186,6 @@ int sceNetAdhocctlTerm() {
 		netAdhocctlInited = false;
 
 		if(g_Config.bAmultiosMode){
-			ctlRunning = false;
-			if(ctlThread.joinable()){
-				ctlThread.join();
-			}
 			AmultiosNetAdhocctlTerm();
 		}else{
 			friendFinderRunning = false;

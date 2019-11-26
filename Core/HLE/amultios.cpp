@@ -19,29 +19,67 @@
 #include "i18n/i18n.h"
 #include "base/timeutil.h"
 #include "amultios.h"
+#include "util/text/parsers.h"
 
 #define ADDRESS "tcp://amultios.net:1883"
-#define TIMEOUT 1000L
 
-char ctl_self_topic[28];
-char *ptr_self_topic = nullptr;
-bool clientConnected = false;
-bool ctlRunning = false;
 std::thread ctlThread;
-MQTTClient clientSocket;
-MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
-MQTTClient_willOptions ctl_will = MQTTClient_willOptions_initializer;
+AmultiosMqtt *ctl_mqtt = nullptr;
 
-volatile MQTTClient_deliveryToken deliveredtoken;
+std::thread pdpThread;
+AmultiosMqtt *pdp_mqtt = nullptr;
+std::mutex pdp_queue_mutex;
+std::vector<std::string> pdp_topic;
+std::vector<PDPMessage> pdp_queue;
+
+std::thread ptpThread;
+AmultiosMqtt *ptp_mqtt = nullptr;
+std::mutex ptp_queue_mutex;
+std::vector<PDPMessage> ptp_queue;
+
+bool ctlRunning = false;
+bool pdpRunning = false;
+bool ptpRunning = false;
+
+volatile MQTTAsync_token token;
+
+void getMac(SceNetEtherAddr *addr, std::string const &s)
+{
+    // Read MAC Address from config
+    uint8_t mac[ETHER_ADDR_LEN] = {0};
+    if (!ParseMacAddress(s.c_str(), mac))
+    {
+        ERROR_LOG(SCENET, "Error parsing mac address %s", s.c_str());
+    }
+    memcpy(addr, mac, ETHER_ADDR_LEN);
+}
+
+std::vector<std::string> explode(std::string const &s, char delim)
+{
+    std::vector<std::string> result;
+    std::istringstream iss(s);
+
+    for (std::string token; std::getline(iss, token, delim);)
+    {
+        result.push_back(std::move(token));
+    }
+
+    return result;
+}
+
+std::string getMacString(SceNetEtherAddr *addr)
+{
+    char macAddr[18];
+    snprintf(macAddr, sizeof(macAddr), "%02x:%02x:%02x:%02x:%02x:%02x", addr->data[0], addr->data[1], addr->data[2], addr->data[3], addr->data[4], addr->data[5]);
+    return std::string(macAddr);
+}
 
 void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet)
 {
     if (packet == NULL)
         return;
-
     // Multithreading Lock
     std::lock_guard<std::recursive_mutex> guard(peerlock);
-
     SceNetAdhocctlPeerInfo *peer = findFriend(&packet->mac);
     // Already existed
     if (peer != NULL)
@@ -156,244 +194,355 @@ bool macInNetwork(SceNetEtherAddr *mac)
     return false;
 }
 
-void delivered(void *context, MQTTClient_deliveryToken dt)
+int publish(AmultiosMqtt * amultios_mqtt, const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
 {
-    //INFO_LOG(AMULTIOS, "Message with token value %d delivery confirmed\n", dt);
-    deliveredtoken = dt;
-}
-
-void connlost(void *context, char *cause)
-{
-    INFO_LOG(AMULTIOS, "MQTT Connection Lost cause %s", cause);
-}
-
-int publish(const char *topic, void *payload, size_t size, int qos)
-{
-    int success = MQTTCLIENT_FAILURE;
-    if (clientConnected)
+    int rc = MQTTASYNC_FAILURE;
+    if (amultios_mqtt != nullptr && amultios_mqtt->connected)
     {
-        MQTTClient_message msg = MQTTClient_message_initializer;
-        MQTTClient_deliveryToken token;
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        MQTTAsync_message msg = MQTTAsync_message_initializer;
         msg.payload = payload;
         msg.payloadlen = (int)size;
         msg.qos = qos;
         msg.retained = 0;
-        success = MQTTClient_publishMessage(clientSocket, topic, &msg, &token);
-        if (qos > 0)
-        {
-            MQTTClient_waitForCompletion(clientSocket, token, TIMEOUT);
-        }
-        //NOTICE_LOG(AMULTIOS, "Message %s with delivery token %d delivered\n", (char *)payload, token);
-    }
-    return success;
-}
 
-int publish_wait(const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
-{
-    int success = MQTTCLIENT_FAILURE;
-    if (clientConnected)
-    {
-        MQTTClient_message msg = MQTTClient_message_initializer;
-        MQTTClient_deliveryToken token;
-        msg.payload = payload;
-        msg.payloadlen = (int)size;
-        msg.qos = qos;
-        msg.retained = 0;
-        success = MQTTClient_publishMessage(clientSocket, topic, &msg, &token);
+        amultios_mqtt->pub_topic_latest = topic;
+        amultios_mqtt->pub_payload_len_latest = size;
+        amultios_mqtt->qos_latest = qos;
+
+        opts.context = amultios_mqtt;
+        opts.onSuccess = publish_success;
+        opts.onFailure = publish_failure;
+        rc = MQTTAsync_sendMessage(amultios_mqtt->client, topic, &msg, &opts);
         if (timeout > 0)
         {
-            MQTTClient_waitForCompletion(clientSocket, token, timeout);
+            rc = MQTTAsync_waitForCompletion(amultios_mqtt->client, token, timeout);
         }
-        //NOTICE_LOG(AMULTIOS, "Message %s with delivery token %d delivered\n", (char *)payload, token);
     }
-    return success;
+    return rc;
 }
 
-int subscribe(const char *topic, int qos)
+int subscribe(AmultiosMqtt * amultios_mqtt, const char *topic, int qos)
 {
-    if (clientConnected)
+    if (amultios_mqtt != nullptr && amultios_mqtt->connected)
     {
-        return MQTTClient_subscribe(clientSocket, topic, qos);
+        NOTICE_LOG(AMULTIOS, "Amultios_mqtt subscribe to topic:[%s] qos:[%d]", topic, qos);
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        amultios_mqtt->sub_topic_latest = topic;
+        amultios_mqtt->qos_latest = qos;
+        opts.context = amultios_mqtt;
+        opts.onSuccess = subscribe_success;
+        opts.onFailure = subscribe_failure;
+        return MQTTAsync_subscribe(amultios_mqtt->client, topic, qos, &opts);
     }
-    return -1;
+    return MQTTASYNC_FAILURE;
 }
 
-int unsubscribe(const char *topic, int qos)
+int unsubscribe(AmultiosMqtt *amultios_mqtt, const char *topic)
 {
-    if (clientConnected)
+    if (amultios_mqtt != nullptr && amultios_mqtt->connected)
     {
-        return MQTTClient_unsubscribe(clientSocket, topic);
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        opts.context = amultios_mqtt;
+        amultios_mqtt->sub_topic_latest = topic;
+        opts.onSuccess = unsubscribe_success;
+        opts.onFailure = unsubscribe_failure;
+        return MQTTAsync_unsubscribe(amultios_mqtt->client, topic, &opts);
     }
-    return -1;
+    return MQTTASYNC_FAILURE;
 }
 
-int ctl_run()
+void ctl_connect_success(void *context, MQTTAsync_successData *response)
 {
-    NOTICE_LOG(AMULTIOS, "Begin of ctl thread");
-    int rc = 0;
-    int topiclen = 28;
-    while (ctlRunning && clientConnected)
+    NOTICE_LOG(AMULTIOS, "CTL_MQTT CONNECTION Success");
+    ctl_mqtt->connected = true;
+};
+
+void ctl_connect_failure(void *context, MQTTAsync_failureData *response)
+{
+    NOTICE_LOG(AMULTIOS, "CTL_MQTT CONNECTION DISCONNECTED");
+    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+    ctl_mqtt->connected = false;
+};
+
+void ctl_disconnect_success(void *context, MQTTAsync_successData *response)
+{
+    NOTICE_LOG(AMULTIOS, "CTL_MQTT CONNECTION DISCONNECTED");
+    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+    ctl_mqtt->connected = false;
+};
+
+void ctl_disconnect_failure(void *context, MQTTAsync_failureData *response)
+{
+    NOTICE_LOG(AMULTIOS, "CTL_MQTT CONNECTION DISCONNECTED");
+    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+    ctl_mqtt->connected = false;
+};
+
+void ctl_connect_lost(void * context, char *cause)
+{
+    NOTICE_LOG(AMULTIOS, "CTL_MQTT CONNECTION LOST %s", cause);
+    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+    ctl_mqtt->connected = false;
+};
+
+int ctl_message_arrived(void * context, char * topicName, int topicLen, MQTTAsync_message *message)
+{
+    if (message)
     {
-        char *topicName = ctl_self_topic;
-        MQTTClient_message *message = NULL;
-        rc = MQTTClient_receive(clientSocket, &topicName, &topiclen, &message, TIMEOUT);
-        if (message)
+        char *payload_ptr = static_cast<char *>(message->payload);
+        if (payload_ptr[0] == OPCODE_CONNECT_BSSID)
         {
-            char *payload_ptr = static_cast<char *>(message->payload);
-            if (payload_ptr[0] == OPCODE_CONNECT_BSSID)
+            NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] Incoming Opcode connect BSSID");
+            // Cast Packet
+            SceNetAdhocctlConnectBSSIDPacketS2C *packet = (SceNetAdhocctlConnectBSSIDPacketS2C *)payload_ptr;
+            // Update BSSID
+            parameter.bssid.mac_addr = packet->mac;
+            // Change State
+            threadStatus = ADHOCCTL_STATE_CONNECTED;
+            // Notify Event Handlers
+            notifyAdhocctlHandlers(ADHOCCTL_EVENT_CONNECT, 0);
+        }
+        else if (payload_ptr[0] == OPCODE_SCAN)
+        {
+            // Log Incoming Network Information
+            INFO_LOG(SCENET, "[CTL_NETWORK] Incoming Group Information...");
+            // Cast Packet
+            SceNetAdhocctlScanPacketS2C *packet = (SceNetAdhocctlScanPacketS2C *)payload_ptr;
+
+            // Multithreading Lock
+            peerlock.lock();
+
+            // Should only add non-existing group (or replace an existing group) to prevent Ford Street Racing from showing a strange game session list
+            SceNetAdhocctlScanInfo *group = findGroup(&packet->mac);
+
+            if (group != NULL)
             {
-                NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] Incoming Opcode connect BSSID");
-                // Cast Packet
-                SceNetAdhocctlConnectBSSIDPacketS2C *packet = (SceNetAdhocctlConnectBSSIDPacketS2C *)payload_ptr;
-                // Update BSSID
-                parameter.bssid.mac_addr = packet->mac;
-                // Change State
-                threadStatus = ADHOCCTL_STATE_CONNECTED;
-                // Notify Event Handlers
-                notifyAdhocctlHandlers(ADHOCCTL_EVENT_CONNECT, 0);
+                // Copy Group Name
+                group->group_name = packet->group;
+
+                // Set Group Host
+                group->bssid.mac_addr = packet->mac;
             }
-            else if (payload_ptr[0] == OPCODE_SCAN)
+            else
             {
-                // Log Incoming Network Information
-                INFO_LOG(SCENET, "[CTL_NETWORK] Incoming Group Information...");
-                // Cast Packet
-                SceNetAdhocctlScanPacketS2C *packet = (SceNetAdhocctlScanPacketS2C *)payload_ptr;
+                // Allocate Structure Data
+                SceNetAdhocctlScanInfo *group = (SceNetAdhocctlScanInfo *)malloc(sizeof(SceNetAdhocctlScanInfo));
 
-                // Multithreading Lock
-                peerlock.lock();
-
-                // Should only add non-existing group (or replace an existing group) to prevent Ford Street Racing from showing a strange game session list
-                SceNetAdhocctlScanInfo *group = findGroup(&packet->mac);
-
+                // Allocated Structure Data
                 if (group != NULL)
                 {
+                    // Clear Memory, should this be done only when allocating new group?
+                    memset(group, 0, sizeof(SceNetAdhocctlScanInfo));
+
+                    // Link to existing Groups
+                    group->next = newnetworks;
+
                     // Copy Group Name
                     group->group_name = packet->group;
 
                     // Set Group Host
                     group->bssid.mac_addr = packet->mac;
+
+                    // Link into Group List
+                    newnetworks = group;
                 }
-                else
-                {
-                    // Allocate Structure Data
-                    SceNetAdhocctlScanInfo *group = (SceNetAdhocctlScanInfo *)malloc(sizeof(SceNetAdhocctlScanInfo));
-
-                    // Allocated Structure Data
-                    if (group != NULL)
-                    {
-                        // Clear Memory, should this be done only when allocating new group?
-                        memset(group, 0, sizeof(SceNetAdhocctlScanInfo));
-
-                        // Link to existing Groups
-                        group->next = newnetworks;
-
-                        // Copy Group Name
-                        group->group_name = packet->group;
-
-                        // Set Group Host
-                        group->bssid.mac_addr = packet->mac;
-
-                        // Link into Group List
-                        newnetworks = group;
-                    }
-                }
-
-                // Multithreading Unlock
-                peerlock.unlock();
             }
-            else if (payload_ptr[0] == OPCODE_SCAN_COMPLETE)
-            {
-                NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] Incoming scan complete packet");
 
-                // Reset current networks to prevent leaving host to be listed again
-                peerlock.lock();
-                freeGroupsRecursive(networks);
-                networks = newnetworks;
-                newnetworks = NULL;
-                peerlock.unlock();
-
-                // Change State
-                threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-
-                // Notify Event Handlers
-                notifyAdhocctlHandlers(ADHOCCTL_EVENT_SCAN, 0);
-            }
-            else if (payload_ptr[0] == OPCODE_CONNECT)
-            {
-                NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] opcode Connect");
-                AmultiosNetAdhocctlConnectPacketS2C *packet = (AmultiosNetAdhocctlConnectPacketS2C *)payload_ptr;
-                addAmultiosPeer(packet);
-            }
-            else if (payload_ptr[0] == OPCODE_DISCONNECT)
-            {
-                NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] opcode disconnect");
-                AmultiosNetAdhocctlDisconnectPacketS2C *packet = (AmultiosNetAdhocctlDisconnectPacketS2C *)payload_ptr;
-                deleteAmultiosPeer(&packet->mac);
-            }
-            else if (payload_ptr[0] == OPCODE_AMULTIOS_LOGOUT)
-            {
-
-                NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] Rejected on Network");
-                threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-            }
-            MQTTClient_freeMessage(&message);
-            MQTTClient_free(topicName);
+            // Multithreading Unlock
+            peerlock.unlock();
         }
+        else if (payload_ptr[0] == OPCODE_SCAN_COMPLETE)
+        {
+            NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] Incoming scan complete packet");
+
+            // Reset current networks to prevent leaving host to be listed again
+            peerlock.lock();
+            freeGroupsRecursive(networks);
+            networks = newnetworks;
+            newnetworks = NULL;
+            peerlock.unlock();
+
+            // Change State
+            threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+
+            // Notify Event Handlers
+            notifyAdhocctlHandlers(ADHOCCTL_EVENT_SCAN, 0);
+        }
+        else if (payload_ptr[0] == OPCODE_CONNECT)
+        {
+            NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] opcode Connect");
+            AmultiosNetAdhocctlConnectPacketS2C *packet = (AmultiosNetAdhocctlConnectPacketS2C *)payload_ptr;
+            addAmultiosPeer(packet);
+        }
+        else if (payload_ptr[0] == OPCODE_DISCONNECT)
+        {
+            NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] opcode disconnect");
+            AmultiosNetAdhocctlDisconnectPacketS2C *packet = (AmultiosNetAdhocctlDisconnectPacketS2C *)payload_ptr;
+            deleteAmultiosPeer(&packet->mac);
+        }
+        else if (payload_ptr[0] == OPCODE_AMULTIOS_LOGOUT)
+        {
+
+            NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] Rejected on Network");
+            threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        }
+        MQTTAsync_freeMessage(&message);
+        MQTTAsync_free(topicName);
+    }
+    return 1;
+};
+
+void pdp_connect_success(void *context, MQTTAsync_successData *response);
+void pdp_connect_failure(void *context, char *cause);
+void pdp_disconnect(void *context, MQTTAsync_successData *response);
+void pdp_connect_lost(void *context, char *cause);
+int pdp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message);
+
+void ptp_connect_success(void * context, MQTTAsync_successData *response);
+void ptp_connect_failure(void * context, char *cause);
+void ptp_disconnect(void * context, MQTTAsync_successData *response);
+void ptp_connect_lost(void * context, char *cause);
+int ptp_message_arrived(void * context, char *topicName, int topicLen, MQTTAsync_message *message);
+
+void publish_success(void * context, MQTTAsync_successData *response)
+{
+
+    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
+    NOTICE_LOG(AMULTIOS, "Publish Success %s", response->alt.pub.destinationName);
+};
+
+void publish_failure(void *context, MQTTAsync_failureData *response)
+{
+    ERROR_LOG(AMULTIOS, "Publish Failure %d", response->code);
+};
+
+void subscribe_success(void *context, MQTTAsync_successData *response)
+{
+    NOTICE_LOG(AMULTIOS, "Subscribe Success %s", response->alt.pub.destinationName);
+};
+
+void subscribe_failure(void *context, MQTTAsync_failureData *response)
+{
+    ERROR_LOG(AMULTIOS, "Subscribe Failure %d", response->code);
+};
+
+void unsubscribe_success(void *context, MQTTAsync_successData *response)
+{
+    NOTICE_LOG(AMULTIOS, "Unsubscribe Success %s", response->alt.pub.destinationName);
+};
+
+void unsubscribe_failure(void *context, MQTTAsync_failureData *response)
+{
+    ERROR_LOG(AMULTIOS, "Unsubscribe Failure %d", response->code);
+};
+
+int __AMULTIOS_CTL_INIT()
+{
+    int rc = MQTTASYNC_FAILURE;
+    if (ctl_mqtt == nullptr)
+    {
+        ctl_mqtt = new AmultiosMqtt();
+        ctl_mqtt->subscribed = false;
+        ctl_mqtt->timeout = 60000L;
+        MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
+        MQTTAsync_willOptions will = MQTTAsync_willOptions_initializer;
+
+        ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName;
+        rc = MQTTAsync_create(&ctl_mqtt->client, ADDRESS, ctl_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
+        MQTTAsync_setCallbacks(ctl_mqtt->client, ctl_mqtt, ctl_connect_lost, ctl_message_arrived, NULL);
+
+        opts.context = ctl_mqtt;
+        opts.keepAliveInterval = 10;
+        opts.retryInterval = 0;
+        opts.cleansession = 1;
+        opts.connectTimeout = 20;
+        opts.onSuccess = ctl_connect_success;
+        opts.onFailure = ctl_connect_failure;
+
+        // initialize will message
+        AmultiosNetAdhocctlDisconnectPacketS2C packet;
+        packet.base.opcode = OPCODE_AMULTIOS_LOGOUT;
+        SceNetEtherAddr addres;
+        getLocalMac(&addres);
+        packet.mac = addres;
+
+        will.message = (char *)&packet;
+        will.topicName = "SceNetAdhocctl";
+        will.qos = 2;
+        will.retained = 0;
+        opts.will = &will;
+
+        if ((rc = MQTTAsync_connect(ctl_mqtt->client, &opts)) != MQTTASYNC_SUCCESS)
+        {
+            ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
+            return rc;
+        }
+        ctl_mqtt->connected = true;
+        ctl_mqtt->port = 27312;
+        ctl_mqtt->sub_topic = g_Config.sMACAddress + "/SceNetAdhocctl";
+        ctl_mqtt->pub_topic = "SceNetAdhocctl";
+
+        while (!ctl_mqtt->subscribed)
+        {
+            sleep_ms(1);
+        }
+
+        while (ctlRunning)
+            ;
     }
 
-    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-    NOTICE_LOG(AMULTIOS, "End of ctl thread");
-    return 0;
+    NOTICE_LOG(AMULTIOS, "CTL_MQTT FINISHED");
+    return rc;
+}
+
+int __AMULTIOS_CTL_SHUTDOWN()
+{
+    int rc = MQTTASYNC_SUCCESS;
+    if (ctl_mqtt != nullptr)
+    {
+        MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
+        opts.context = ctl_mqtt;
+        opts.timeout = 1;
+        opts.onSuccess = ctl_disconnect_success;
+        opts.onFailure = ctl_disconnect_failure;
+        int rc = MQTTAsync_disconnect(ctl_mqtt->client, &opts);
+        MQTTAsync_destroy(&ctl_mqtt->client);
+        ctl_mqtt->connected = false;
+        delete ctl_mqtt;
+        ctl_mqtt = nullptr;
+        NOTICE_LOG(AMULTIOS, "ctl_mqtt client disconnected %d", rc);
+    }
+    return rc;
 }
 
 int AmultiosNetAdhocInit()
 {
-
-    int rc;
-    MQTTClient_create(&clientSocket, ADDRESS, g_Config.sNickName.c_str(), MQTTCLIENT_PERSISTENCE_DEFAULT, NULL);
-    conn_opts.keepAliveInterval = 20;
-    conn_opts.cleansession = 1;
-
-    AmultiosNetAdhocctlDisconnectPacketS2C packet;
-    packet.base.opcode = OPCODE_AMULTIOS_LOGOUT;
-    SceNetEtherAddr addres;
-    getLocalMac(&addres);
-    packet.mac = addres;
-
-    ctl_will.message = (char *)&packet;
-    ctl_will.topicName = "SceNetAdhocctl";
-    ctl_will.qos = 2;
-    ctl_will.retained = 0;
-    conn_opts.will = &ctl_will;
-    // if ((rc = MQTTClient_setCallbacks(clientSocket, NULL, connlost, msgarrvd, delivered)) != MQTTCLIENT_SUCCESS)
-    // {
-    //     ERROR_LOG(AMULTIOS, "Failed to set callback, return code %d\n", rc);
-    // };
-
-    if ((rc = MQTTClient_connect(clientSocket, &conn_opts)) != MQTTCLIENT_SUCCESS)
+    int rc = MQTTASYNC_FAILURE;
+    if (ctl_mqtt == nullptr)
     {
-        ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
-        clientConnected = false;
+        return rc;
     }
-    clientConnected = true;
-    snprintf(ctl_self_topic, sizeof(ctl_self_topic), "%02x%02x%02x%02x%02x%02x%s",
-             addres.data[0], addres.data[1], addres.data[2], addres.data[3], addres.data[4], addres.data[5], "/SceNetAdhocctl");
-    NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] MQTT Subscribe to %s", ctl_self_topic);
-    subscribe(ctl_self_topic, 2);
-    NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] Mqtt client connected , code %d", rc);
+    rc = subscribe(ctl_mqtt, ctl_mqtt->sub_topic.c_str(), 2);
+    NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] MQTT Subscribe to %s", ctl_mqtt->sub_topic.c_str());
+    ctl_mqtt->subscribed = rc == MQTTASYNC_SUCCESS;
     return rc;
 }
 
 int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
 {
-    SceNetAdhocctlLoginPacketC2S packet;
-    packet.base.opcode = OPCODE_LOGIN;
-    SceNetEtherAddr addres;
-    getLocalMac(&addres);
-    packet.mac = addres;
-    strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
-    memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
-    return publish("SceNetAdhocctl", &packet, sizeof(packet), 2);
+    if (ctl_mqtt != nullptr && ctl_mqtt->connected)
+    {
+        SceNetAdhocctlLoginPacketC2S packet;
+        packet.base.opcode = OPCODE_LOGIN;
+        SceNetEtherAddr addres;
+        getLocalMac(&addres);
+        packet.mac = addres;
+        strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
+        memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
+        return publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+    }
+    return MQTTASYNC_FAILURE;
 }
 
 int AmultiosNetAdhocctlCreate(const char *groupName)
@@ -433,29 +582,19 @@ int AmultiosNetAdhocctlCreate(const char *groupName)
                 packet.mac = addres;
                 // Acquire Network Lock
 
-                int iResult = publish("SceNetAdhocctl", &packet, sizeof(packet), 2);
+                int iResult;
 
-                if (iResult != MQTTCLIENT_SUCCESS)
+                if (ctl_mqtt != nullptr && ctl_mqtt->connected)
+                {
+                    iResult = publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+                }
+
+                if (iResult != MQTTASYNC_SUCCESS)
                 {
                     ERROR_LOG(AMULTIOS, "Mqtt Error when sending reason %d", iResult);
                     threadStatus = ADHOCCTL_STATE_DISCONNECTED;
                 }
 
-                // Free Network Lock
-
-                // Set HUD Connection Status
-                //setConnectionStatus(1);
-
-                // Wait for Status to be connected to prevent Ford Street Racing from Failed to create game session
-                // if (friendFinderRunning) {
-                // 	int cnt = 0;
-                // 	while ((threadStatus != ADHOCCTL_STATE_CONNECTED) && (cnt < 5000)) {
-                // 		sleep_ms(1);
-                // 		cnt++;
-                // 	}
-                // }
-
-                // Return Success
                 return 0;
             }
 
@@ -473,7 +612,7 @@ int AmultiosNetAdhocctlCreate(const char *groupName)
 int AmultiosNetAdhocctlScan()
 {
     // Library initialized
-    if (netAdhocctlInited && clientConnected)
+    if (netAdhocctlInited)
     {
         // Not connected
         if (threadStatus == ADHOCCTL_STATE_DISCONNECTED)
@@ -494,12 +633,16 @@ int AmultiosNetAdhocctlScan()
             getLocalMac(&addres);
             packet.mac = addres;
 
-            // Send Scan Request Packet, may failed with socket error 10054/10053 if someone else with the same IP already connected to AdHoc Server (the server might need to be modified to differentiate MAC instead of IP)
-            int iResult = publish("SceNetAdhocctl", &packet, sizeof(packet), 2);
+            int iResult = MQTTASYNC_FAILURE;
 
-            if (iResult != MQTTCLIENT_SUCCESS)
+            if (ctl_mqtt != nullptr && ctl_mqtt->connected)
             {
-                ERROR_LOG(AMULTIOS, "Mqtt Error when sending scan reason %d", iResult);
+                iResult = publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+            }
+
+            if (iResult != MQTTASYNC_SUCCESS)
+            {
+                ERROR_LOG(AMULTIOS, "ctl_mqtt Error when sending scan reason %d", iResult);
                 threadStatus = ADHOCCTL_STATE_DISCONNECTED;
                 //if (error == ECONNABORTED || error == ECONNRESET || error == ENOTCONN) return ERROR_NET_ADHOCCTL_NOT_INITIALIZED; // A case where it need to reconnect to AdhocServer
                 return ERROR_NET_ADHOCCTL_DISCONNECTED; // ERROR_NET_ADHOCCTL_BUSY
@@ -518,9 +661,11 @@ int AmultiosNetAdhocctlScan()
 
 int AmultiosNetAdhocctlDisconnect()
 {
+
     if (threadStatus != ADHOCCTL_STATE_DISCONNECTED)
     { // (threadStatus == ADHOCCTL_STATE_CONNECTED)
         // Clear Network Name
+
         memset(&parameter.group_name, 0, sizeof(parameter.group_name));
 
         // Set Disconnected State
@@ -538,46 +683,49 @@ int AmultiosNetAdhocctlDisconnect()
         getLocalMac(&addres);
         packet.mac = addres;
 
-        // Send Scan Request Packet, may failed with socket error 10054/10053 if someone else with the same IP already connected to AdHoc Server (the server might need to be modified to differentiate MAC instead of IP)
-        int iResult = publish("SceNetAdhocctl", &packet, sizeof(packet), 2);
-
+        int iResult;
+        if (ctl_mqtt != nullptr && ctl_mqtt->connected)
+        {
+            iResult = publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+        }
         // Clear Peer List
         freeFriendsRecursive(friends);
-        INFO_LOG(SCENET, "Cleared Peer List.");
+        INFO_LOG(AMULTIOS, "Cleared Peer List.");
 
         // Delete Peer Reference
         friends = NULL;
     }
+    return 0;
 }
 
 int AmultiosNetAdhocctlTerm()
 {
-    if (clientConnected)
+    int rc = MQTTASYNC_FAILURE;
+    if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
         AmultiosNetAdhocctlDisconnectPacketS2C packet;
         packet.base.opcode = OPCODE_AMULTIOS_LOGOUT;
         SceNetEtherAddr addres;
         getLocalMac(&addres);
         packet.mac = addres;
-        int iResult = publish("SceNetAdhocctl", &packet, sizeof(packet), 2);
-        return iResult;
+        rc = publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+        return rc;
     }
 
-    return -1;
+    return rc;
 }
 
 int AmultiosNetAdhocTerm()
 {
-    if (clientConnected)
-    {
+    int rc;
 
-        MQTTClient_disconnect(clientSocket, 10000);
-        MQTTClient_destroy(&clientSocket);
-        clientConnected = false;
-        NOTICE_LOG(AMULTIOS, "Mqtt client Disconnected");
-        return 0;
+    if (ctl_mqtt != nullptr && ctl_mqtt->connected)
+    {
+        rc = unsubscribe(ctl_mqtt, ctl_mqtt->sub_topic.c_str());
+        return rc;
     }
-    return -1;
+
+    return rc;
 }
 
 int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unknown)
@@ -593,18 +741,14 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
             if (isLocalMAC(saddr))
             {
 
+                int rc;
+                std::string sub_topic = "PDP/" + getMacString(saddr) + "/" + std::to_string(port) + "/#";
 
-                char udp_topic[26];
-                snprintf(udp_topic, sizeof(udp_topic), "PDP/%02x%02x%02x%02x%02x%02x/%d/#",
-                         saddr->data[0], saddr->data[1], saddr->data[2], saddr->data[3], saddr->data[4], saddr->data[5], port);
-
-                int rc = subscribe(udp_topic, 0);
                 // Valid Socket produced
-                if (rc != MQTTCLIENT_FAILURE)
+                if ((rc = subscribe(pdp_mqtt, sub_topic.c_str(), 0) == MQTTASYNC_SUCCESS))
                 {
                     // Change socket buffer size when necessary
                     // Allocate Memory for Internal Data
-
                     SceNetAdhocPdpStat *internal = (SceNetAdhocPdpStat *)malloc(sizeof(SceNetAdhocPdpStat));
 
                     // Allocated Memory
@@ -617,13 +761,13 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                         int i = 0;
                         for (; i < 255; i++)
                         {
-                            if (pdp[i] == NULL)
-                            {
-                                break;
-                            }
-                            else if (pdp[i] != NULL && pdp[i]->lport == port)
+                            if (pdp[i] != NULL && pdp[i]->lport == port)
                             {
                                 retval = ERROR_NET_ADHOC_PORT_IN_USE;
+                            }
+                            else if (pdp[i] == NULL)
+                            {
+                                break;
                             }
                         }
 
@@ -631,15 +775,15 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                         if (i < 255 && retval != ERROR_NET_ADHOC_PORT_IN_USE)
                         {
                             // Fill in Data
-                            internal->id = i;
+                            internal->id = rc;
                             internal->laddr = *saddr;
                             internal->lport = port; //should use the port given to the socket (in case it's UNUSED_PORT port) isn't?
                             internal->rcv_sb_cc = bufferSize;
 
                             // Link Socket to Translator ID
                             pdp[i] = internal;
+                            pdp_topic.at(i) = sub_topic;
 
-                            NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] Subscribe to %s", udp_topic);
                             // Success
                             return i + 1;
                         }
@@ -648,8 +792,10 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                         free(internal);
                         return retval;
                     }
+                    free(internal);
                 }
-                // Default to No-Space Error
+
+                ERROR_LOG(AMULTIOS, "PDP_MQTT CREATE FAILED %d , topic %s ", rc, sub_topic.c_str());
                 return ERROR_NET_NO_SPACE;
             }
         }
@@ -661,6 +807,7 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
 
 int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int len, int timeout, int flag)
 {
+    //INFO_LOG(AMULTIOS, "AmultiosNetAdhocPdpSend(%i, %s, %i, %p, %i, %i, %i)", id, mac, port, data, len, timeout, flag);
     SceNetEtherAddr *daddr = (SceNetEtherAddr *)mac;
     uint16_t dport = (uint16_t)port;
 
@@ -698,27 +845,24 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                     // Acquire Network Lock
                                     //_acquireNetworkLock();
                                     int rc;
-                                    char pdp_single_topic[50];
-
-                                    snprintf(pdp_single_topic, sizeof(pdp_single_topic), "PDP/%02x%02x%02x%02x%02x%02x/%d/%02x%02x%02x%02x%02x%02x/%d",
-                                             daddr->data[0], daddr->data[1], daddr->data[2], daddr->data[3], daddr->data[4], daddr->data[5], dport, socket->laddr.data[0], socket->laddr.data[1], socket->laddr.data[2], socket->laddr.data[3], socket->laddr.data[4], socket->laddr.data[5], socket->lport);
-
-                                    NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic);
+                                    SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
+                                    std::string pdp_single_topic = "PDP/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                    NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic.c_str());
 
                                     if (flag)
                                     {
-                                        rc = publish(pdp_single_topic, data, len, 0);
+                                        rc = publish(pdp_mqtt, pdp_single_topic.c_str(), data, len, 0, 0);
 
-                                        if (rc == MQTTCLIENT_SUCCESS)
+                                        if (rc == MQTTASYNC_SUCCESS)
                                         {
                                             return 0;
                                         }
                                         return ERROR_NET_ADHOC_WOULD_BLOCK;
                                     }
 
-                                    rc = publish_wait(pdp_single_topic, data, len, 1, timeout);
+                                    rc = publish(pdp_mqtt, pdp_single_topic.c_str(), data, len, 1, timeout);
 
-                                    if (rc == MQTTCLIENT_SUCCESS)
+                                    if (rc == MQTTASYNC_SUCCESS)
                                     {
                                         return 0;
                                     }
@@ -735,23 +879,24 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
                                 // Iterate Peers
                                 SceNetAdhocctlPeerInfo *peer = friends;
+                                SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
                                 for (; peer != NULL; peer = peer->next)
                                 {
                                     int rc;
-                                    char pdp_single_topic[50];
-                                    
-                                    snprintf(pdp_single_topic, sizeof(pdp_single_topic), "PDP/%02x%02x%02x%02x%02x%02x/%d/%02x%02x%02x%02x%02x%02x/%d",
-                                             peer->mac_addr.data[0], peer->mac_addr.data[1], peer->mac_addr.data[2], peer->mac_addr.data[3], peer->mac_addr.data[4], peer->mac_addr.data[5], dport, socket->laddr.data[0], socket->laddr.data[1], socket->laddr.data[2], socket->laddr.data[3], socket->laddr.data[4], socket->laddr.data[5], socket->lport);
+                                    std::string pdp_single_topic = "PDP/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
 
                                     if (flag)
                                     {
-                                        rc = publish(pdp_single_topic, data, len, 0);
-                                    }else{
-                                        rc = publish_wait(pdp_single_topic, data, len, 1,timeout);
+                                        rc = publish(pdp_mqtt, pdp_single_topic.c_str(), data, len, 0, 0);
                                     }
-                                    
-                                    if(rc == MQTTCLIENT_SUCCESS){
-                                    NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic broadcast %s", pdp_single_topic);
+                                    else
+                                    {
+                                        rc = publish(pdp_mqtt, pdp_single_topic.c_str(), data, len, 1, timeout);
+                                    }
+
+                                    if (rc == MQTTASYNC_SUCCESS)
+                                    {
+                                        NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic broadcast %s", pdp_single_topic.c_str());
                                     }
                                 }
 
@@ -784,6 +929,99 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
         // Invalid Destination Port
         return ERROR_NET_ADHOC_INVALID_PORT;
+    }
+
+    // Library is uninitialized
+    return ERROR_NET_ADHOC_NOT_INITIALIZED;
+}
+
+int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dataLength, u32 timeout, int flag)
+{
+    SceNetEtherAddr *saddr = (SceNetEtherAddr *)addr;
+    uint16_t *sport = (uint16_t *)port; //Looking at Quake3 sourcecode (net_adhoc.c) this is an "int" (32bit) but changing here to 32bit will cause FF-Type0 to see duplicated Host (thinking it was from a different host)
+    int *len = (int *)dataLength;
+    if (netAdhocInited)
+    {
+        // Valid Socket ID
+        if (id > 0 && id <= 255 && pdp[id - 1] != NULL)
+        {
+            // Cast Socket
+            SceNetAdhocPdpStat *socket = pdp[id - 1];
+
+            // Valid Arguments
+            if (saddr != NULL && port != NULL && buf != NULL && len != NULL && *len > 0)
+            {
+                if (flag)
+                    timeout = 0;
+
+                if (pdp_queue.size() > 0)
+                {
+
+                    int i = 0;
+                    PDPMessage packet = pdp_queue.at(i);
+                    memcpy(buf, packet.message->payload, packet.message->payloadlen);
+                    *saddr = packet.sourceMac;
+                    *sport = packet.port;
+                    //Save Length
+                    *len = packet.message->payloadlen;
+                    return 0;
+                }
+
+                if (flag)
+                    return ERROR_NET_ADHOC_WOULD_BLOCK;
+                return ERROR_NET_ADHOC_TIMEOUT;
+            }
+
+            // Invalid Argument
+            return ERROR_NET_ADHOC_INVALID_ARG;
+        }
+
+        // Invalid Socket ID
+        return ERROR_NET_ADHOC_INVALID_SOCKET_ID;
+    }
+
+    // Library is uninitialized
+    return ERROR_NET_ADHOC_NOT_INITIALIZED;
+}
+
+int AmultiosNetAdhocPdpDelete(int id, int unknown)
+{
+    // WLAN might be disabled in the middle of successfull multiplayer, but we still need to cleanup right?
+
+    // Library is initialized
+    if (netAdhocInited)
+    {
+        // Valid Arguments
+        if (id > 0 && id <= 255)
+        {
+            // Cast Socket
+            SceNetAdhocPdpStat *sock = pdp[id - 1];
+
+            // Valid Socket
+            if (sock != NULL)
+            {
+                // Close Connection
+                //closesocket(sock->id);
+                // Remove Port Forward from Router
+                //sceNetPortClose("UDP", sock->lport);
+
+                // Free Memory
+                // free(sock);
+
+                // Free Translation Slot
+                pdp[id - 1] = NULL;
+                int rc = unsubscribe(pdp_mqtt, pdp_topic.at(id - 1).c_str());
+                ctl_mqtt->subscribed = false;
+                // Success
+                return 0;
+            }
+
+            // Invalid Socket ID
+            return ERROR_NET_ADHOC_INVALID_SOCKET_ID;
+        }
+
+        // Invalid Argument
+        return ERROR_NET_ADHOC_INVALID_ARG;
     }
 
     // Library is uninitialized
