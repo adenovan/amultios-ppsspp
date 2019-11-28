@@ -16,10 +16,9 @@ typedef struct AmultiosMqtt
   size_t pub_payload_len_latest;
   std::string sub_topic_latest;
   int qos_latest;
-  int port;
   unsigned long timeout;
   bool connected;
-  bool subscribed;
+  int subscribed;
 } AmultiosMqtt;
 
 typedef struct PDPMessage
@@ -93,6 +92,7 @@ void unsubscribe_failure(void *context, MQTTAsync_failureData *response);
 void ctl_connect_success(void *context, MQTTAsync_successData *response);
 void ctl_connect_failure(void *context, MQTTAsync_failureData *response);
 void ctl_disconnect_success(void *context, MQTTAsync_successData *response);
+void ctl_disconnect_failure(void *context, MQTTAsync_failureData *response);
 void ctl_connect_lost(void *context, char *cause);
 int ctl_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message);
 
@@ -112,6 +112,10 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
 
 int __AMULTIOS_CTL_INIT();
 int __AMULTIOS_CTL_SHUTDOWN();
+int __AMULTIOS_PDP_INIT();
+int __AMULTIOS_PDP_SHUTDOWN();
+int __AMULTIOS_PTP_INIT();
+int __AMULTIOS_PTP_SHUTDOWN();
 
 //HLE FUNCTION
 int AmultiosNetAdhocInit();
@@ -127,14 +131,17 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dataLength, u32 timeout, int flag);
 int AmultiosNetAdhocPdpDelete(int id, int unknown);
 
+extern bool ctlInited;
 extern bool ctlRunning;
-extern std::thread ctlThread;
-extern std::mutex ctl_mutex;
 extern AmultiosMqtt * ctl_mqtt;
+extern std::thread ctlThread;
 
+extern bool pdpInited;
 extern bool pdpRunning;
 extern AmultiosMqtt * pdp_mqtt;
 extern std::thread pdpThread;
 
+extern bool ptpInited;
 extern bool ptpRunning;
 extern AmultiosMqtt * ptp_mqtt;
+extern std::thread ptpThread;

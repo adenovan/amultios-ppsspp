@@ -92,12 +92,36 @@ void __NetAdhocShutdown() {
 	}
 
 	if(g_Config.bAmultiosMode){
+		if(ctlInited){
+			__AMULTIOS_CTL_SHUTDOWN();
+		}	
+
 		ctlRunning = false;
+
 		if (ctlThread.joinable()) {
 			ctlThread.join();
 		}
-		ptpRunning = false;
+
+		if(pdpInited){
+			__AMULTIOS_PDP_SHUTDOWN();
+		}
+		
 		pdpRunning = false;
+
+		if (pdpThread.joinable()) {
+			pdpThread.join();
+		}
+
+		if(ptpInited){
+			__AMULTIOS_PTP_SHUTDOWN();
+		}
+
+		ptpRunning = false;
+
+		if (ptpThread.joinable()) {
+			ptpThread.join();
+		}
+		
 	}
 }
 
@@ -176,6 +200,8 @@ void __NetAdhocInit() {
 		ptpRunning = true;
 		pdpRunning = true;
 		ctlThread = std::thread(__AMULTIOS_CTL_INIT);
+		pdpThread = std::thread(__AMULTIOS_PDP_INIT);
+		ptpThread = std::thread(__AMULTIOS_PTP_INIT);
 	}
 }
 
