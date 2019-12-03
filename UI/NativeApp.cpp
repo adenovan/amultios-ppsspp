@@ -774,7 +774,7 @@ static void UIThemeInit() {
 	ui_theme.buttonDisabledStyle = MakeStyle(g_Config.uButtonDisabledStyleFg, g_Config.uButtonDisabledStyleBg);
 	ui_theme.buttonHighlightedStyle = MakeStyle(g_Config.uButtonHighlightedStyleFg, g_Config.uButtonHighlightedStyleBg);
 
-	ui_theme.headerStyle.fgColor = g_Config.uHeaderStyleFg;
+	ui_theme.headerStyle = MakeStyle(g_Config.uHeaderStyleFg,g_Config.uHeaderStyleBg);
 	ui_theme.infoStyle = MakeStyle(g_Config.uInfoStyleFg, g_Config.uInfoStyleBg);
 
 	ui_theme.popupTitle.fgColor = g_Config.uPopupTitleStyleFg;

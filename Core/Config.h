@@ -226,6 +226,7 @@ public:
 	uint32_t uButtonHighlightedStyleBg;
 
 	uint32_t uHeaderStyleFg;
+	uint32_t uHeaderStyleBg;
 	uint32_t uInfoStyleFg;
 	uint32_t uInfoStyleBg;
 	uint32_t uPopupTitleStyleFg;

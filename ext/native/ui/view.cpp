@@ -639,7 +639,9 @@ ItemHeader::ItemHeader(const std::string &text, LayoutParams *layoutParams)
 }
 
 void ItemHeader::Draw(UIContext &dc) {
+	uint32_t bgcolor = 0xFF121212;
 	dc.SetFontStyle(dc.theme->uiFontSmall);
+	dc.FillRect(dc.theme->headerStyle.background, bounds_);
 	dc.DrawText(text_.c_str(), bounds_.x + 4, bounds_.centerY(), dc.theme->headerStyle.fgColor, ALIGN_LEFT | ALIGN_VCENTER);
 	dc.Draw()->DrawImageStretch(dc.theme->whiteImage, bounds_.x, bounds_.y2()-2, bounds_.x2(), bounds_.y2(), dc.theme->headerStyle.fgColor);
 }
