@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 2.6)
-
 project (Tools)
 
 add_definitions(-O2)
@@ -22,14 +21,16 @@ else()
 endif()
 
 # add_definitions(-fstrict-aliasing)
+add_compile_options(-include ../../../ppsspp_config.h)
 
+include_directories(../../../)
 include_directories(..)
 include_directories(../ext)
 include_directories(../math/lin)
 include_directories(../image)
 include_directories(../ext/rg_etc1)
+include_directories(../../glew)
 include_directories(/usr/local/include)
-
 link_directories(/opt/local/lib)
 
 # Horrible horrible hack

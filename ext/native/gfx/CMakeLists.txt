@@ -1,6 +1,5 @@
 set(SRCS
   gl_debug_log.cpp
-  gl_lost_manager.cpp
   texture_atlas.cpp)
 
 set(SRCS ${SRCS})
