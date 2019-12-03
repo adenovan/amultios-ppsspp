@@ -300,9 +300,9 @@ static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 u
 		return -1;
 	}
 
-	// if(g_Config.bAmultiosMode){
-	// 	return AmultiosNetAdhocPdpCreate(mac,port,bufferSize,unknown);
-	// }
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPdpCreate(mac,port,bufferSize,unknown);
+	}
 
 	int retval = ERROR_NET_ADHOC_NOT_INITIALIZED;
 	// Library is initialized
@@ -453,9 +453,9 @@ static int sceNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int
 		return -1;
 	}
 
-	// if(g_Config.bAmultiosMode){
-	// 	return AmultiosNetAdhocPdpSend(id,mac,port,data,len,timeout,flag);
-	// }
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPdpSend(id,mac,port,data,len,timeout,flag);
+	}
 
 	SceNetEtherAddr * daddr = (SceNetEtherAddr *)mac;
 	uint16_t dport = (uint16_t)port;
@@ -629,9 +629,9 @@ static int sceNetAdhocPdpRecv(int id, void *addr, void * port, void *buf, void *
 		return -1;
 	}
 
-	// if(g_Config.bAmultiosMode){
-	// 	return AmultiosNetAdhocPdpRecv(id,addr,port,buf,dataLength,timeout,flag);
-	// }
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPdpRecv(id,addr,port,buf,dataLength,timeout,flag);
+	}
 
 	SceNetEtherAddr *saddr = (SceNetEtherAddr *)addr;
 	uint16_t * sport = (uint16_t *)port; //Looking at Quake3 sourcecode (net_adhoc.c) this is an "int" (32bit) but changing here to 32bit will cause FF-Type0 to see duplicated Host (thinking it was from a different host)
@@ -872,9 +872,9 @@ static int sceNetAdhocPdpDelete(int id, int unknown) {
 	}
 	*/
 
-	// if(g_Config.bAmultiosMode){
-	// 	return AmultiosNetAdhocPdpDelete(id,unknown);
-	// }
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPdpDelete(id,unknown);
+	}
 
 	// Library is initialized
 	if (netAdhocInited) {
@@ -1718,6 +1718,11 @@ static int sceNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac,
 	if (!g_Config.bEnableWlan) {
 		return 0;
 	}
+
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPtpOpen(srcmac,sport,dstmac,dport,bufsize,rexmt_int,rexmt_cnt,unknown);
+	}
+
 	SceNetEtherAddr * saddr = (SceNetEtherAddr *)srcmac;
 	SceNetEtherAddr * daddr = (SceNetEtherAddr *)dstmac;
 	// Library is initialized
@@ -1788,6 +1793,7 @@ static int sceNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac,
 									internal->lport = sport;
 									internal->pport = dport;
 									
+									NOTICE_LOG(SCENET,"PTP_OPEN_INTERNAL [%s]:[%d]->[%s]:[%d]",getMacString(&internal->laddr).c_str(),internal->lport,getMacString(&internal->paddr).c_str(),internal->pport);
 									// Set Buffer Size
 									internal->rcv_sb_cc = bufsize;
 									
@@ -1850,6 +1856,10 @@ static int sceNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int
 	DEBUG_LOG(SCENET, "sceNetAdhocPtpAccept(%d,%08x,[%08x]=%u,%d,%u) at %08x", id, peerMacAddrPtr, peerPortPtr, port ? *port : -1, timeout, flag, currentMIPS->pc);
 	if (!g_Config.bEnableWlan) {
 		return 0;
+	}
+
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPtpAccept(id,peerMacAddrPtr,peerPortPtr,timeout,flag);
 	}
 
 	// Library is initialized
@@ -1963,6 +1973,7 @@ static int sceNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int
 										// Link PTP Socket
 										ptp[i] = internal;
 										
+										NOTICE_LOG(SCENET,"PTP_ACCEPT_INTERNAL [%s]:[%d]->[%s]:[%d]",getMacString(&internal->laddr).c_str(),internal->lport,getMacString(&internal->paddr).c_str(),internal->pport);
 										// Add Port Forward to Router
 										// sceNetPortOpen("TCP", internal->lport);
 
@@ -2022,6 +2033,11 @@ static int sceNetAdhocPtpConnect(int id, int timeout, int flag) {
 		return 0;
 	}
 
+
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPtpConnect(id,timeout,flag);
+	}
+
 	// Library is initialized
 	if (netAdhocInited)
 	{
@@ -2071,7 +2087,7 @@ static int sceNetAdhocPtpConnect(int id, int timeout, int flag) {
 					if (connectresult == 0 || (connectresult == -1 && (errorcode == EISCONN /*|| errorcode == EALREADY)*/))) {
 						// Set Connected State
 						socket->state = ADHOC_PTP_STATE_ESTABLISHED;
-						
+						NOTICE_LOG(SCENET,"PTP_CONNECT_INTERNAL [%s]:[%d]->[%s]:[%d]",getMacString(&socket->laddr).c_str(),socket->lport,getMacString(&socket->paddr).c_str(),socket->pport);
 						INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Already Connected", id, socket->lport);
 						// Success
 						return 0;
@@ -2103,6 +2119,7 @@ static int sceNetAdhocPtpConnect(int id, int timeout, int flag) {
 								socket->state = ADHOC_PTP_STATE_ESTABLISHED;
 
 								uint8_t * pip = (uint8_t *)&peer.sin_addr.s_addr;
+								NOTICE_LOG(SCENET,"PTP_CONNECT_INTERNAL [%s]:[%d]->[%s]:[%d]",getMacString(&socket->laddr).c_str(),socket->lport,getMacString(&socket->paddr).c_str(),socket->pport);
 								INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Established (%u.%u.%u.%u:%u)", id, socket->lport, pip[0], pip[1], pip[2], pip[3], socket->pport);
 								
 								// Success
@@ -2143,6 +2160,12 @@ static int sceNetAdhocPtpClose(int id, int unknown) {
 	if (!g_Config.bEnableWlan) {
 		return 0;
 	}
+
+
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPtpClose(id,unknown);
+	}
+	
 	// Library is initialized
 	if (netAdhocInited) {
 		// Valid Arguments & Atleast one Socket
@@ -2190,6 +2213,10 @@ static int sceNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int 
 	INFO_LOG(SCENET, "sceNetAdhocPtpListen(%s,%d,%d,%d,%d,%d,%d)",srcmac,sport,bufsize,rexmt_int,rexmt_cnt,backlog,unk);
 	if (!g_Config.bEnableWlan) {
 		return 0;
+	}
+
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPtpListen(srcmac,sport,bufsize,rexmt_int,rexmt_cnt,backlog,unk);
 	}
 	// Library is initialized
 	SceNetEtherAddr * saddr = (SceNetEtherAddr *)srcmac;
@@ -2261,6 +2288,7 @@ static int sceNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int 
 										// Set Buffer Size
 										internal->rcv_sb_cc = bufsize;
 										
+										NOTICE_LOG(SCENET,"PTP_LISTEN_INTERNAL [%s]:[%d]",getMacString(&internal->laddr).c_str(),internal->lport);
 										// Link PTP Socket
 										ptp[i] = internal;
 										
@@ -2323,6 +2351,11 @@ static int sceNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeou
 	if (!g_Config.bEnableWlan) {
 		return 0;
 	}
+
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPtpSend(id,dataAddr,dataSizeAddr,timeout,flag);
+	}
+
 	int * len = (int *)Memory::GetPointer(dataSizeAddr);
 	const char * data = Memory::GetCharPointer(dataAddr);
 	// Library is initialized
@@ -2413,6 +2446,11 @@ static int sceNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeou
 	if (!g_Config.bEnableWlan) {
 		return 0;
 	}
+
+	if(g_Config.bAmultiosMode){
+		return AmultiosNetAdhocPtpRecv(id,dataAddr,dataSizeAddr,timeout,flag);
+	}
+
 	void * buf = (void *)Memory::GetPointer(dataAddr);
 	int * len = (int *)Memory::GetPointer(dataSizeAddr);
 	// Library is initialized

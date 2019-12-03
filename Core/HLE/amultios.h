@@ -23,10 +23,11 @@ typedef struct AmultiosMqtt
 
 typedef struct PDPMessage
 {
-  MQTTAsync_message * message = NULL;
-  char * topicName = NULL;
+  MQTTAsync_message *message = NULL;
+  char *topicName = NULL;
   int topicLen;
-  int port;
+  int sport;
+  int dport;
   SceNetEtherAddr sourceMac;
   SceNetEtherAddr destinationMac;
 } PDPMessage;
@@ -36,10 +37,43 @@ typedef struct PTPMessage
   MQTTAsync_message *message = NULL;
   char *topicName = NULL;
   int topicLen;
-  int port;
+  int sport;
+  int dport;
   SceNetEtherAddr sourceMac;
   SceNetEtherAddr destinationMac;
 } PTPMessage;
+
+
+#define PTP_AMULTIOS_CLOSED 0
+#define PTP_AMULTIOS_OPEN 1
+#define PTP_AMULTIOS_CONNECT 2
+#define PTP_AMULTIOS_ACCEPT 3
+#define PTP_AMULTIOS_LISTEN 4
+#define PTP_AMULTIOS_ESTABLISHED 5
+
+typedef struct PTPConnection
+{
+  uint8_t states;
+  SceNetEtherAddr sourceMac;
+  int sport;
+  SceNetEtherAddr destinationMac;
+  int dport;
+} PTPConnection;
+
+typedef struct PTPTopic
+{
+  s32_le states;
+  std::string sub_topic;
+  std::string open_topic;
+  std::string accept_topic;
+  std::string connect_topic;
+  std::string pub_topic;
+  SceNetEtherAddr sourceMac;
+  int sport;
+  SceNetEtherAddr destinationMac;
+  int dport;
+  std::vector<PTPConnection> backlog;
+} PTPTopic;
 
 typedef struct
 {
@@ -71,6 +105,7 @@ typedef struct
 std::vector<std::string> explode(std::string const &s, char delim);
 void getMac(SceNetEtherAddr *addr, std::string const &s);
 std::string getMacString(SceNetEtherAddr *addr);
+bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2);
 
 // library method
 int publish(AmultiosMqtt *amultios_mqtt, const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
@@ -107,7 +142,7 @@ void ptp_connect_success(void *context, MQTTAsync_successData *response);
 void ptp_connect_failure(void *context, MQTTAsync_failureData *response);
 void ptp_disconnect_success(void *context, MQTTAsync_successData *response);
 void ptp_disconnect_failure(void *context, MQTTAsync_failureData *response);
-void ptp_connect_lost(void *context, char * cause);
+void ptp_connect_lost(void *context, char *cause);
 int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message);
 
 int __AMULTIOS_CTL_INIT();
@@ -131,17 +166,25 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dataLength, u32 timeout, int flag);
 int AmultiosNetAdhocPdpDelete(int id, int unknown);
 
+int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, int dport, int bufsize, int rexmt_int, int rexmt_cnt, int unknown);
+int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int timeout, int flag);
+int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag);
+int AmultiosNetAdhocPtpClose(int id, int unknown);
+int AmultiosNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int rexmt_int, int rexmt_cnt, int backlog, int unk);
+int AmultiosNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeout, int flag);
+int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout, int flag);
+
 extern bool ctlInited;
 extern bool ctlRunning;
-extern AmultiosMqtt * ctl_mqtt;
+extern AmultiosMqtt *ctl_mqtt;
 extern std::thread ctlThread;
 
 extern bool pdpInited;
 extern bool pdpRunning;
-extern AmultiosMqtt * pdp_mqtt;
+extern AmultiosMqtt *pdp_mqtt;
 extern std::thread pdpThread;
 
 extern bool ptpInited;
 extern bool ptpRunning;
-extern AmultiosMqtt * ptp_mqtt;
+extern AmultiosMqtt *ptp_mqtt;
 extern std::thread ptpThread;

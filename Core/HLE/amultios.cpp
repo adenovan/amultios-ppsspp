@@ -16,7 +16,7 @@ bool pdpInited = false;
 bool pdpRunning = false;
 std::thread pdpThread;
 AmultiosMqtt *pdp_mqtt = nullptr;
-std::vector<std::string> pdp_topic;
+std::vector<std::string> pdp_topic(255);
 std::mutex pdp_queue_mutex;
 std::vector<PDPMessage> pdp_queue;
 
@@ -24,11 +24,21 @@ bool ptpInited = false;
 bool ptpRunning = false;
 std::thread ptpThread;
 AmultiosMqtt *ptp_mqtt = nullptr;
-std::vector<std::string> ptp_topic;
+std::vector<PTPTopic> ptp_topic(255);
 std::mutex ptp_queue_mutex;
 std::vector<PTPMessage> ptp_queue;
+std::mutex ptp_states_mutex;
 
 volatile MQTTAsync_token token;
+
+bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2)
+{
+    // Compare MAC Addresses
+    int match = memcmp((const void *)addr, (const void *)addr2, ETHER_ADDR_LEN);
+
+    // Return Result
+    return (match == 0);
+}
 
 void getMac(SceNetEtherAddr *addr, std::string const &s)
 {
@@ -44,13 +54,16 @@ void getMac(SceNetEtherAddr *addr, std::string const &s)
 std::vector<std::string> explode(std::string const &s, char delim)
 {
     std::vector<std::string> result;
-    std::istringstream iss(s);
-
-    for (std::string token; std::getline(iss, token, delim);)
+    std::string::const_iterator start = s.begin();
+    std::string::const_iterator end = s.end();
+    std::string::const_iterator next = std::find(start, end, delim);
+    while (next != end)
     {
-        result.push_back(std::move(token));
+        result.push_back(std::string(start, next));
+        start = next + 1;
+        next = std::find(start, end, delim);
     }
-
+    result.push_back(std::string(start, next));
     return result;
 }
 
@@ -69,12 +82,14 @@ void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet)
     std::lock_guard<std::recursive_mutex> guard(peerlock);
     SceNetAdhocctlPeerInfo *peer = findFriend(&packet->mac);
     // Already existed
+
     if (peer != NULL)
     {
         peer->nickname = packet->name;
         peer->mac_addr = packet->mac;
         // Update TimeStamp
         peer->last_recv = CoreTiming::GetGlobalTimeUsScaled();
+        NOTICE_LOG(AMULTIOS, "Adding Existing Peer [%s]", getMacString(&packet->mac).c_str());
     }
     else
     {
@@ -100,6 +115,7 @@ void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet)
 
             // Link into Peerlist
             friends = peer;
+            NOTICE_LOG(AMULTIOS, "Adding Peer [%s]", getMacString(&packet->mac).c_str());
         }
     }
 }
@@ -140,6 +156,7 @@ void deleteAmultiosPeer(SceNetEtherAddr *mac)
             peer = NULL;
 
             // Stop Search
+            NOTICE_LOG(AMULTIOS, "Removing Peer [%s]", getMacString(mac).c_str());
             break;
         }
 
@@ -426,7 +443,23 @@ int pdp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
     if (message)
     {
         AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-        NOTICE_LOG(AMULTIOS, "[%s] got pdp message [%s] messagelen[%d] topic [%s] topiclen [%d]", ptr->mqtt_id.c_str(), (char *)message->payload, message->payloadlen, topicName, topicLen);
+
+        std::string topic = topicName;
+        std::vector<std::string> topic_explode = explode(topic, '/');
+        PDPMessage msg;
+        msg.sport = std::stoi(topic_explode.at(4));
+        getMac(&msg.sourceMac, topic_explode.at(3));
+        msg.dport = std::stoi(topic_explode.at(2));
+        getMac(&msg.destinationMac, topic_explode.at(1));
+        //NOTICE_LOG(AMULTIOS, "[%s] got pdp message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topic [%s] topiclen [%d] ", ptr->mqtt_id.c_str(), topic_explode.at(3).c_str(), topic_explode.at(4).c_str(), topic_explode.at(1).c_str(), topic_explode.at(2).c_str(), message->payloadlen, topicName, topicLen);
+        msg.message = message;
+        msg.topicName = topicName,
+        msg.topicLen = topicLen;
+
+        std::lock_guard<std::mutex> lock(pdp_queue_mutex);
+        pdp_queue.push_back(msg);
+        //MQTTAsync_freeMessage(&message);
+        //MQTTAsync_free(topicName);
     }
     return 1;
 };
@@ -466,12 +499,125 @@ void ptp_connect_lost(void *context, char *cause)
     ptp_mqtt->connected = false;
 };
 
-int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message)
+int ptp_message_arrived(void *context, char * topicName, int topicLen, MQTTAsync_message *message)
 {
     if (message)
     {
-        AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-        NOTICE_LOG(AMULTIOS, "[%s] got ptp message [%s] messagelen[%d] topic [%s] topiclen [%d]", ptr->mqtt_id.c_str(), (char *)message->payload, message->payloadlen, topicName, topicLen);
+        AmultiosMqtt * ptr = (AmultiosMqtt *)context;
+        // NOTICE_LOG(AMULTIOS, "[%s] got ptp message [%s] messagelen[%d] topic [%s] topiclen [%d]", ptr->mqtt_id.c_str(), (char *)message->payload, message->payloadlen, topicName, topicLen);
+
+        std::string topic = topicName;
+        std::vector<std::string> topic_explode = explode(topic, '/');
+
+        if (std::strcmp(topic_explode.at(1).c_str(), "DATA\0") == 0)
+        {
+            
+            PTPMessage msg;
+            msg.sport = std::stoi(topic_explode.at(5));
+            getMac(&msg.sourceMac, topic_explode.at(4));
+            msg.dport = std::stoi(topic_explode.at(3));
+            getMac(&msg.destinationMac, topic_explode.at(2));
+            msg.message = message;
+            msg.topicName = topicName,
+            msg.topicLen = topicLen;
+
+            std::lock_guard<std::mutex> lock(ptp_queue_mutex);
+            ptp_queue.push_back(msg);
+            NOTICE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, topicLen);
+        }
+
+        if (std::strcmp(topic_explode.at(1).c_str(), "OPEN\0") == 0)
+        {
+            VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN message src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+            PTPConnection link;
+            link.states = PTP_AMULTIOS_OPEN;
+            link.sport = std::stoi(topic_explode.at(5));
+            getMac(&link.sourceMac, topic_explode.at(4));
+            link.dport = std::stoi(topic_explode.at(3));
+            getMac(&link.destinationMac, topic_explode.at(2));
+            std::lock_guard<std::mutex> lock(ptp_states_mutex);
+            std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
+                return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_LISTEN || obj.states == PTP_AMULTIOS_ACCEPT) );
+            });
+
+            if (it != ptp_topic.end())
+            {
+                std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
+                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                });
+
+                if (cit == it->backlog.end())
+                {
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    it->backlog.push_back(link);
+                }else{
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    cit->states = PTP_AMULTIOS_OPEN;
+                }
+            }
+        }
+
+        if (std::strcmp(topic_explode.at(1).c_str(), "CONNECT\0") == 0)
+        {
+            VERBOSE_LOG(AMULTIOS, "[%s] PTP CONNECT message src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+            PTPConnection link;
+            link.states = PTP_AMULTIOS_CONNECT;
+            link.sport = std::stoi(topic_explode.at(5));
+            getMac(&link.sourceMac, topic_explode.at(4));
+            link.dport = std::stoi(topic_explode.at(3));
+            getMac(&link.destinationMac, topic_explode.at(2));
+            std::lock_guard<std::mutex> lock(ptp_states_mutex);
+            std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
+                return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_LISTEN || obj.states == PTP_AMULTIOS_ACCEPT));
+            });
+
+            if (it != ptp_topic.end())
+            {
+                std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
+                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                });
+
+                if (cit == it->backlog.end())
+                {
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    it->backlog.push_back(link);
+                }else{
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    cit->states = PTP_AMULTIOS_CONNECT;
+                }
+            }
+        }
+
+        if (std::strcmp(topic_explode.at(1).c_str(), "ACCEPT\0") == 0)
+        {
+            VERBOSE_LOG(AMULTIOS, "[%s] PTP ACCEPT message src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+            PTPConnection link;
+            link.states = PTP_AMULTIOS_ACCEPT;
+            link.sport = std::stoi(topic_explode.at(5));
+            getMac(&link.sourceMac, topic_explode.at(4));
+            link.dport = std::stoi(topic_explode.at(3));
+            getMac(&link.destinationMac, topic_explode.at(2));
+            std::lock_guard<std::mutex> lock(ptp_states_mutex);
+            std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
+                return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_OPEN || obj.states == PTP_AMULTIOS_CONNECT));
+            });
+
+            if (it != ptp_topic.end())
+            {
+                std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
+                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                });
+
+                if (cit == it->backlog.end())
+                {
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    it->backlog.push_back(link);
+                }else{
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    cit->states = PTP_AMULTIOS_ACCEPT;
+                }
+            }
+        }
     }
     return 1;
 };
@@ -480,7 +626,7 @@ void publish_success(void *context, MQTTAsync_successData *response)
 {
 
     AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    NOTICE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ptr->mqtt_id.c_str(), ptr->pub_topic_latest.c_str(), ptr->pub_payload_len_latest, ptr->qos_latest);
+    //INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ptr->mqtt_id.c_str(), ptr->pub_topic_latest.c_str(), ptr->pub_payload_len_latest, ptr->qos_latest);
 };
 
 void publish_failure(void *context, MQTTAsync_failureData *response)
@@ -592,7 +738,7 @@ int __AMULTIOS_CTL_SHUTDOWN()
         {
             while (tokens[i] != -1)
             {
-                rc = MQTTAsync_waitForCompletion(ctl_mqtt->client,tokens[i],5000L);
+                rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, tokens[i], 5000L);
                 MQTTAsync_free(tokens);
                 ++i;
             }
@@ -692,7 +838,7 @@ int __AMULTIOS_PTP_INIT()
     if (ptp_mqtt == nullptr)
     {
         ptp_mqtt = new AmultiosMqtt();
-        ptp_mqtt->subscribed = false;
+        ptp_mqtt->subscribed = 0;
         ptp_mqtt->timeout = 60000L;
         MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
         MQTTAsync_willOptions will = MQTTAsync_willOptions_initializer;
@@ -993,6 +1139,7 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                 {
                     // Change socket buffer size when necessary
                     // Allocate Memory for Internal Data
+                    pdp_mqtt->subscribed += 1;
                     SceNetAdhocPdpStat *internal = (SceNetAdhocPdpStat *)malloc(sizeof(SceNetAdhocPdpStat));
 
                     // Allocated Memory
@@ -1127,7 +1274,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                 for (; peer != NULL; peer = peer->next)
                                 {
                                     int rc;
-                                    std::string pdp_single_topic = "PDP/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                    std::string pdp_single_topic = "PDP/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
 
                                     if (flag)
                                     {
@@ -1140,7 +1287,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
                                     if (rc == MQTTASYNC_SUCCESS)
                                     {
-                                        NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic broadcast %s", pdp_single_topic.c_str());
+                                        //NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic broadcast %s", pdp_single_topic.c_str());
                                     }
                                 }
 
@@ -1201,14 +1348,25 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                 if (pdp_queue.size() > 0)
                 {
 
-                    int i = 0;
-                    PDPMessage packet = pdp_queue.at(i);
-                    memcpy(buf, packet.message->payload, packet.message->payloadlen);
-                    *saddr = packet.sourceMac;
-                    *sport = packet.port;
-                    //Save Length
-                    *len = packet.message->payloadlen;
-                    return 0;
+                    std::lock_guard<std::mutex> lock(pdp_queue_mutex);
+
+                    std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&](PDPMessage const &obj) {
+                        return (isSameMAC(&obj.destinationMac, &socket->laddr) && obj.dport == socket->lport);
+                    });
+
+                    if (it != pdp_queue.end())
+                    {
+                        PDPMessage packet = *it;
+                        memcpy(buf, packet.message->payload, packet.message->payloadlen);
+                        *saddr = packet.sourceMac;
+                        *sport = (uint16_t)packet.sport;
+                        //Sapdp_queuee Length
+                        *len = packet.message->payloadlen;
+                        MQTTAsync_freeMessage(&it->message);
+                        MQTTAsync_free(it->topicName);
+                        pdp_queue.erase(it);
+                        return 0;
+                    }
                 }
 
                 if (flag)
@@ -1255,7 +1413,6 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
                 // Free Translation Slot
                 pdp[id - 1] = NULL;
                 int rc = unsubscribe(pdp_mqtt, pdp_topic.at(id - 1).c_str());
-                ctl_mqtt->subscribed = false;
                 // Success
                 return 0;
             }
@@ -1266,6 +1423,711 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
 
         // Invalid Argument
         return ERROR_NET_ADHOC_INVALID_ARG;
+    }
+
+    // Library is uninitialized
+    return ERROR_NET_ADHOC_NOT_INITIALIZED;
+}
+
+int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, int dport, int bufsize, int rexmt_int, int rexmt_cnt, int unknown)
+{
+    SceNetEtherAddr *saddr = (SceNetEtherAddr *)srcmac;
+    SceNetEtherAddr *daddr = (SceNetEtherAddr *)dstmac;
+    // Library is initialized
+    if (netAdhocInited)
+    {
+        // Valid Addresses
+        if (saddr != NULL && isLocalMAC(saddr) && daddr != NULL && !isBroadcastMAC(daddr))
+        {
+
+            if(sport == 0){
+                sport = rand() % 65535 + 1100;
+                while(isPTPPortInUse(sport)){
+                    sport = rand() % 65535 + 1100;
+                }
+            }
+
+            // Valid Ports
+            if (!isPTPPortInUse(sport))
+            {
+                //if (sport == 0)
+                //   sport = -(int)portOffset;
+                // Valid Arguments
+                if (bufsize > 0 && rexmt_int > 0 && rexmt_cnt > 0)
+                {
+                    // Create Infrastructure Socket
+                    std::string sub_topic = "PTP/+/" + getMacString(saddr) + "/" + std::to_string(sport) + "/#";
+                    std::string open_topic = "PTP/OPEN/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(sport);
+                    int rc = subscribe(ptp_mqtt, sub_topic.c_str(), 1);
+                    uint8_t send = PTP_AMULTIOS_OPEN;
+                    rc = publish(ptp_mqtt, open_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
+                    if (rc == MQTTASYNC_SUCCESS)
+                    {
+                        SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
+
+                        // Allocated Memory
+                        if (internal != NULL)
+                        {
+                            // Find Free Translator ID
+                            int i = 0;
+                            for (; i < 255; i++)
+                                if (ptp[i] == NULL)
+                                    break;
+
+                            // Found Free Translator ID
+                            if (i < 255)
+                            {
+                                // Clear Memory
+                                memset(internal, 0, sizeof(SceNetAdhocPtpStat));
+
+                                // Copy Infrastructure Socket ID
+                                internal->id = i;
+
+                                // Copy Address Information
+                                internal->laddr = *saddr;
+                                internal->paddr = *daddr;
+                                internal->lport = sport;
+                                internal->pport = dport;
+
+                                // Set Buffer Size
+                                internal->rcv_sb_cc = bufsize;
+
+                                // Link PTP Socket
+                                ptp[i] = internal;
+
+                                std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                                ptp_topic.at(i).states = PTP_AMULTIOS_OPEN;
+                                ptp_topic.at(i).sub_topic = sub_topic;
+                                ptp_topic.at(i).open_topic = open_topic;
+                                ptp_topic.at(i).dport = dport;
+                                ptp_topic.at(i).sport = sport;
+                                ptp_topic.at(i).sourceMac = *saddr;
+                                ptp_topic.at(i).destinationMac = *daddr;
+                                // Add Port Forward to Router
+                                // sceNetPortOpen("TCP", sport);
+
+                                // Return PTP Socket Pointer
+                                return i + 1;
+                            }
+
+                            // Free Memory
+                            free(internal);
+                        }
+                    }
+                }
+
+                // Invalid Arguments
+                return ERROR_NET_ADHOC_INVALID_ARG;
+            }
+
+            // Invalid Ports
+            return ERROR_NET_ADHOC_INVALID_PORT;
+        }
+
+        // Invalid Addresses
+        return ERROR_NET_ADHOC_INVALID_ADDR;
+    }
+
+    return 0;
+}
+
+int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int timeout, int flag)
+{
+
+    SceNetEtherAddr *addr = NULL;
+    if (Memory::IsValidAddress(peerMacAddrPtr))
+    {
+        addr = PSPPointer<SceNetEtherAddr>::Create(peerMacAddrPtr);
+    }
+    uint16_t *port = NULL; //
+    if (Memory::IsValidAddress(peerPortPtr))
+    {
+        port = (uint16_t *)Memory::GetPointer(peerPortPtr);
+    }
+
+    // Library is initialized
+    if (netAdhocInited)
+    {
+        // Valid Socket
+        if (id > 0 && id <= 255 && ptp[id - 1] != NULL)
+        {
+            // Cast Socket
+            SceNetAdhocPtpStat *socket = ptp[id - 1];
+
+            // Listener Socket
+            if (socket->state == ADHOC_PTP_STATE_LISTEN)
+            {
+                // Valid Arguments
+                if (addr != NULL /*&& port != NULL*/)
+                { //GTA:VCS seems to use 0 for the portPtr
+                    // Address Information
+
+          
+                    bool found = false;
+                
+
+                    std::vector<PTPConnection>::iterator it;
+                    {
+                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                        ptp_topic.at(id-1).states = PTP_AMULTIOS_ACCEPT;
+                        it = ptp_topic.at(id-1).backlog.begin();
+                        while (it != ptp_topic.at(id-1).backlog.end())
+                        {
+                            if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_CONNECT)
+                            {
+                                found = true;
+                                break;
+                            }
+                            it++;
+                        }
+                    }
+
+                    // Blocking Behaviour
+                    if (!flag && !found)
+                    {
+                        // Get Start Time
+                        uint32_t starttime = (uint32_t)(real_time_now() * 1000000.0);
+
+                        bool hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
+                        // Retry until Timeout hits
+                        while (hasTime && !found)
+                        {
+                            hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
+                            std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                            it = ptp_topic.at(id-1).backlog.begin();
+                            while (hasTime && it != ptp_topic.at(id-1).backlog.end())
+                            {
+                                if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_CONNECT)
+                                {
+                                    found = true;
+                                    break;
+                                }
+                                it++;
+                            }
+                            // Wait a bit...
+                            sleep_ms(1);
+                        }
+                    }
+
+                    if (found)
+                    {
+                        std::string sub_topic = "PTP/+/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport) + "/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport);
+                        std::string pub_topic = "PTP/ACCEPT/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
+                        // Allocate Memory
+
+                        int rc = subscribe(ptp_mqtt, sub_topic.c_str(), 1);
+                        uint8_t send = PTP_AMULTIOS_ACCEPT;
+                        rc = publish(ptp_mqtt, pub_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
+                        SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
+
+                        // Allocated Memory
+                        if (internal != NULL && rc == MQTTASYNC_SUCCESS)
+                        {
+                            // Find Free Translator ID
+                            int i = 0;
+                            for (; i < 255; i++)
+                                if (ptp[i] == NULL)
+                                    break;
+
+                            // Found Free Translator ID
+                            if (i < 255)
+                            {
+
+                                // Copy Socket Descriptor to Structure
+                                internal->id = i;
+                                internal->rcv_sb_cc = socket->rcv_sb_cc;
+                                internal->snd_sb_cc = socket->snd_sb_cc;
+
+                                // Copy Local Address Data to Structure
+                                internal->laddr = it->destinationMac;
+                                internal->lport = it->dport;
+
+                                // Copy Peer Address Data to Structure
+                                internal->paddr = it->sourceMac;
+                                internal->pport = it->sport;
+
+                                // Set Connected State
+                                internal->state = ADHOC_PTP_STATE_ESTABLISHED;
+
+                                // Return Peer Address Information
+                                *addr = internal->paddr;
+                                if (port != NULL)
+                                    *port = internal->pport;
+
+                                // Link PTP Socket
+                                ptp[i] = internal;
+
+                                std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                                it->states = PTP_AMULTIOS_ESTABLISHED;
+                                ptp_topic.at(i).states = PTP_AMULTIOS_ESTABLISHED;
+                                ptp_topic.at(i).sub_topic = ptp_topic.at(id-1).sub_topic;
+                                ptp_topic.at(i).accept_topic = sub_topic;
+                                ptp_topic.at(i).pub_topic = "PTP/DATA/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
+                                ptp_topic.at(i).sport = it->dport;
+                                ptp_topic.at(i).sourceMac = it->destinationMac;
+                                ptp_topic.at(i).destinationMac = it->sourceMac;
+                                ptp_topic.at(i).dport = it->sport;
+                                // Add Port Forward to Router
+                                // sceNetPortOpen("TCP", internal->lport);
+
+                                INFO_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: Established %s", id, sub_topic.c_str());
+
+                                // Return Socket
+                                return i + 1;
+                            }
+
+                            // Free Memory
+                            free(internal);
+                        }
+                        free(internal);
+                        ERROR_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: Failed Accept Connection Not found", id);
+                    }
+
+                    // Action would block
+                    if (flag)
+                        return ERROR_NET_ADHOC_WOULD_BLOCK;
+
+                    // Timeout
+                    return ERROR_NET_ADHOC_TIMEOUT;
+                }
+
+                // Invalid Arguments
+                return ERROR_NET_ADHOC_INVALID_ARG;
+            }
+
+            // Client Socket
+            return ERROR_NET_ADHOC_NOT_LISTENED;
+        }
+
+        // Invalid Socket
+        return ERROR_NET_ADHOC_INVALID_SOCKET_ID;
+    }
+
+    // Library is uninitialized
+    return ERROR_NET_ADHOC_NOT_INITIALIZED;
+}
+
+int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
+{
+    // Library is initialized
+    if (netAdhocInited)
+    {
+        // Valid Socket
+        if (id > 0 && id <= 255 && ptp[id - 1] != NULL)
+        {
+            // Cast Socket
+            SceNetAdhocPtpStat *socket = ptp[id - 1];
+
+            // Valid Client Socket
+            if (socket->state == ADHOC_PTP_STATE_CLOSED)
+            {
+                // Grab Peer IP
+                if (macInNetwork(&socket->paddr))
+                {
+                    std::string connect_topic = "PTP/CONNECT/" + getMacString(&socket->paddr) + "/" + std::to_string(socket->pport) + "/" + getMacString(&socket->laddr) + "/" + std::to_string(socket->lport);
+
+                    // Connect Socket to Peer (Nonblocking)
+                    uint8_t send = PTP_AMULTIOS_CONNECT;
+                    int rc = publish(ptp_mqtt, connect_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
+
+       
+                    bool found = false;
+                    std::vector<PTPConnection>::iterator it;
+                    if (rc == MQTTASYNC_SUCCESS)
+                    {
+                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                        ptp_topic.at(id-1).states = PTP_AMULTIOS_CONNECT;
+                        it = ptp_topic.at(id-1).backlog.begin();
+                        while (it != ptp_topic.at(id-1).backlog.end())
+                        {
+                            if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_ACCEPT)
+                            {
+                                found = true;
+                                break;
+                            }
+                            it++;
+                        }
+                    }
+
+                    if (found)
+                    {
+                        // Set Connected State
+                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                        ptp_topic.at(id-1).pub_topic = "PTP/DATA/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
+                        it->states = PTP_AMULTIOS_ESTABLISHED;
+                        socket->state = ADHOC_PTP_STATE_ESTABLISHED;
+
+                        NOTICE_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Already Connected", id, socket->lport);
+                        // Success
+                        return 0;
+                    }
+
+                    // Nonblocking Mode
+                    if (flag)
+                    {
+                        return ERROR_NET_ADHOC_WOULD_BLOCK;
+                    }
+
+                    if (!flag && !found)
+                    {
+                        // Get Start Time
+                        uint32_t starttime = (uint32_t)(real_time_now() * 1000000.0);
+
+                        bool hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
+                        // Retry until Timeout hits
+                        while (hasTime && !found)
+                        {
+                            hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
+                            std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                            it = ptp_topic.at(id-1).backlog.begin();
+                            while (hasTime && it != ptp_topic.at(id-1).backlog.end())
+                            {
+                                if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_ACCEPT)
+                                {
+                                    found = true;
+                                    break;
+                                }
+                                it++;
+                            }
+                            // Wait a bit...
+                            sleep_ms(1);
+                        }
+                    }
+
+                    if (found)
+                    {
+                        // Set Connected State
+                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                        ptp_topic.at(id-1).pub_topic = "PTP/DATA/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
+                        it->states = PTP_AMULTIOS_ESTABLISHED;
+                        socket->state = ADHOC_PTP_STATE_ESTABLISHED;
+
+                        NOTICE_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Already Connected", id, socket->lport);
+                        // Success
+                        return 0;
+                    }
+
+                    return ERROR_NET_ADHOC_TIMEOUT;
+                }
+                // Peer not found
+                return ERROR_NET_ADHOC_CONNECTION_REFUSED;
+            }
+            // Not a valid Client Socket
+            return ERROR_NET_ADHOC_NOT_OPENED;
+        }
+
+        // Invalid Socket
+        return ERROR_NET_ADHOC_INVALID_SOCKET_ID;
+    }
+
+    // Library is uninitialized}
+    return ERROR_NET_ADHOC_NOT_INITIALIZED;
+}
+
+int AmultiosNetAdhocPtpClose(int id, int unknown)
+{
+
+    // Library is initialized
+    if (netAdhocInited)
+    {
+        // Valid Arguments & Atleast one Socket
+        if (id > 0 && id <= 255 && ptp[id - 1] != NULL)
+        {
+            // Cast Socket
+            SceNetAdhocPtpStat *socket = ptp[id - 1];
+
+            // Free Reference
+            ptp[id - 1] = NULL;
+            std::lock_guard<std::mutex> lock(ptp_states_mutex);
+            int rc = unsubscribe(ptp_mqtt, ptp_topic.at(id - 1).sub_topic.c_str());
+            ptp_topic.at(id-1).states = PTP_AMULTIOS_CLOSED;
+            // Success
+            return 0;
+        }
+
+        // Invalid Argument
+        return ERROR_NET_ADHOC_INVALID_SOCKET_ID;
+    }
+
+    // Library is uninitialized
+    return ERROR_NET_ADHOC_NOT_INITIALIZED;
+}
+
+int AmultiosNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int rexmt_int, int rexmt_cnt, int backlog, int unk)
+{
+
+    // Library is initialized
+    SceNetEtherAddr *saddr = (SceNetEtherAddr *)srcmac;
+    if (netAdhocInited)
+    {
+        // Valid Address
+        if (saddr != NULL && isLocalMAC(saddr))
+        {
+
+			if (sport == 0) {
+                WARN_LOG(AMULTIOS,"PTP_LISTEN ON PORT 0");
+			}
+
+            // Valid Ports
+            if (!isPTPPortInUse(sport))
+            {
+                // Valid Arguments
+                if (bufsize > 0 && rexmt_int > 0 && rexmt_cnt > 0 && backlog > 0)
+                {
+
+                    // Create Infrastructure Socket
+                    std::string sub_topic = "PTP/+/" + getMacString(saddr) + "/" + std::to_string(sport) + "/#";
+
+                    int rc = subscribe(ptp_mqtt, sub_topic.c_str(), 1);
+                    // Valid Socket produced
+                    if (rc == MQTTASYNC_SUCCESS)
+                    {
+                        // may need to check alread subscribed ?
+
+                        // Allocate Memory
+                        SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
+
+                        // Allocated Memory
+                        if (internal != NULL)
+                        {
+                            // Find Free Translator ID
+                            int i = 0;
+                            for (; i < 255; i++)
+                                if (ptp[i] == NULL)
+                                    break;
+
+                            // Found Free Translator ID
+                            if (i < 255)
+                            {
+                                // Clear Memory
+                                memset(internal, 0, sizeof(SceNetAdhocPtpStat));
+
+                                // Copy Infrastructure Socket ID
+                                internal->id = i;
+
+                                // Copy Address Information
+                                internal->laddr = *saddr;
+                                internal->lport = sport;
+
+                                // Flag Socket as Listener
+                                internal->state = ADHOC_PTP_STATE_LISTEN;
+
+                                // Set Buffer Size
+                                internal->rcv_sb_cc = bufsize;
+
+                                // Link PTP Socket
+                                ptp[i] = internal;
+                                std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                                ptp_topic.at(i).sourceMac = internal->laddr;
+                                ptp_topic.at(i).sport = internal->lport;
+                                ptp_topic.at(i).sub_topic = sub_topic;
+                                ptp_topic.at(i).states = PTP_AMULTIOS_LISTEN;
+
+                                // Add Port Forward to Router
+                                // sceNetPortOpen("TCP", sport);
+
+                                // Return PTP Socket Pointer
+                                return i + 1;
+                            }
+
+                            // Free Memory
+                            free(internal);
+                        }
+
+                        // Port not available (exclusively in use?)
+                        return ERROR_NET_ADHOC_PORT_NOT_AVAIL;
+                    }
+
+                    // Socket not available
+                    return ERROR_NET_ADHOC_SOCKET_ID_NOT_AVAIL;
+                }
+
+                // Invalid Arguments
+                return ERROR_NET_ADHOC_INVALID_ARG;
+            }
+
+            // Invalid Ports
+            return ERROR_NET_ADHOC_PORT_IN_USE;
+        }
+
+        // Invalid Addresses
+        return ERROR_NET_ADHOC_INVALID_ADDR;
+    }
+
+    // Library is uninitialized
+    return ERROR_NET_ADHOC_NOT_INITIALIZED;
+}
+
+int AmultiosNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeout, int flag)
+{
+
+    int *len = (int *)Memory::GetPointer(dataSizeAddr);
+    const char *data = Memory::GetCharPointer(dataAddr);
+    // Library is initialized
+    if (netAdhocInited)
+    {
+        // Valid Socket
+        if (id > 0 && id <= 255 && ptp[id - 1] != NULL)
+        {
+            // Cast Socket
+            SceNetAdhocPtpStat *socket = ptp[id - 1];
+
+            // Connected Socket
+            if (socket->state == ADHOC_PTP_STATE_ESTABLISHED)
+            {
+                // Valid Arguments
+                if (data != NULL && len != NULL && *len > 0)
+                {
+
+                    // Schedule Timeout Removal
+                    if (flag)
+                        timeout = 0;
+
+                    int rc;
+
+                    {
+                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                        rc = publish(ptp_mqtt, ptp_topic.at(id - 1).pub_topic.c_str(), (void *)data, *len, 1, timeout);
+                    }
+
+                    // Success
+                    if (rc == MQTTASYNC_SUCCESS)
+                    {
+                        // Save Length
+                        *len = *len;
+                        // Return Success
+                        return 0;
+                    }
+                    else
+                    {
+                        // Blocking Situation
+                        if (flag)
+                            return ERROR_NET_ADHOC_WOULD_BLOCK;
+
+                        // Timeout
+                        return ERROR_NET_ADHOC_TIMEOUT;
+                    }
+
+                    // Change Socket State
+                    socket->state = ADHOC_PTP_STATE_CLOSED;
+
+                    // Disconnected
+                    return ERROR_NET_ADHOC_DISCONNECTED;
+                }
+
+                // Invalid Arguments
+                return ERROR_NET_ADHOC_INVALID_ARG;
+            }
+
+            // Not connected
+            return ERROR_NET_ADHOC_NOT_CONNECTED;
+        }
+
+        // Invalid Socket
+        return ERROR_NET_ADHOC_INVALID_SOCKET_ID;
+    }
+
+    // Library is uninitialized
+    return ERROR_NET_ADHOC_NOT_INITIALIZED;
+}
+
+int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout, int flag)
+{
+
+    void *buf = (void *)Memory::GetPointer(dataAddr);
+    int *len = (int *)Memory::GetPointer(dataSizeAddr);
+    // Library is initialized
+    if (netAdhocInited)
+    {
+        // Valid Socket
+        if (id > 0 && id <= 255 && ptp[id - 1] != NULL && ptp[id - 1]->state == ADHOC_PTP_STATE_ESTABLISHED)
+        {
+            // Cast Socket
+            SceNetAdhocPtpStat *socket = ptp[id - 1];
+
+            // Valid Arguments
+            if (buf != NULL && len != NULL && *len > 0)
+            {
+                // Schedule Timeout Removal
+                if (flag)
+                    timeout = 0;
+
+                if (ptp_queue.size() > 0)
+                {
+
+                    std::lock_guard<std::mutex> lock(ptp_queue_mutex);
+
+                    std::vector<PTPMessage>::iterator it = ptp_queue.begin();
+                    for (; it != ptp_queue.end(); it++)
+                    {
+                        if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport)
+                        {
+                            PTPMessage packet = *it;
+                            memcpy(buf, packet.message->payload, packet.message->payloadlen);
+
+                            *len = packet.message->payloadlen;
+                            MQTTAsync_freeMessage(&it->message);
+                            MQTTAsync_free(it->topicName);
+                            ptp_queue.erase(it);
+                            break;
+                        }
+                    }
+                    return 0;
+                }
+                else
+                {
+                    // Blocking Situation
+                    if (flag)
+                        return ERROR_NET_ADHOC_WOULD_BLOCK;
+
+                    uint32_t starttime = (uint32_t)(real_time_now() * 1000000.0);
+
+                    bool hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
+                    // Retry until Timeout hits
+                    while (hasTime)
+                    {
+                        hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
+
+                        if (ptp_queue.size() > 0)
+                        {
+                            std::lock_guard<std::mutex> lock(ptp_queue_mutex);
+                            std::vector<PTPMessage>::iterator it = ptp_queue.begin();
+                            for (; it != ptp_queue.end(); it++)
+                            {
+                                if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport)
+                                {
+                                    PTPMessage packet = *it;
+                                    memcpy(buf, packet.message->payload, packet.message->payloadlen);
+
+                                    *len = packet.message->payloadlen;
+                                    MQTTAsync_freeMessage(&it->message);
+                                    MQTTAsync_free(it->topicName);
+                                    ptp_queue.erase(it);
+                                    break;
+                                }
+                            }
+                            return 0;
+                        }
+                        // Wait a bit...
+                        sleep_ms(1);
+                    }
+                    // Timeout
+                    return ERROR_NET_ADHOC_TIMEOUT;
+                }
+
+                // Change Socket State
+                socket->state = ADHOC_PTP_STATE_CLOSED;
+
+                // Disconnected
+                return ERROR_NET_ADHOC_DISCONNECTED;
+            }
+
+            // Invalid Arguments
+            return ERROR_NET_ADHOC_INVALID_ARG;
+        }
+
+        // Invalid Socket
+        return ERROR_NET_ADHOC_INVALID_SOCKET_ID;
     }
 
     // Library is uninitialized

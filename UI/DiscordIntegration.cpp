@@ -64,7 +64,7 @@ void Discord::Init() {
 }
 
 void Discord::Shutdown() {
-	assert(initialized_);
+	//assert(initialized_);
 #ifdef ENABLE_DISCORD
 	Discord_Shutdown();
 #endif
