@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="PPSSPP" default="help">
+<project name="Amultios" default="help">
     <condition property="ndkbuild_exe" value="ndk-build.cmd" else="ndk-build">
         <os family="windows" />
     </condition>

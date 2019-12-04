@@ -881,7 +881,7 @@ void MainScreen::CreateViews() {
 
 		LinearLayout *buttonHolder = new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(WRAP_CONTENT, WRAP_CONTENT));
 		buttonHolder->Add(new Spacer(new LinearLayoutParams(1.0f)));
-		focusButton = new Button(mm->T("Give PPSSPP permission to access storage"), new LinearLayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+		focusButton = new Button(mm->T("Give Amultios permission to access storage"), new LinearLayoutParams(WRAP_CONTENT, WRAP_CONTENT));
 		focusButton->SetPadding(32, 16);
 		buttonHolder->Add(focusButton)->OnClick.Handle(this, &MainScreen::OnAllowStorage);
 		buttonHolder->Add(new Spacer(new LinearLayoutParams(1.0f)));
@@ -889,7 +889,7 @@ void MainScreen::CreateViews() {
 		leftColumn->Add(new Spacer(new LinearLayoutParams(0.1f)));
 		leftColumn->Add(buttonHolder);
 		leftColumn->Add(new Spacer(10.0f));
-		leftColumn->Add(new TextView(mm->T("PPSSPP can't load games or save right now"), ALIGN_HCENTER, false));
+		leftColumn->Add(new TextView(mm->T("Amultios can't load games or save right now"), ALIGN_HCENTER, false));
 		leftColumn->Add(new Spacer(new LinearLayoutParams(0.1f)));
 	}
 
@@ -917,12 +917,12 @@ void MainScreen::CreateViews() {
 #endif
 	rightColumnItems->Add(new Choice(mm->T("Game Settings", "Settings")))->OnClick.Handle(this, &MainScreen::OnGameSettings);
 	rightColumnItems->Add(new Choice(mm->T("Credits")))->OnClick.Handle(this, &MainScreen::OnCredits);
-	rightColumnItems->Add(new Choice(mm->T("www.ppsspp.org")))->OnClick.Handle(this, &MainScreen::OnPPSSPPOrg);
-	if (!System_GetPropertyBool(SYSPROP_APP_GOLD)) {
-		Choice *gold = rightColumnItems->Add(new Choice(mm->T("Buy PPSSPP Gold")));
-		gold->OnClick.Handle(this, &MainScreen::OnSupport);
-		gold->SetIcon(I_ICONGOLD);
-	}
+	rightColumnItems->Add(new Choice(mm->T("Amultios Site")))->OnClick.Handle(this, &MainScreen::OnPPSSPPOrg);
+	// if (!System_GetPropertyBool(SYSPROP_APP_GOLD)) {
+	// 	Choice *gold = rightColumnItems->Add(new Choice(mm->T("Buy PPSSPP Gold")));
+	// 	gold->OnClick.Handle(this, &MainScreen::OnSupport);
+	// 	gold->SetIcon(I_ICONGOLD);
+	// }
 
 #if !PPSSPP_PLATFORM(UWP)
 	// Having an exit button is against UWP guidelines.
@@ -951,24 +951,24 @@ void MainScreen::CreateViews() {
 	I18NCategory *u = GetI18NCategory("Upgrade");
 
 	upgradeBar_ = 0;
-	if (!g_Config.upgradeMessage.empty()) {
-		upgradeBar_ = new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT));
+	// if (!g_Config.upgradeMessage.empty()) {
+	// 	upgradeBar_ = new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT));
 
-		UI::Margins textMargins(10, 5);
-		UI::Margins buttonMargins(0, 0);
-		UI::Drawable solid(0xFFbd9939);
-		upgradeBar_->SetBG(solid);
-		upgradeBar_->Add(new TextView(u->T("New version of PPSSPP available") + std::string(": ") + g_Config.upgradeVersion, new LinearLayoutParams(1.0f, textMargins)));
-		upgradeBar_->Add(new Button(u->T("Download"), new LinearLayoutParams(buttonMargins)))->OnClick.Handle(this, &MainScreen::OnDownloadUpgrade);
-		upgradeBar_->Add(new Button(u->T("Dismiss"), new LinearLayoutParams(buttonMargins)))->OnClick.Handle(this, &MainScreen::OnDismissUpgrade);
+	// 	UI::Margins textMargins(10, 5);
+	// 	UI::Margins buttonMargins(0, 0);
+	// 	UI::Drawable solid(0xFFbd9939);
+	// 	upgradeBar_->SetBG(solid);
+	// 	upgradeBar_->Add(new TextView(u->T("New version of PPSSPP available") + std::string(": ") + g_Config.upgradeVersion, new LinearLayoutParams(1.0f, textMargins)));
+	// 	upgradeBar_->Add(new Button(u->T("Download"), new LinearLayoutParams(buttonMargins)))->OnClick.Handle(this, &MainScreen::OnDownloadUpgrade);
+	// 	upgradeBar_->Add(new Button(u->T("Dismiss"), new LinearLayoutParams(buttonMargins)))->OnClick.Handle(this, &MainScreen::OnDismissUpgrade);
 
-		// Slip in under root_
-		LinearLayout *newRoot = new LinearLayout(ORIENT_VERTICAL);
-		newRoot->Add(root_);
-		newRoot->Add(upgradeBar_);
-		root_->ReplaceLayoutParams(new LinearLayoutParams(1.0));
-		root_ = newRoot;
-	}
+	// 	// Slip in under root_
+	// 	LinearLayout *newRoot = new LinearLayout(ORIENT_VERTICAL);
+	// 	newRoot->Add(root_);
+	// 	newRoot->Add(upgradeBar_);
+	// 	root_->ReplaceLayoutParams(new LinearLayoutParams(1.0));
+	// 	root_ = newRoot;
+	// }
 }
 
 UI::EventReturn MainScreen::OnAllowStorage(UI::EventParams &e) {
@@ -1192,7 +1192,7 @@ UI::EventReturn MainScreen::OnSupport(UI::EventParams &e) {
 }
 
 UI::EventReturn MainScreen::OnPPSSPPOrg(UI::EventParams &e) {
-	LaunchBrowser("https://www.ppsspp.org");
+	LaunchBrowser("https://amultios.net");
 	return UI::EVENT_DONE;
 }
 

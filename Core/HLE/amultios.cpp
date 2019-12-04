@@ -10,12 +10,12 @@
 bool ctlInited = false;
 bool ctlRunning = false;
 std::thread ctlThread;
-AmultiosMqtt *ctl_mqtt = nullptr;
+AmultiosMqtt * ctl_mqtt = nullptr;
 
 bool pdpInited = false;
 bool pdpRunning = false;
 std::thread pdpThread;
-AmultiosMqtt *pdp_mqtt = nullptr;
+AmultiosMqtt * pdp_mqtt = nullptr;
 std::vector<std::string> pdp_topic(255);
 std::mutex pdp_queue_mutex;
 std::vector<PDPMessage> pdp_queue;
@@ -23,7 +23,7 @@ std::vector<PDPMessage> pdp_queue;
 bool ptpInited = false;
 bool ptpRunning = false;
 std::thread ptpThread;
-AmultiosMqtt *ptp_mqtt = nullptr;
+AmultiosMqtt * ptp_mqtt = nullptr;
 std::vector<PTPTopic> ptp_topic(255);
 std::mutex ptp_queue_mutex;
 std::vector<PTPMessage> ptp_queue;
@@ -69,6 +69,7 @@ std::vector<std::string> explode(std::string const &s, char delim)
 
 std::string getMacString(SceNetEtherAddr *addr)
 {
+    
     char macAddr[18];
     snprintf(macAddr, sizeof(macAddr), "%02x:%02x:%02x:%02x:%02x:%02x", addr->data[0], addr->data[1], addr->data[2], addr->data[3], addr->data[4], addr->data[5]);
     return std::string(macAddr);
@@ -677,10 +678,11 @@ int __AMULTIOS_CTL_INIT()
         MQTTAsync_setCallbacks(ctl_mqtt->client, ctl_mqtt, ctl_connect_lost, ctl_message_arrived, NULL);
 
         opts.context = ctl_mqtt;
-        opts.keepAliveInterval = 10;
+        opts.keepAliveInterval = 3600;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 20;
+        opts.automaticReconnect = 1;
         opts.onSuccess = ctl_connect_success;
         opts.onFailure = ctl_connect_failure;
 
@@ -727,22 +729,22 @@ int __AMULTIOS_CTL_SHUTDOWN()
 
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
         opts.context = ctl_mqtt;
-        opts.timeout = 500;
+        opts.timeout = 1;
         opts.onSuccess = ctl_disconnect_success;
         opts.onFailure = ctl_disconnect_failure;
 
         int i = 0;
-        MQTTAsync_token *tokens;
-        rc = MQTTAsync_getPendingTokens(ctl_mqtt->client, &tokens);
-        if (rc == MQTTASYNC_SUCCESS && tokens)
-        {
-            while (tokens[i] != -1)
-            {
-                rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, tokens[i], 5000L);
-                MQTTAsync_free(tokens);
-                ++i;
-            }
-        }
+        // MQTTAsync_token *tokens;
+        // rc = MQTTAsync_getPendingTokens(ctl_mqtt->client, &tokens);
+        // if (rc == MQTTASYNC_SUCCESS && tokens)
+        // {
+        //     while (tokens[i] != -1)
+        //     {
+        //         rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, tokens[i], 5000L);
+        //         MQTTAsync_free(tokens);
+        //         ++i;
+        //     }
+        // }
 
         int rc = MQTTAsync_disconnect(ctl_mqtt->client, &opts);
         NOTICE_LOG(AMULTIOS, "ctl_mqtt shutdown %d", rc);
@@ -771,10 +773,11 @@ int __AMULTIOS_PDP_INIT()
         MQTTAsync_setCallbacks(pdp_mqtt->client, pdp_mqtt, pdp_connect_lost, pdp_message_arrived, NULL);
 
         opts.context = pdp_mqtt;
-        opts.keepAliveInterval = 10;
+        opts.keepAliveInterval = 3600;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 20;
+        opts.automaticReconnect = 1;
         opts.onSuccess = pdp_connect_success;
         opts.onFailure = pdp_connect_failure;
 
@@ -818,7 +821,7 @@ int __AMULTIOS_PDP_SHUTDOWN()
     {
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
         opts.context = pdp_mqtt;
-        opts.timeout = 500;
+        opts.timeout = 1;
         opts.onSuccess = pdp_disconnect_success;
         opts.onFailure = pdp_disconnect_failure;
         int rc = MQTTAsync_disconnect(pdp_mqtt->client, &opts);
@@ -848,10 +851,11 @@ int __AMULTIOS_PTP_INIT()
         MQTTAsync_setCallbacks(ptp_mqtt->client, ptp_mqtt, ptp_connect_lost, ptp_message_arrived, NULL);
 
         opts.context = ptp_mqtt;
-        opts.keepAliveInterval = 10;
+        opts.keepAliveInterval = 3600;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 20;
+        opts.automaticReconnect = 1;
         opts.onSuccess = ptp_connect_success;
         opts.onFailure = ptp_connect_failure;
 
@@ -894,7 +898,7 @@ int __AMULTIOS_PTP_SHUTDOWN()
     {
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
         opts.context = ptp_mqtt;
-        opts.timeout = 500;
+        opts.timeout = 1;
         opts.onSuccess = ptp_disconnect_success;
         opts.onFailure = ptp_disconnect_failure;
         int rc = MQTTAsync_disconnect(ptp_mqtt->client, &opts);
