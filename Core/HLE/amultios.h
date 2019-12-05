@@ -16,9 +16,9 @@ typedef struct AmultiosMqtt
   size_t pub_payload_len_latest;
   std::string sub_topic_latest;
   int qos_latest;
-  unsigned long timeout;
   bool connected;
   int subscribed;
+  bool reconnectInProgress;
 } AmultiosMqtt;
 
 typedef struct PDPMessage
