@@ -10,13 +10,12 @@
 bool ctlInited = false;
 bool ctlRunning = false;
 std::thread ctlThread;
-AmultiosMqtt *ctl_mqtt = nullptr;
+std::shared_ptr<AmultiosMqtt> g_ctl_mqtt = nullptr;
 
 bool pdpInited = false;
 bool pdpRunning = false;
 std::thread pdpThread;
-//std::shared_ptr<AmultiosMqtt> pdp_mqtt = nullptr;
-AmultiosMqtt * pdp_mqtt = nullptr;
+std::shared_ptr<AmultiosMqtt> g_pdp_mqtt = nullptr;
 std::vector<std::string> pdp_topic(255);
 std::mutex pdp_queue_mutex;
 std::vector<PDPMessage> pdp_queue;
@@ -24,7 +23,7 @@ std::vector<PDPMessage> pdp_queue;
 bool ptpInited = false;
 bool ptpRunning = false;
 std::thread ptpThread;
-AmultiosMqtt *  ptp_mqtt = nullptr;
+std::shared_ptr<AmultiosMqtt> g_ptp_mqtt = nullptr;
 std::vector<PTPTopic> ptp_topic(255);
 std::mutex ptp_queue_mutex;
 std::vector<PTPMessage> ptp_queue;
@@ -200,10 +199,13 @@ bool macInNetwork(SceNetEtherAddr *mac)
     return false;
 }
 
-int publish(AmultiosMqtt *amultios_mqtt, const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
+//start of ctl relay
+
+int ctl_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
 {
     int rc = MQTTASYNC_FAILURE;
-    if (amultios_mqtt != nullptr && amultios_mqtt->connected)
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
         MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
         MQTTAsync_message msg = MQTTAsync_message_initializer;
@@ -212,92 +214,165 @@ int publish(AmultiosMqtt *amultios_mqtt, const char *topic, void *payload, size_
         msg.qos = qos;
         msg.retained = 0;
 
-        amultios_mqtt->pub_topic_latest = topic;
-        amultios_mqtt->pub_payload_len_latest = size;
-        amultios_mqtt->qos_latest = qos;
+        ctl_mqtt->pub_topic_latest = topic;
+        ctl_mqtt->pub_payload_len_latest = size;
+        ctl_mqtt->qos_latest = qos;
 
-        opts.context = amultios_mqtt;
-        opts.onSuccess = publish_success;
-        opts.onFailure = publish_failure;
-        int dt = MQTTAsync_sendMessage(amultios_mqtt->client, topic, &msg, &opts);
+        opts.context = NULL;
+        opts.onSuccess = ctl_publish_success;
+        opts.onFailure = ctl_publish_failure;
+        int dt = MQTTAsync_sendMessage(ctl_mqtt->client, topic, &msg, &opts);
         if (timeout > 0)
         {
-            rc = MQTTAsync_waitForCompletion(amultios_mqtt->client, dt, timeout);
+            rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, dt, timeout);
         }
         rc = token;
     }
     return rc;
 }
 
-int subscribe(AmultiosMqtt *amultios_mqtt, const char *topic, int qos)
+int ctl_subscribe(const char *topic, int qos)
 {
-    if (amultios_mqtt != nullptr && amultios_mqtt->connected)
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
         //NOTICE_LOG(AMULTIOS, "Amultios_mqtt subscribe to topic:[%s] qos:[%d]", topic, qos);
         MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
-        amultios_mqtt->sub_topic_latest = topic;
-        amultios_mqtt->qos_latest = qos;
-        opts.context = amultios_mqtt;
-        opts.onSuccess = subscribe_success;
-        opts.onFailure = subscribe_failure;
-        return MQTTAsync_subscribe(amultios_mqtt->client, topic, qos, &opts);
+        ctl_mqtt->sub_topic_latest = topic;
+        ctl_mqtt->qos_latest = qos;
+        opts.context = NULL;
+        opts.onSuccess = ctl_subscribe_success;
+        opts.onFailure = ctl_subscribe_failure;
+        return MQTTAsync_subscribe(ctl_mqtt->client, topic, qos, &opts);
     }
     return MQTTASYNC_FAILURE;
 }
 
-int unsubscribe(AmultiosMqtt *amultios_mqtt, const char *topic)
+int ctl_unsubscribe(const char *topic)
 {
-    if (amultios_mqtt != nullptr && amultios_mqtt->connected)
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
         MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
-        opts.context = amultios_mqtt;
-        amultios_mqtt->sub_topic_latest = topic;
-        opts.onSuccess = unsubscribe_success;
-        opts.onFailure = unsubscribe_failure;
-        return MQTTAsync_unsubscribe(amultios_mqtt->client, topic, &opts);
+        ctl_mqtt->sub_topic_latest = topic;
+        opts.context = NULL;
+        opts.onSuccess = ctl_unsubscribe_success;
+        opts.onFailure = ctl_unsubscribe_failure;
+        return MQTTAsync_unsubscribe(ctl_mqtt->client, topic, &opts);
     }
     return MQTTASYNC_FAILURE;
 }
+
+void ctl_publish_success(void *context, MQTTAsync_successData *response)
+{
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->pub_topic_latest.c_str(), ctl_mqtt->pub_payload_len_latest, ctl_mqtt->qos_latest);
+    }
+};
+
+void ctl_publish_failure(void *context, MQTTAsync_failureData *response)
+{
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Publish failure [%d] on topic [%s] payload_len [%lu] qos [%d] ", ctl_mqtt->mqtt_id.c_str(), response->code, ctl_mqtt->pub_topic_latest.c_str(), ctl_mqtt->pub_payload_len_latest, ctl_mqtt->qos_latest);
+    }
+};
+
+void ctl_subscribe_success(void *context, MQTTAsync_successData *response)
+{
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->sub_topic_latest.c_str(), ctl_mqtt->qos_latest);
+        ctl_mqtt->subscribed += 1;
+    }
+};
+
+void ctl_subscribe_failure(void *context, MQTTAsync_failureData *response)
+{
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Subscribe Failure on topic [%s] qos [%d]", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->sub_topic_latest.c_str(), ctl_mqtt->qos_latest);
+    }
+};
+
+void ctl_unsubscribe_success(void *context, MQTTAsync_successData *response)
+{
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->sub_topic_latest.c_str());
+        ctl_mqtt->subscribed -= 1;
+    }
+};
+
+void ctl_unsubscribe_failure(void *context, MQTTAsync_failureData *response)
+{
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Unsubscribe Failure [%d] on topic [%s]", ctl_mqtt->mqtt_id.c_str(), response->code, ctl_mqtt->sub_topic_latest.c_str());
+    }
+};
 
 void ctl_connect_success(void *context, MQTTAsync_successData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    NOTICE_LOG(AMULTIOS, "[%s] Connect Success", ptr->mqtt_id.c_str());
-    ctl_mqtt->connected = true;
-    ctl_mqtt->reconnectInProgress = false;
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", ctl_mqtt->mqtt_id.c_str());
+        ctl_mqtt->connected = true;
+        ctl_mqtt->reconnectInProgress = false;
+    }
 };
 
 void ctl_connect_failure(void *context, MQTTAsync_failureData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    //ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptr->mqtt_id.c_str());
-    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-    ctl_mqtt->connected = false;
-    ctl_mqtt->reconnectInProgress = false;
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        //ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptr->mqtt_id.c_str());
+        threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        ctl_mqtt->connected = false;
+        ctl_mqtt->reconnectInProgress = false;
+    }
 };
 
 void ctl_disconnect_success(void *context, MQTTAsync_successData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", ptr->mqtt_id.c_str());
-    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-    ptr->connected = false;
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", ctl_mqtt->mqtt_id.c_str());
+        threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        ctl_mqtt->connected = false;
+    }
 };
 
 void ctl_disconnect_failure(void *context, MQTTAsync_failureData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", ptr->mqtt_id.c_str());
-    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-    ptr->connected = false;
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", ctl_mqtt->mqtt_id.c_str());
+        threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        ctl_mqtt->connected = false;
+    }
 };
 
 void ctl_connect_lost(void *context, char *cause)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
+    auto ctl_mqtt = g_ctl_mqtt;
+    if (ctl_mqtt != nullptr)
+    {
+        threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        ctl_mqtt->connected = false;
+    }
     //WARN_LOG(AMULTIOS, "[%s] Connection Lost cause [%s]", ptr->mqtt_id.c_str(), cause);
-    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-    ctl_mqtt->connected = false;
 };
 
 int ctl_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message)
@@ -407,48 +482,183 @@ int ctl_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
     return 1;
 };
 
+//start of pdp relay
+
+int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
+{
+    int rc = MQTTASYNC_FAILURE;
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr && pdp_mqtt->connected)
+    {
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        MQTTAsync_message msg = MQTTAsync_message_initializer;
+        msg.payload = payload;
+        msg.payloadlen = (int)size;
+        msg.qos = qos;
+        msg.retained = 0;
+
+        pdp_mqtt->pub_topic_latest = topic;
+        pdp_mqtt->pub_payload_len_latest = size;
+        pdp_mqtt->qos_latest = qos;
+
+        opts.context = NULL;
+        opts.onSuccess = pdp_publish_success;
+        opts.onFailure = pdp_publish_failure;
+        int dt = MQTTAsync_sendMessage(pdp_mqtt->client, topic, &msg, &opts);
+        if (timeout > 0)
+        {
+            rc = MQTTAsync_waitForCompletion(pdp_mqtt->client, dt, timeout);
+        }
+        rc = token;
+    }
+    return rc;
+}
+
+int pdp_subscribe(const char *topic, int qos)
+{
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr && pdp_mqtt->connected)
+    {
+        //NOTICE_LOG(AMULTIOS, "Amultios_mqtt subscribe to topic:[%s] qos:[%d]", topic, qos);
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        pdp_mqtt->sub_topic_latest = topic;
+        pdp_mqtt->qos_latest = qos;
+        opts.context = NULL;
+        opts.onSuccess = pdp_subscribe_success;
+        opts.onFailure = pdp_subscribe_failure;
+        return MQTTAsync_subscribe(pdp_mqtt->client, topic, qos, &opts);
+    }
+    return MQTTASYNC_FAILURE;
+}
+
+int pdp_unsubscribe(const char *topic)
+{
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr && pdp_mqtt->connected)
+    {
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        pdp_mqtt->sub_topic_latest = topic;
+        opts.context = NULL;
+        opts.onSuccess = pdp_unsubscribe_success;
+        opts.onFailure = pdp_unsubscribe_failure;
+        return MQTTAsync_unsubscribe(pdp_mqtt->client, topic, &opts);
+    }
+    return MQTTASYNC_FAILURE;
+}
+
+void pdp_publish_success(void *context, MQTTAsync_successData *response)
+{
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->pub_topic_latest.c_str(), pdp_mqtt->pub_payload_len_latest, pdp_mqtt->qos_latest);
+    }
+};
+
+void pdp_publish_failure(void *context, MQTTAsync_failureData *response)
+{
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Publish failure [%d] on topic [%s] payload_len [%lu] qos [%d] ", pdp_mqtt->mqtt_id.c_str(), response->code, pdp_mqtt->pub_topic_latest.c_str(), pdp_mqtt->pub_payload_len_latest, pdp_mqtt->qos_latest);
+    }
+};
+
+void pdp_subscribe_success(void *context, MQTTAsync_successData *response)
+{
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->sub_topic_latest.c_str(), pdp_mqtt->qos_latest);
+        pdp_mqtt->subscribed += 1;
+    }
+};
+
+void pdp_subscribe_failure(void *context, MQTTAsync_failureData *response)
+{
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Subscribe Failure on topic [%s] qos [%d]", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->sub_topic_latest.c_str(), pdp_mqtt->qos_latest);
+    }
+};
+
+void pdp_unsubscribe_success(void *context, MQTTAsync_successData *response)
+{
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->sub_topic_latest.c_str());
+        pdp_mqtt->subscribed -= 1;
+    }
+};
+
+void pdp_unsubscribe_failure(void *context, MQTTAsync_failureData *response)
+{
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Unsubscribe Failure [%d] on topic [%s]", pdp_mqtt->mqtt_id.c_str(), response->code, pdp_mqtt->sub_topic_latest.c_str());
+    }
+};
+
 void pdp_connect_success(void *context, MQTTAsync_successData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    NOTICE_LOG(AMULTIOS, "[%s] Connect Success", ptr->mqtt_id.c_str());
-    pdp_mqtt->connected = true;
-    pdp_mqtt->reconnectInProgress = false;
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", pdp_mqtt->mqtt_id.c_str());
+        pdp_mqtt->connected = true;
+        pdp_mqtt->reconnectInProgress = false;
+    }
 };
 
 void pdp_connect_failure(void *context, MQTTAsync_failureData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptr->mqtt_id.c_str());
-    pdp_mqtt->connected = false;
-    pdp_mqtt->reconnectInProgress = false;
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Connect Failure", pdp_mqtt->mqtt_id.c_str());
+        pdp_mqtt->connected = false;
+        pdp_mqtt->reconnectInProgress = false;
+    }
 };
 
 void pdp_disconnect_success(void *context, MQTTAsync_successData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", ptr->mqtt_id.c_str());
-    ptr->connected = false;
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", pdp_mqtt->mqtt_id.c_str());
+        pdp_mqtt->connected = false;
+    }
 };
 
 void pdp_disconnect_failure(void *context, MQTTAsync_failureData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", ptr->mqtt_id.c_str());
-    ptr->connected = false;
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", pdp_mqtt->mqtt_id.c_str());
+        pdp_mqtt->connected = false;
+    }
 };
 
 void pdp_connect_lost(void *context, char *cause)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    WARN_LOG(AMULTIOS, "[%s] Connection Lost cause [%s]", ptr->mqtt_id.c_str(), cause);
-    pdp_mqtt->connected = false;
+    auto pdp_mqtt = g_pdp_mqtt;
+    if (pdp_mqtt != nullptr)
+    {
+        WARN_LOG(AMULTIOS, "[%s] Connection Lost cause [%s]", pdp_mqtt->mqtt_id.c_str(), cause);
+        pdp_mqtt->connected = false;
+    }
 };
 
 int pdp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message)
 {
     if (message)
     {
-        AmultiosMqtt *ptr = (AmultiosMqtt *)context;
+        //AmultiosMqtt *ptr = (AmultiosMqtt *)context;
 
         std::string topic = topicName;
         std::vector<std::string> topic_explode = explode(topic, '/');
@@ -470,165 +680,302 @@ int pdp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
     return 1;
 };
 
+// start of ptp relay
+int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
+{
+    int rc = MQTTASYNC_FAILURE;
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr && ptp_mqtt->connected)
+    {
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        MQTTAsync_message msg = MQTTAsync_message_initializer;
+        msg.payload = payload;
+        msg.payloadlen = (int)size;
+        msg.qos = qos;
+        msg.retained = 0;
+
+        ptp_mqtt->pub_topic_latest = topic;
+        ptp_mqtt->pub_payload_len_latest = size;
+        ptp_mqtt->qos_latest = qos;
+
+        opts.context = NULL;
+        opts.onSuccess = ptp_publish_success;
+        opts.onFailure = ptp_publish_failure;
+        int dt = MQTTAsync_sendMessage(ptp_mqtt->client, topic, &msg, &opts);
+        if (timeout > 0)
+        {
+            rc = MQTTAsync_waitForCompletion(ptp_mqtt->client, dt, timeout);
+        }
+        rc = token;
+    }
+    return rc;
+}
+
+int ptp_subscribe(const char *topic, int qos)
+{
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr && ptp_mqtt->connected)
+    {
+        //NOTICE_LOG(AMULTIOS, "Amultios_mqtt subscribe to topic:[%s] qos:[%d]", topic, qos);
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        ptp_mqtt->sub_topic_latest = topic;
+        ptp_mqtt->qos_latest = qos;
+        opts.context = NULL;
+        opts.onSuccess = ptp_subscribe_success;
+        opts.onFailure = ptp_subscribe_failure;
+        return MQTTAsync_subscribe(ptp_mqtt->client, topic, qos, &opts);
+    }
+    return MQTTASYNC_FAILURE;
+}
+
+int ptp_unsubscribe(const char *topic)
+{
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr && ptp_mqtt->connected)
+    {
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        ptp_mqtt->sub_topic_latest = topic;
+        opts.context = NULL;
+        opts.onSuccess = ptp_unsubscribe_success;
+        opts.onFailure = ptp_unsubscribe_failure;
+        return MQTTAsync_unsubscribe(ptp_mqtt->client, topic, &opts);
+    }
+    return MQTTASYNC_FAILURE;
+}
+
+void ptp_publish_success(void *context, MQTTAsync_successData *response)
+{
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->pub_topic_latest.c_str(), ptp_mqtt->pub_payload_len_latest, ptp_mqtt->qos_latest);
+    }
+};
+
+void ptp_publish_failure(void *context, MQTTAsync_failureData *response)
+{
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Publish failure [%d] on topic [%s] payload_len [%lu] qos [%d] ", ptp_mqtt->mqtt_id.c_str(), response->code, ptp_mqtt->pub_topic_latest.c_str(), ptp_mqtt->pub_payload_len_latest, ptp_mqtt->qos_latest);
+    }
+};
+
+void ptp_subscribe_success(void *context, MQTTAsync_successData *response)
+{
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->sub_topic_latest.c_str(), ptp_mqtt->qos_latest);
+        ptp_mqtt->subscribed += 1;
+    }
+};
+
+void ptp_subscribe_failure(void *context, MQTTAsync_failureData *response)
+{
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Subscribe Failure on topic [%s] qos [%d]", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->sub_topic_latest.c_str(), ptp_mqtt->qos_latest);
+    }
+};
+
+void ptp_unsubscribe_success(void *context, MQTTAsync_successData *response)
+{
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->sub_topic_latest.c_str());
+        ptp_mqtt->subscribed -= 1;
+    }
+};
+
+void ptp_unsubscribe_failure(void *context, MQTTAsync_failureData *response)
+{
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Unsubscribe Failure [%d] on topic [%s]", ptp_mqtt->mqtt_id.c_str(), response->code, ptp_mqtt->sub_topic_latest.c_str());
+    }
+};
+
 void ptp_connect_success(void *context, MQTTAsync_successData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    NOTICE_LOG(AMULTIOS, "[%s] Connect Success", ptr->mqtt_id.c_str());
-    ptp_mqtt->connected = true;
-    ptp_mqtt->reconnectInProgress = false;
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", ptp_mqtt->mqtt_id.c_str());
+        ptp_mqtt->connected = true;
+        ptp_mqtt->reconnectInProgress = false;
+    }
 };
 
 void ptp_connect_failure(void *context, MQTTAsync_failureData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptr->mqtt_id.c_str());
-    ptp_mqtt->connected = false;
-    ptp_mqtt->reconnectInProgress = false;
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptp_mqtt->mqtt_id.c_str());
+        ptp_mqtt->connected = false;
+        ptp_mqtt->reconnectInProgress = false;
+    }
 };
 
 void ptp_disconnect_success(void *context, MQTTAsync_successData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", ptr->mqtt_id.c_str());
-    ptr->connected = false;
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", ptp_mqtt->mqtt_id.c_str());
+        ptp_mqtt->connected = false;
+    }
 };
 
 void ptp_disconnect_failure(void *context, MQTTAsync_failureData *response)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", ptr->mqtt_id.c_str());
-    ptr->connected = false;
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", ptp_mqtt->mqtt_id.c_str());
+        ptp_mqtt->connected = false;
+    }
 };
 
 void ptp_connect_lost(void *context, char *cause)
 {
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    WARN_LOG(AMULTIOS, "[%s] Connection Lost cause [%s]", ptr->mqtt_id.c_str(), cause);
-    ptp_mqtt->connected = false;
+    auto ptp_mqtt = g_ptp_mqtt;
+    if (ptp_mqtt != nullptr)
+    {
+        WARN_LOG(AMULTIOS, "[%s] Connection Lost cause [%s]", ptp_mqtt->mqtt_id.c_str(), cause);
+        ptp_mqtt->connected = false;
+    }
 };
 
 int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message)
 {
     if (message)
     {
-        AmultiosMqtt *ptr = (AmultiosMqtt *)context;
+        auto ptp_mqtt = g_ptp_mqtt;
         // NOTICE_LOG(AMULTIOS, "[%s] got ptp message [%s] messagelen[%d] topic [%s] topiclen [%d]", ptr->mqtt_id.c_str(), (char *)message->payload, message->payloadlen, topicName, topicLen);
-
-        std::string topic = topicName;
-        std::vector<std::string> topic_explode = explode(topic, '/');
-
-        if (std::strcmp(topic_explode.at(1).c_str(), "DATA\0") == 0)
+        if (ptp_mqtt != nullptr)
         {
 
-            PTPMessage msg;
-            msg.sport = std::stoi(topic_explode.at(5));
-            getMac(&msg.sourceMac, topic_explode.at(4));
-            msg.dport = std::stoi(topic_explode.at(3));
-            getMac(&msg.destinationMac, topic_explode.at(2));
-            msg.message = message;
-            msg.topicName = topicName,
-            msg.topicLen = topicLen;
+            std::string topic = topicName;
+            std::vector<std::string> topic_explode = explode(topic, '/');
 
-            std::lock_guard<std::mutex> lock(ptp_queue_mutex);
-            ptp_queue.push_back(msg);
-            NOTICE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, topicLen);
-        }
-
-        if (std::strcmp(topic_explode.at(1).c_str(), "OPEN\0") == 0)
-        {
-            VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN message src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-            PTPConnection link;
-            link.states = PTP_AMULTIOS_OPEN;
-            link.sport = std::stoi(topic_explode.at(5));
-            getMac(&link.sourceMac, topic_explode.at(4));
-            link.dport = std::stoi(topic_explode.at(3));
-            getMac(&link.destinationMac, topic_explode.at(2));
-            std::lock_guard<std::mutex> lock(ptp_states_mutex);
-            std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
-                return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_LISTEN || obj.states == PTP_AMULTIOS_ACCEPT));
-            });
-
-            if (it != ptp_topic.end())
+            if (std::strcmp(topic_explode.at(1).c_str(), "DATA\0") == 0)
             {
-                std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
-                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+
+                PTPMessage msg;
+                msg.sport = std::stoi(topic_explode.at(5));
+                getMac(&msg.sourceMac, topic_explode.at(4));
+                msg.dport = std::stoi(topic_explode.at(3));
+                getMac(&msg.destinationMac, topic_explode.at(2));
+                msg.message = message;
+                msg.topicName = topicName,
+                msg.topicLen = topicLen;
+
+                std::lock_guard<std::mutex> lock(ptp_queue_mutex);
+                ptp_queue.push_back(msg);
+                NOTICE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, topicLen);
+            }
+
+            if (std::strcmp(topic_explode.at(1).c_str(), "OPEN\0") == 0)
+            {
+                VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                PTPConnection link;
+                link.states = PTP_AMULTIOS_OPEN;
+                link.sport = std::stoi(topic_explode.at(5));
+                getMac(&link.sourceMac, topic_explode.at(4));
+                link.dport = std::stoi(topic_explode.at(3));
+                getMac(&link.destinationMac, topic_explode.at(2));
+                std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
+                    return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_LISTEN || obj.states == PTP_AMULTIOS_ACCEPT));
                 });
 
-                if (cit == it->backlog.end())
+                if (it != ptp_topic.end())
                 {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    it->backlog.push_back(link);
-                }
-                else
-                {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    cit->states = PTP_AMULTIOS_OPEN;
+                    std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
+                        return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                    });
+
+                    if (cit == it->backlog.end())
+                    {
+                        NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        it->backlog.push_back(link);
+                    }
+                    else
+                    {
+                        NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        cit->states = PTP_AMULTIOS_OPEN;
+                    }
                 }
             }
-        }
 
-        if (std::strcmp(topic_explode.at(1).c_str(), "CONNECT\0") == 0)
-        {
-            VERBOSE_LOG(AMULTIOS, "[%s] PTP CONNECT message src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-            PTPConnection link;
-            link.states = PTP_AMULTIOS_CONNECT;
-            link.sport = std::stoi(topic_explode.at(5));
-            getMac(&link.sourceMac, topic_explode.at(4));
-            link.dport = std::stoi(topic_explode.at(3));
-            getMac(&link.destinationMac, topic_explode.at(2));
-            std::lock_guard<std::mutex> lock(ptp_states_mutex);
-            std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
-                return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_LISTEN || obj.states == PTP_AMULTIOS_ACCEPT));
-            });
-
-            if (it != ptp_topic.end())
+            if (std::strcmp(topic_explode.at(1).c_str(), "CONNECT\0") == 0)
             {
-                std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
-                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                VERBOSE_LOG(AMULTIOS, "[%s] PTP CONNECT message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                PTPConnection link;
+                link.states = PTP_AMULTIOS_CONNECT;
+                link.sport = std::stoi(topic_explode.at(5));
+                getMac(&link.sourceMac, topic_explode.at(4));
+                link.dport = std::stoi(topic_explode.at(3));
+                getMac(&link.destinationMac, topic_explode.at(2));
+                std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
+                    return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_LISTEN || obj.states == PTP_AMULTIOS_ACCEPT));
                 });
 
-                if (cit == it->backlog.end())
+                if (it != ptp_topic.end())
                 {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    it->backlog.push_back(link);
-                }
-                else
-                {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    cit->states = PTP_AMULTIOS_CONNECT;
+                    std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
+                        return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                    });
+
+                    if (cit == it->backlog.end())
+                    {
+                        NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        it->backlog.push_back(link);
+                    }
+                    else
+                    {
+                        NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        cit->states = PTP_AMULTIOS_CONNECT;
+                    }
                 }
             }
-        }
 
-        if (std::strcmp(topic_explode.at(1).c_str(), "ACCEPT\0") == 0)
-        {
-            VERBOSE_LOG(AMULTIOS, "[%s] PTP ACCEPT message src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-            PTPConnection link;
-            link.states = PTP_AMULTIOS_ACCEPT;
-            link.sport = std::stoi(topic_explode.at(5));
-            getMac(&link.sourceMac, topic_explode.at(4));
-            link.dport = std::stoi(topic_explode.at(3));
-            getMac(&link.destinationMac, topic_explode.at(2));
-            std::lock_guard<std::mutex> lock(ptp_states_mutex);
-            std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
-                return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_OPEN || obj.states == PTP_AMULTIOS_CONNECT));
-            });
-
-            if (it != ptp_topic.end())
+            if (std::strcmp(topic_explode.at(1).c_str(), "ACCEPT\0") == 0)
             {
-                std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
-                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                VERBOSE_LOG(AMULTIOS, "[%s] PTP ACCEPT message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                PTPConnection link;
+                link.states = PTP_AMULTIOS_ACCEPT;
+                link.sport = std::stoi(topic_explode.at(5));
+                getMac(&link.sourceMac, topic_explode.at(4));
+                link.dport = std::stoi(topic_explode.at(3));
+                getMac(&link.destinationMac, topic_explode.at(2));
+                std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
+                    return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_OPEN || obj.states == PTP_AMULTIOS_CONNECT));
                 });
 
-                if (cit == it->backlog.end())
+                if (it != ptp_topic.end())
                 {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    it->backlog.push_back(link);
-                }
-                else
-                {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptr->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    cit->states = PTP_AMULTIOS_ACCEPT;
+                    std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
+                        return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                    });
+
+                    if (cit == it->backlog.end())
+                    {
+                        NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        it->backlog.push_back(link);
+                    }
+                    else
+                    {
+                        NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        cit->states = PTP_AMULTIOS_ACCEPT;
+                    }
                 }
             }
         }
@@ -636,62 +983,24 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
     return 1;
 };
 
-void publish_success(void *context, MQTTAsync_successData *response)
-{
-
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    //INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ptr->mqtt_id.c_str(), ptr->pub_topic_latest.c_str(), ptr->pub_payload_len_latest, ptr->qos_latest);
-};
-
-void publish_failure(void *context, MQTTAsync_failureData *response)
-{
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    ERROR_LOG(AMULTIOS, "[%s] Publish failure [%d] on topic [%s] payload_len [%lu] qos [%d] ", ptr->mqtt_id.c_str(), response->code, ptr->pub_topic_latest.c_str(), ptr->pub_payload_len_latest, ptr->qos_latest);
-};
-
-void subscribe_success(void *context, MQTTAsync_successData *response)
-{
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    NOTICE_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", ptr->mqtt_id.c_str(), ptr->sub_topic_latest.c_str(), ptr->qos_latest);
-    ptr->subscribed += 1;
-};
-
-void subscribe_failure(void *context, MQTTAsync_failureData *response)
-{
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    ERROR_LOG(AMULTIOS, "[%s] Subscribe Failure on topic [%s] qos [%d]", ptr->mqtt_id.c_str(), ptr->sub_topic_latest.c_str(), ptr->qos_latest);
-};
-
-void unsubscribe_success(void *context, MQTTAsync_successData *response)
-{
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    NOTICE_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", ptr->mqtt_id.c_str(), ptr->sub_topic_latest.c_str());
-    ptr->subscribed -= 1;
-};
-
-void unsubscribe_failure(void *context, MQTTAsync_failureData *response)
-{
-    AmultiosMqtt *ptr = (AmultiosMqtt *)context;
-    ERROR_LOG(AMULTIOS, "[%s] Unsubscribe Failure [%d] on topic [%s]", ptr->mqtt_id.c_str(), response->code, ptr->sub_topic_latest.c_str());
-};
-
 int __AMULTIOS_CTL_INIT()
 {
     int rc = MQTTASYNC_FAILURE;
-    if (ctl_mqtt == nullptr)
+
+    if (g_ctl_mqtt == nullptr)
     {
         ctlInited = true;
-        ctl_mqtt = new AmultiosMqtt();
-        ctl_mqtt->subscribed = false;
+        g_ctl_mqtt = std::make_shared<AmultiosMqtt>();
+        g_ctl_mqtt->subscribed = false;
         MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
         MQTTAsync_willOptions will = MQTTAsync_willOptions_initializer;
 
-        ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName;
-        rc = MQTTAsync_create(&ctl_mqtt->client, ADDRESS, ctl_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
-        MQTTAsync_setCallbacks(ctl_mqtt->client, ctl_mqtt, ctl_connect_lost, ctl_message_arrived, NULL);
+        g_ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName;
+        rc = MQTTAsync_create(&g_ctl_mqtt->client, ADDRESS, g_ctl_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
+        MQTTAsync_setCallbacks(g_ctl_mqtt->client, NULL, ctl_connect_lost, ctl_message_arrived, NULL);
 
-        opts.context = ctl_mqtt;
-        opts.keepAliveInterval = 30;
+        opts.context = NULL;
+        opts.keepAliveInterval = 300;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 20;
@@ -712,26 +1021,26 @@ int __AMULTIOS_CTL_INIT()
         will.retained = 0;
         opts.will = &will;
 
-        ctl_mqtt->sub_topic = g_Config.sMACAddress + "/SceNetAdhocctl";
-        ctl_mqtt->pub_topic = "SceNetAdhocctl";
+        g_ctl_mqtt->sub_topic = g_Config.sMACAddress + "/SceNetAdhocctl";
+        g_ctl_mqtt->pub_topic = "SceNetAdhocctl";
 
-        ctl_mqtt->reconnectInProgress = true;
-        if ((rc = MQTTAsync_connect(ctl_mqtt->client, &opts)) != MQTTASYNC_SUCCESS)
+        g_ctl_mqtt->reconnectInProgress = true;
+        if ((rc = MQTTAsync_connect(g_ctl_mqtt->client, &opts)) != MQTTASYNC_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
         }
 
         while (ctlRunning)
         {
-            if (!ctl_mqtt->connected && !ctl_mqtt->reconnectInProgress)
+            if (!g_ctl_mqtt->connected && !g_ctl_mqtt->reconnectInProgress)
             {
-                ctl_mqtt->reconnectInProgress = true;
-                rc = MQTTAsync_reconnect(ctl_mqtt->client);
+                g_ctl_mqtt->reconnectInProgress = true;
+                rc = MQTTAsync_reconnect(g_ctl_mqtt->client);
                 sleep_ms(1);
-                NOTICE_LOG(AMULTIOS, "[%s] Reconnecting Client",ctl_mqtt->mqtt_id.c_str());
+                NOTICE_LOG(AMULTIOS, "[%s] Reconnecting Client", g_ctl_mqtt->mqtt_id.c_str());
             }
 
-            if (ctl_mqtt->subscribed == 0)
+            if (g_ctl_mqtt->subscribed == 0)
             {
                 sleep_ms(1);
             }
@@ -746,11 +1055,12 @@ int __AMULTIOS_CTL_INIT()
 int __AMULTIOS_CTL_SHUTDOWN()
 {
     int rc = MQTTASYNC_SUCCESS;
+    auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr)
     {
 
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
-        opts.context = ctl_mqtt;
+        opts.context = NULL;
         opts.timeout = 1;
         opts.onSuccess = ctl_disconnect_success;
         opts.onFailure = ctl_disconnect_failure;
@@ -777,7 +1087,6 @@ int __AMULTIOS_CTL_SHUTDOWN()
         NOTICE_LOG(AMULTIOS, "ctl_mqtt shutdown %d", rc);
         MQTTAsync_destroy(&ctl_mqtt->client);
         ctl_mqtt->client = NULL;
-        delete ctl_mqtt;
         ctl_mqtt = nullptr;
         ctlInited = false;
     }
@@ -787,23 +1096,24 @@ int __AMULTIOS_CTL_SHUTDOWN()
 int __AMULTIOS_PDP_INIT()
 {
     int rc = MQTTASYNC_FAILURE;
-    if (pdp_mqtt == nullptr)
+    if (g_pdp_mqtt == nullptr)
     {
         pdpInited = true;
-        pdp_mqtt = new AmultiosMqtt();
-        pdp_mqtt->subscribed = false;
+        auto g_pdp_mqtt = std::make_shared<AmultiosMqtt>();
+        g_pdp_mqtt->subscribed = false;
         MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
         MQTTAsync_willOptions will = MQTTAsync_willOptions_initializer;
 
-        pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName;
-        rc = MQTTAsync_create(&pdp_mqtt->client, ADDRESS, pdp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
-        MQTTAsync_setCallbacks(pdp_mqtt->client, pdp_mqtt, pdp_connect_lost, pdp_message_arrived, NULL);
+        g_pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName;
+        rc = MQTTAsync_create(&g_pdp_mqtt->client, ADDRESS, g_pdp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
+        MQTTAsync_setCallbacks(g_pdp_mqtt->client, NULL, pdp_connect_lost, pdp_message_arrived, NULL);
 
-        opts.context = pdp_mqtt;
-        opts.keepAliveInterval = 30;
+        opts.context = NULL;
+        opts.keepAliveInterval = 300;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 20;
+        opts.maxInflight = 255;
         //opts.automaticReconnect = 1;
         opts.onSuccess = pdp_connect_success;
         opts.onFailure = pdp_connect_failure;
@@ -821,23 +1131,23 @@ int __AMULTIOS_PDP_INIT()
         will.retained = 0;
         opts.will = &will;
 
-        pdp_mqtt->reconnectInProgress = true;
-        if ((rc = MQTTAsync_connect(pdp_mqtt->client, &opts)) != MQTTASYNC_SUCCESS)
+        g_pdp_mqtt->reconnectInProgress = true;
+        if ((rc = MQTTAsync_connect(g_pdp_mqtt->client, &opts)) != MQTTASYNC_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
         }
 
         while (pdpRunning)
         {
-            if (!pdp_mqtt->connected && !pdp_mqtt->reconnectInProgress)
+            if (!g_pdp_mqtt->connected && !g_pdp_mqtt->reconnectInProgress)
             {
-                pdp_mqtt->reconnectInProgress = true;
-                rc = MQTTAsync_reconnect(pdp_mqtt->client);
-                NOTICE_LOG(AMULTIOS, "[%s] Reconnecting Client",ptp_mqtt->mqtt_id.c_str());
+                g_pdp_mqtt->reconnectInProgress = true;
+                rc = MQTTAsync_reconnect(g_pdp_mqtt->client);
+                NOTICE_LOG(AMULTIOS, "[%s] Reconnecting Client", g_pdp_mqtt->mqtt_id.c_str());
                 sleep_ms(1);
             }
 
-            if (pdp_mqtt->subscribed == 0)
+            if (g_pdp_mqtt->subscribed == 0)
             {
                 sleep_ms(1);
             }
@@ -852,10 +1162,11 @@ int __AMULTIOS_PDP_INIT()
 int __AMULTIOS_PDP_SHUTDOWN()
 {
     int rc = MQTTASYNC_SUCCESS;
+    auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr)
     {
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
-        opts.context = pdp_mqtt;
+        opts.context = NULL;
         opts.timeout = 1;
         opts.onSuccess = pdp_disconnect_success;
         opts.onFailure = pdp_disconnect_failure;
@@ -867,7 +1178,6 @@ int __AMULTIOS_PDP_SHUTDOWN()
         NOTICE_LOG(AMULTIOS, "pdp_mqtt shutdown %d", rc);
         MQTTAsync_destroy(&pdp_mqtt->client);
         pdp_mqtt->client = NULL;
-        delete pdp_mqtt;
         pdp_mqtt = nullptr;
         pdpInited = false;
     }
@@ -877,23 +1187,24 @@ int __AMULTIOS_PDP_SHUTDOWN()
 int __AMULTIOS_PTP_INIT()
 {
     int rc = MQTTASYNC_FAILURE;
-    if (ptp_mqtt == nullptr)
+    if (g_ptp_mqtt == nullptr)
     {
         ptpInited = true;
-        ptp_mqtt = new AmultiosMqtt();
-        ptp_mqtt->subscribed = 0;
+        g_ptp_mqtt = std::make_shared<AmultiosMqtt>();
+        g_ptp_mqtt->subscribed = 0;
         MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
         MQTTAsync_willOptions will = MQTTAsync_willOptions_initializer;
 
-        ptp_mqtt->mqtt_id = "PTP/" + g_Config.sNickName;
-        rc = MQTTAsync_create(&ptp_mqtt->client, ADDRESS, ptp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
-        MQTTAsync_setCallbacks(ptp_mqtt->client, ptp_mqtt, ptp_connect_lost, ptp_message_arrived, NULL);
+        g_ptp_mqtt->mqtt_id = "PTP/" + g_Config.sNickName;
+        rc = MQTTAsync_create(&g_ptp_mqtt->client, ADDRESS, g_ptp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
+        MQTTAsync_setCallbacks(g_ptp_mqtt->client, NULL, ptp_connect_lost, ptp_message_arrived, NULL);
 
-        opts.context = ptp_mqtt;
-        opts.keepAliveInterval = 30;
+        opts.context = NULL;
+        opts.keepAliveInterval = 300;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 20;
+        opts.maxInflight = 255;
         //opts.automaticReconnect = 1;
         opts.onSuccess = ptp_connect_success;
         opts.onFailure = ptp_connect_failure;
@@ -911,21 +1222,22 @@ int __AMULTIOS_PTP_INIT()
         will.retained = 0;
         opts.will = &will;
 
-        if ((rc = MQTTAsync_connect(ptp_mqtt->client, &opts)) != MQTTASYNC_SUCCESS)
+        if ((rc = MQTTAsync_connect(g_ptp_mqtt->client, &opts)) != MQTTASYNC_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
         }
 
         while (ptpRunning)
         {
-            if(!ptp_mqtt->connected && !ptp_mqtt->reconnectInProgress){
-                ptp_mqtt->reconnectInProgress = true;
-                rc = MQTTAsync_reconnect(ptp_mqtt->client);
-                NOTICE_LOG(AMULTIOS, "[%s] Reconnecting Client",ptp_mqtt->mqtt_id.c_str());
+            if (!g_ptp_mqtt->connected && !g_ptp_mqtt->reconnectInProgress)
+            {
+                g_ptp_mqtt->reconnectInProgress = true;
+                rc = MQTTAsync_reconnect(g_ptp_mqtt->client);
+                NOTICE_LOG(AMULTIOS, "[%s] Reconnecting Client", g_ptp_mqtt->mqtt_id.c_str());
                 sleep_ms(1);
             }
 
-            if (ptp_mqtt->subscribed == 0)
+            if (g_ptp_mqtt->subscribed == 0)
             {
                 sleep_ms(1);
             }
@@ -940,10 +1252,11 @@ int __AMULTIOS_PTP_INIT()
 int __AMULTIOS_PTP_SHUTDOWN()
 {
     int rc = MQTTASYNC_SUCCESS;
+    auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr)
     {
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
-        opts.context = ptp_mqtt;
+        opts.context = ptp_mqtt.get();
         opts.timeout = 1;
         opts.onSuccess = ptp_disconnect_success;
         opts.onFailure = ptp_disconnect_failure;
@@ -955,7 +1268,6 @@ int __AMULTIOS_PTP_SHUTDOWN()
         NOTICE_LOG(AMULTIOS, "ptp_mqtt shutdown %d", rc);
         MQTTAsync_destroy(&ptp_mqtt->client);
         ptp_mqtt->client = NULL;
-        delete ptp_mqtt;
         ptp_mqtt = nullptr;
         ptpInited = false;
     }
@@ -965,15 +1277,17 @@ int __AMULTIOS_PTP_SHUTDOWN()
 int AmultiosNetAdhocInit()
 {
     int rc = MQTTASYNC_FAILURE;
+    auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
-        rc = subscribe(ctl_mqtt, ctl_mqtt->sub_topic.c_str(), 2);
+        rc = ctl_subscribe(ctl_mqtt->sub_topic.c_str(), 2);
     }
     return rc;
 }
 
 int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
 {
+    auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
         SceNetAdhocctlLoginPacketC2S packet;
@@ -983,7 +1297,7 @@ int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
         packet.mac = addres;
         strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
         memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
-        return publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+        return ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
     }
     return MQTTASYNC_FAILURE;
 }
@@ -1026,10 +1340,10 @@ int AmultiosNetAdhocctlCreate(const char *groupName)
                 // Acquire Network Lock
 
                 int iResult;
-
+                auto ctl_mqtt = g_ctl_mqtt;
                 if (ctl_mqtt != nullptr && ctl_mqtt->connected)
                 {
-                    iResult = publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+                    iResult = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
                 }
 
                 if (iResult != MQTTASYNC_SUCCESS)
@@ -1077,10 +1391,10 @@ int AmultiosNetAdhocctlScan()
             packet.mac = addres;
 
             int iResult = MQTTASYNC_FAILURE;
-
+            auto ctl_mqtt = g_ctl_mqtt;
             if (ctl_mqtt != nullptr && ctl_mqtt->connected)
             {
-                iResult = publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+                iResult = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
             }
 
             if (iResult != MQTTASYNC_SUCCESS)
@@ -1108,7 +1422,7 @@ int AmultiosNetAdhocctlDisconnect()
     if (threadStatus != ADHOCCTL_STATE_DISCONNECTED)
     { // (threadStatus == ADHOCCTL_STATE_CONNECTED)
         // Clear Network Name
-
+        auto ctl_mqtt = g_ctl_mqtt;
         memset(&parameter.group_name, 0, sizeof(parameter.group_name));
 
         // Set Disconnected State
@@ -1129,7 +1443,7 @@ int AmultiosNetAdhocctlDisconnect()
         int iResult;
         if (ctl_mqtt != nullptr && ctl_mqtt->connected)
         {
-            iResult = publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+            iResult = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
         }
         // Clear Peer List
         freeFriendsRecursive(friends);
@@ -1144,6 +1458,7 @@ int AmultiosNetAdhocctlDisconnect()
 int AmultiosNetAdhocctlTerm()
 {
     int rc = MQTTASYNC_FAILURE;
+    auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
         AmultiosNetAdhocctlDisconnectPacketS2C packet;
@@ -1151,7 +1466,7 @@ int AmultiosNetAdhocctlTerm()
         SceNetEtherAddr addres;
         getLocalMac(&addres);
         packet.mac = addres;
-        rc = publish(ctl_mqtt, ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 5000L);
+        rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 5000L);
         return rc;
     }
 
@@ -1161,10 +1476,10 @@ int AmultiosNetAdhocctlTerm()
 int AmultiosNetAdhocTerm()
 {
     int rc;
-
+    auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
-        rc = unsubscribe(ctl_mqtt, ctl_mqtt->sub_topic.c_str());
+        rc = ctl_unsubscribe(ctl_mqtt->sub_topic.c_str());
         return rc;
     }
 
@@ -1187,8 +1502,9 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                 int rc;
                 std::string sub_topic = "PDP/" + getMacString(saddr) + "/" + std::to_string(port) + "/#";
 
+                auto pdp_mqtt = g_pdp_mqtt;
                 // Valid Socket produced
-                if ((rc = subscribe(pdp_mqtt, sub_topic.c_str(), 0) == MQTTASYNC_SUCCESS))
+                if ((rc = pdp_subscribe(sub_topic.c_str(), 0) == MQTTASYNC_SUCCESS))
                 {
                     // Change socket buffer size when necessary
                     // Allocate Memory for Internal Data
@@ -1277,12 +1593,12 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                         {
 
                             // Single Target
+                            auto pdp_mqtt = g_pdp_mqtt;
                             if (!isBroadcastMAC(daddr))
                             {
                                 // Fill in Target Structure
 
                                 //const char test = "PDP/aabbccddeeff/65536/aabbccddeeff/65535";
-
                                 // Get Peer IP
                                 if (macInNetwork((SceNetEtherAddr *)daddr))
                                 {
@@ -1295,7 +1611,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
                                     if (flag)
                                     {
-                                        rc = publish(pdp_mqtt, pdp_single_topic.c_str(), data, len, 0, 0);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, 0, 0);
 
                                         if (rc == MQTTASYNC_SUCCESS)
                                         {
@@ -1304,7 +1620,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                         return ERROR_NET_ADHOC_WOULD_BLOCK;
                                     }
 
-                                    rc = publish(pdp_mqtt, pdp_single_topic.c_str(), data, len, 1, timeout);
+                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, 1, timeout);
 
                                     if (rc == MQTTASYNC_SUCCESS)
                                     {
@@ -1331,11 +1647,11 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
                                     if (flag)
                                     {
-                                        rc = publish(pdp_mqtt, pdp_single_topic.c_str(), data, len, 0, 0);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, 0, 0);
                                     }
                                     else
                                     {
-                                        rc = publish(pdp_mqtt, pdp_single_topic.c_str(), data, len, 1, timeout);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, 1, timeout);
                                     }
 
                                     if (rc == MQTTASYNC_SUCCESS)
@@ -1455,6 +1771,7 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
             // Valid Socket
             if (sock != NULL)
             {
+                auto pdp_mqtt = g_pdp_mqtt;
                 // Close Connection
                 //closesocket(sock->id);
                 // Remove Port Forward from Router
@@ -1465,7 +1782,7 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
 
                 // Free Translation Slot
                 pdp[id - 1] = NULL;
-                int rc = unsubscribe(pdp_mqtt, pdp_topic.at(id - 1).c_str());
+                int rc = pdp_unsubscribe(pdp_topic.at(id - 1).c_str());
                 // Success
                 return 0;
             }
@@ -1511,11 +1828,12 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                 if (bufsize > 0 && rexmt_int > 0 && rexmt_cnt > 0)
                 {
                     // Create Infrastructure Socket
+                    auto ptp_mqtt = g_ptp_mqtt;
                     std::string sub_topic = "PTP/+/" + getMacString(saddr) + "/" + std::to_string(sport) + "/#";
                     std::string open_topic = "PTP/OPEN/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(sport);
-                    int rc = subscribe(ptp_mqtt, sub_topic.c_str(), 1);
+                    int rc = ptp_subscribe(sub_topic.c_str(), 1);
                     uint8_t send = PTP_AMULTIOS_OPEN;
-                    rc = publish(ptp_mqtt, open_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
+                    rc = ptp_publish(open_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
                     if (rc == MQTTASYNC_SUCCESS)
                     {
                         SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
@@ -1667,10 +1985,10 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                         std::string sub_topic = "PTP/+/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport) + "/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport);
                         std::string pub_topic = "PTP/ACCEPT/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
                         // Allocate Memory
-
-                        int rc = subscribe(ptp_mqtt, sub_topic.c_str(), 1);
+                        auto ptp_mqtt = g_ptp_mqtt;
+                        int rc = ptp_subscribe(sub_topic.c_str(), 1);
                         uint8_t send = PTP_AMULTIOS_ACCEPT;
-                        rc = publish(ptp_mqtt, pub_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
+                        rc = ptp_publish(pub_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
                         SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
 
                         // Allocated Memory
@@ -1780,8 +2098,9 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                     std::string connect_topic = "PTP/CONNECT/" + getMacString(&socket->paddr) + "/" + std::to_string(socket->pport) + "/" + getMacString(&socket->laddr) + "/" + std::to_string(socket->lport);
 
                     // Connect Socket to Peer (Nonblocking)
+                    auto ptp_mqtt = g_ptp_mqtt;
                     uint8_t send = PTP_AMULTIOS_CONNECT;
-                    int rc = publish(ptp_mqtt, connect_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
+                    int rc = ptp_publish(connect_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
 
                     bool found = false;
                     std::vector<PTPConnection>::iterator it;
@@ -1886,12 +2205,13 @@ int AmultiosNetAdhocPtpClose(int id, int unknown)
         if (id > 0 && id <= 255 && ptp[id - 1] != NULL)
         {
             // Cast Socket
+            auto ptp_mqtt = g_ptp_mqtt;
             SceNetAdhocPtpStat *socket = ptp[id - 1];
 
             // Free Reference
             ptp[id - 1] = NULL;
             std::lock_guard<std::mutex> lock(ptp_states_mutex);
-            int rc = unsubscribe(ptp_mqtt, ptp_topic.at(id - 1).sub_topic.c_str());
+            int rc = ptp_unsubscribe(ptp_topic.at(id - 1).sub_topic.c_str());
             ptp_topic.at(id - 1).states = PTP_AMULTIOS_CLOSED;
             // Success
             return 0;
@@ -1931,7 +2251,8 @@ int AmultiosNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int re
                     // Create Infrastructure Socket
                     std::string sub_topic = "PTP/+/" + getMacString(saddr) + "/" + std::to_string(sport) + "/#";
 
-                    int rc = subscribe(ptp_mqtt, sub_topic.c_str(), 1);
+                    auto ptp_mqtt = g_ptp_mqtt;
+                    int rc = ptp_subscribe(sub_topic.c_str(), 1);
                     // Valid Socket produced
                     if (rc == MQTTASYNC_SUCCESS)
                     {
@@ -2039,8 +2360,9 @@ int AmultiosNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                     int rc;
 
                     {
+                        auto ptp_mqtt = g_ptp_mqtt;
                         std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                        rc = publish(ptp_mqtt, ptp_topic.at(id - 1).pub_topic.c_str(), (void *)data, *len, 1, timeout);
+                        rc = ptp_publish(ptp_topic.at(id - 1).pub_topic.c_str(), (void *)data, *len, 1, timeout);
                     }
 
                     // Success

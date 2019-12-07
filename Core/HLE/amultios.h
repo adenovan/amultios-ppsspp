@@ -23,8 +23,8 @@ typedef struct AmultiosMqtt
 
 typedef struct PDPMessage
 {
-  MQTTAsync_message *message = NULL;
-  char *topicName = NULL;
+  MQTTAsync_message * message = NULL;
+  char * topicName = NULL;
   int topicLen;
   int sport;
   int dport;
@@ -108,22 +108,19 @@ std::string getMacString(SceNetEtherAddr *addr);
 bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2);
 
 // library method
-int publish(AmultiosMqtt *amultios_mqtt, const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
-int subscribe(AmultiosMqtt *amultios_mqtt, const char *topic, int qos);
-int unsubscribe(AmultiosMqtt *amultios_mqtt, const char *topic);
 void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet);
 void deleteAmultiosPeer(SceNetEtherAddr *mac);
 bool macInNetwork(SceNetEtherAddr *mac);
 
-void publish_success(void *context, MQTTAsync_successData *response);
-void publish_failure(void *context, MQTTAsync_failureData *response);
-
-void subscribe_success(void *context, MQTTAsync_successData *response);
-void subscribe_failure(void *context, MQTTAsync_failureData *response);
-
-void unsubscribe_success(void *context, MQTTAsync_successData *response);
-void unsubscribe_failure(void *context, MQTTAsync_failureData *response);
-
+int ctl_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
+int ctl_subscribe(const char *topic, int qos);
+int ctl_unsubscribe(const char *topic);
+void ctl_publish_success(void *context, MQTTAsync_successData *response);
+void ctl_publish_failure(void *context, MQTTAsync_failureData *response);
+void ctl_subscribe_success(void *context, MQTTAsync_successData *response);
+void ctl_subscribe_failure(void *context, MQTTAsync_failureData *response);
+void ctl_unsubscribe_success(void *context, MQTTAsync_successData *response);
+void ctl_unsubscribe_failure(void *context, MQTTAsync_failureData *response);
 void ctl_connect_success(void *context, MQTTAsync_successData *response);
 void ctl_connect_failure(void *context, MQTTAsync_failureData *response);
 void ctl_disconnect_success(void *context, MQTTAsync_successData *response);
@@ -131,6 +128,15 @@ void ctl_disconnect_failure(void *context, MQTTAsync_failureData *response);
 void ctl_connect_lost(void *context, char *cause);
 int ctl_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message);
 
+int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
+int pdp_subscribe(const char *topic, int qos);
+int pdp_unsubscribe(const char *topic);
+void pdp_publish_success(void *context, MQTTAsync_successData *response);
+void pdp_publish_failure(void *context, MQTTAsync_failureData *response);
+void pdp_subscribe_success(void *context, MQTTAsync_successData *response);
+void pdp_subscribe_failure(void *context, MQTTAsync_failureData *response);
+void pdp_unsubscribe_success(void *context, MQTTAsync_successData *response);
+void pdp_unsubscribe_failure(void *context, MQTTAsync_failureData *response);
 void pdp_connect_success(void *context, MQTTAsync_successData *response);
 void pdp_connect_failure(void *context, MQTTAsync_failureData *response);
 void pdp_disconnect_success(void *context, MQTTAsync_successData *response);
@@ -138,6 +144,16 @@ void pdp_disconnect_failure(void *context, MQTTAsync_failureData *response);
 void pdp_connect_lost(void *context, char *cause);
 int pdp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message);
 
+
+int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
+int ptp_subscribe(const char *topic, int qos);
+int ptp_unsubscribe(const char *topic);
+void ptp_publish_success(void *context, MQTTAsync_successData *response);
+void ptp_publish_failure(void *context, MQTTAsync_failureData *response);
+void ptp_subscribe_success(void *context, MQTTAsync_successData *response);
+void ptp_subscribe_failure(void *context, MQTTAsync_failureData *response);
+void ptp_unsubscribe_success(void *context, MQTTAsync_successData *response);
+void ptp_unsubscribe_failure(void *context, MQTTAsync_failureData *response);
 void ptp_connect_success(void *context, MQTTAsync_successData *response);
 void ptp_connect_failure(void *context, MQTTAsync_failureData *response);
 void ptp_disconnect_success(void *context, MQTTAsync_successData *response);
@@ -176,15 +192,15 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 
 extern bool ctlInited;
 extern bool ctlRunning;
-extern AmultiosMqtt *ctl_mqtt;
+//extern AmultiosMqtt *ctl_mqtt;
 extern std::thread ctlThread;
 
 extern bool pdpInited;
 extern bool pdpRunning;
-extern AmultiosMqtt *pdp_mqtt;
+//extern AmultiosMqtt *pdp_mqtt;
 extern std::thread pdpThread;
 
 extern bool ptpInited;
 extern bool ptpRunning;
-extern AmultiosMqtt *ptp_mqtt;
+//extern AmultiosMqtt *ptp_mqtt;
 extern std::thread ptpThread;
