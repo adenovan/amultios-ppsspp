@@ -100,32 +100,22 @@ void __NetAdhocShutdown()
 
 	if (g_Config.bAmultiosMode)
 	{
-
-		if (ctlInited)
+		ctlRunning = false;
+		if (ctlThread.joinable())
 		{
-			ctlRunning = false;
-			if (ctlThread.joinable())
-			{
-				ctlThread.join();
-			}
+			ctlThread.join();
 		}
 
-		if (pdpInited)
+		pdpRunning = false;
+		if (pdpThread.joinable())
 		{
-			pdpRunning = false;
-			if (pdpThread.joinable())
-			{
-				pdpThread.join();
-			}
+			pdpThread.join();
 		}
 
-		if (ptpInited)
+		ptpRunning = false;
+		if (ptpThread.joinable())
 		{
-			ptpRunning = false;
-			if (ptpThread.joinable())
-			{
-				ptpThread.join();
-			}
+			ptpThread.join();
 		}
 	}
 }

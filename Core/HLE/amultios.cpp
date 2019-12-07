@@ -1086,8 +1086,7 @@ int __AMULTIOS_CTL_SHUTDOWN()
 
         NOTICE_LOG(AMULTIOS, "ctl_mqtt shutdown %d", rc);
         MQTTAsync_destroy(&ctl_mqtt->client);
-        ctl_mqtt->client = NULL;
-        ctl_mqtt = nullptr;
+        g_ctl_mqtt = nullptr;
         ctlInited = false;
     }
     return rc;
@@ -1099,7 +1098,7 @@ int __AMULTIOS_PDP_INIT()
     if (g_pdp_mqtt == nullptr)
     {
         pdpInited = true;
-        auto g_pdp_mqtt = std::make_shared<AmultiosMqtt>();
+        g_pdp_mqtt = std::make_shared<AmultiosMqtt>();
         g_pdp_mqtt->subscribed = false;
         MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
         MQTTAsync_willOptions will = MQTTAsync_willOptions_initializer;
@@ -1177,8 +1176,7 @@ int __AMULTIOS_PDP_SHUTDOWN()
         }
         NOTICE_LOG(AMULTIOS, "pdp_mqtt shutdown %d", rc);
         MQTTAsync_destroy(&pdp_mqtt->client);
-        pdp_mqtt->client = NULL;
-        pdp_mqtt = nullptr;
+        g_pdp_mqtt = nullptr;
         pdpInited = false;
     }
     return rc;
@@ -1222,6 +1220,7 @@ int __AMULTIOS_PTP_INIT()
         will.retained = 0;
         opts.will = &will;
 
+        g_ptp_mqtt->reconnectInProgress = true;
         if ((rc = MQTTAsync_connect(g_ptp_mqtt->client, &opts)) != MQTTASYNC_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
@@ -1267,8 +1266,7 @@ int __AMULTIOS_PTP_SHUTDOWN()
         }
         NOTICE_LOG(AMULTIOS, "ptp_mqtt shutdown %d", rc);
         MQTTAsync_destroy(&ptp_mqtt->client);
-        ptp_mqtt->client = NULL;
-        ptp_mqtt = nullptr;
+        g_ptp_mqtt = nullptr;
         ptpInited = false;
     }
     return rc;
