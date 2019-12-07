@@ -1040,10 +1040,10 @@ int __AMULTIOS_CTL_INIT()
                 NOTICE_LOG(AMULTIOS, "[%s] Reconnecting Client", g_ctl_mqtt->mqtt_id.c_str());
             }
 
-            if (g_ctl_mqtt->subscribed == 0)
-            {
+            // if (g_ctl_mqtt->subscribed == 0)
+            // {
                 sleep_ms(1);
-            }
+            //}
         }
 
         __AMULTIOS_CTL_SHUTDOWN();
@@ -1112,7 +1112,7 @@ int __AMULTIOS_PDP_INIT()
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 20;
-        opts.maxInflight = 255;
+        //opts.maxInflight = 255;
         //opts.automaticReconnect = 1;
         opts.onSuccess = pdp_connect_success;
         opts.onFailure = pdp_connect_failure;
@@ -1165,8 +1165,6 @@ int __AMULTIOS_PDP_SHUTDOWN()
     if (pdp_mqtt != nullptr)
     {
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
-        opts.context = NULL;
-        opts.timeout = 1;
         opts.onSuccess = pdp_disconnect_success;
         opts.onFailure = pdp_disconnect_failure;
         int rc = MQTTAsync_disconnect(pdp_mqtt->client, &opts);
@@ -1202,7 +1200,7 @@ int __AMULTIOS_PTP_INIT()
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 20;
-        opts.maxInflight = 255;
+        //opts.maxInflight = 255;
         //opts.automaticReconnect = 1;
         opts.onSuccess = ptp_connect_success;
         opts.onFailure = ptp_connect_failure;
@@ -1255,8 +1253,6 @@ int __AMULTIOS_PTP_SHUTDOWN()
     if (ptp_mqtt != nullptr)
     {
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
-        opts.context = ptp_mqtt.get();
-        opts.timeout = 1;
         opts.onSuccess = ptp_disconnect_success;
         opts.onFailure = ptp_disconnect_failure;
         int rc = MQTTAsync_disconnect(ptp_mqtt->client, &opts);
@@ -1605,7 +1601,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                     int rc;
                                     SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
                                     std::string pdp_single_topic = "PDP/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
-                                    NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic.c_str());
+                                    //NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic.c_str());
 
                                     if (flag)
                                     {
@@ -1652,10 +1648,6 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                         rc = pdp_publish(pdp_single_topic.c_str(), data, len, 1, timeout);
                                     }
 
-                                    if (rc == MQTTASYNC_SUCCESS)
-                                    {
-                                        //NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic broadcast %s", pdp_single_topic.c_str());
-                                    }
                                 }
 
                                 // Free Peer Lock
@@ -1727,7 +1719,7 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                         memcpy(buf, packet.message->payload, packet.message->payloadlen);
                         *saddr = packet.sourceMac;
                         *sport = (uint16_t)packet.sport;
-                        //Sapdp_queuee Length
+                        //pdp_queuee Length
                         *len = packet.message->payloadlen;
                         MQTTAsync_freeMessage(&it->message);
                         MQTTAsync_free(it->topicName);
