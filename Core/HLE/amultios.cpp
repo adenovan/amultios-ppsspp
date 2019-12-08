@@ -407,7 +407,6 @@ void ctl_connect_lost(void *context, char *cause)
             ctl_mqtt->connected = false;
             ctl_mqtt->reconnectInProgress = false;
         }
-
     }
 };
 
@@ -761,7 +760,6 @@ int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
         {
             rc = MQTTAsync_waitForCompletion(ptp_mqtt->client, rc, timeout);
         }
-    
     }
     return rc;
 }
@@ -2436,36 +2434,36 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
             if (buf != NULL && len != NULL && *len > 0)
             {
                 // Schedule Timeout Removal
+
                 if (flag)
-                    timeout = 0;
-
-                if (ptp_queue.size() > 0)
                 {
-
-                    std::lock_guard<std::mutex> lock(ptp_queue_mutex);
-
-                    std::vector<PTPMessage>::iterator it = ptp_queue.begin();
-                    for (; it != ptp_queue.end(); it++)
+                    timeout = 0;
+                    if (ptp_queue.size() > 0)
                     {
-                        if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport)
-                        {
-                            PTPMessage packet = *it;
-                            memcpy(buf, packet.message->payload, packet.message->payloadlen);
 
-                            *len = packet.message->payloadlen;
-                            MQTTAsync_freeMessage(&it->message);
-                            MQTTAsync_free(it->topicName);
-                            ptp_queue.erase(it);
-                            break;
+                        std::lock_guard<std::mutex> lock(ptp_queue_mutex);
+
+                        std::vector<PTPMessage>::iterator it = ptp_queue.begin();
+                        for (; it != ptp_queue.end(); it++)
+                        {
+                            if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport)
+                            {
+                                PTPMessage packet = *it;
+                                memcpy(buf, packet.message->payload, packet.message->payloadlen);
+
+                                *len = packet.message->payloadlen;
+                                MQTTAsync_freeMessage(&it->message);
+                                MQTTAsync_free(it->topicName);
+                                ptp_queue.erase(it);
+                                break;
+                            }
                         }
+                        return 0;
                     }
-                    return 0;
+                    return ERROR_NET_ADHOC_WOULD_BLOCK;
                 }
                 else
                 {
-                    // Blocking Situation
-                    if (flag)
-                        return ERROR_NET_ADHOC_WOULD_BLOCK;
 
                     uint32_t starttime = (uint32_t)(real_time_now() * 1000000.0);
 
