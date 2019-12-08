@@ -231,16 +231,13 @@ int ctl_publish(const char *topic, void *payload, size_t size, int qos, unsigned
             ctl_mqtt->pub_payload_len_latest = size;
             ctl_mqtt->qos_latest = qos;
         }
-
-        opts.context = NULL;
         opts.onSuccess = ctl_publish_success;
         opts.onFailure = ctl_publish_failure;
-        int dt = MQTTAsync_sendMessage(ctl_mqtt->client, topic, &msg, &opts);
+        rc = MQTTAsync_sendMessage(ctl_mqtt->client, topic, &msg, &opts);
         if (timeout > 0)
         {
-            rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, dt, timeout);
+            rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, rc, timeout);
         }
-        rc = token;
     }
     return rc;
 }
@@ -258,7 +255,6 @@ int ctl_subscribe(const char *topic, int qos)
         }
 
         MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
-        opts.context = NULL;
         opts.onSuccess = ctl_subscribe_success;
         opts.onFailure = ctl_subscribe_failure;
         return MQTTAsync_subscribe(ctl_mqtt->client, topic, qos, &opts);
@@ -277,7 +273,6 @@ int ctl_unsubscribe(const char *topic)
         }
 
         MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
-        opts.context = NULL;
         opts.onSuccess = ctl_unsubscribe_success;
         opts.onFailure = ctl_unsubscribe_failure;
         return MQTTAsync_unsubscribe(ctl_mqtt->client, topic, &opts);
@@ -370,13 +365,6 @@ void ctl_connect_failure(void *context, MQTTAsync_failureData *response)
             ctl_mqtt->connected = false;
             ctl_mqtt->reconnectInProgress = false;
         }
-
-        // if (ctlRunning && ctl_mqtt != nullptr && !ctl_mqtt->connected && !ctl_mqtt->reconnectInProgress)
-        // {
-        //     std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
-        //     ctl_mqtt->reconnectInProgress = true;
-        //     MQTTAsync_reconnect(ctl_mqtt->client);
-        // }
     }
 };
 
@@ -420,14 +408,7 @@ void ctl_connect_lost(void *context, char *cause)
             ctl_mqtt->reconnectInProgress = false;
         }
 
-        // if (ctlRunning && ctl_mqtt != nullptr && !ctl_mqtt->connected && !ctl_mqtt->reconnectInProgress)
-        // {
-        //     std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
-        //     ctl_mqtt->reconnectInProgress = true;
-        //     MQTTAsync_reconnect(ctl_mqtt->client);
-        // }
     }
-    //WARN_LOG(AMULTIOS, "[%s] Connection Lost cause [%s]", ptr->mqtt_id.c_str(), cause);
 };
 
 int ctl_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message)
@@ -551,23 +532,19 @@ int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
         msg.payloadlen = (int)size;
         msg.qos = qos;
         msg.retained = 0;
-
         {
             std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             pdp_mqtt->pub_topic_latest = topic;
             pdp_mqtt->pub_payload_len_latest = size;
             pdp_mqtt->qos_latest = qos;
         }
-
-        opts.context = NULL;
         opts.onSuccess = pdp_publish_success;
         opts.onFailure = pdp_publish_failure;
-        int dt = MQTTAsync_sendMessage(pdp_mqtt->client, topic, &msg, &opts);
+        rc = MQTTAsync_sendMessage(pdp_mqtt->client, topic, &msg, &opts);
         if (timeout > 0)
         {
-            rc = MQTTAsync_waitForCompletion(pdp_mqtt->client, dt, timeout);
+            rc = MQTTAsync_waitForCompletion(pdp_mqtt->client, rc, timeout);
         }
-        rc = token;
     }
     return rc;
 }
@@ -586,7 +563,6 @@ int pdp_subscribe(const char *topic, int qos)
             pdp_mqtt->qos_latest = qos;
         }
 
-        opts.context = NULL;
         opts.onSuccess = pdp_subscribe_success;
         opts.onFailure = pdp_subscribe_failure;
         return MQTTAsync_subscribe(pdp_mqtt->client, topic, qos, &opts);
@@ -693,13 +669,6 @@ void pdp_connect_failure(void *context, MQTTAsync_failureData *response)
             pdp_mqtt->connected = false;
             pdp_mqtt->reconnectInProgress = false;
         }
-
-        // if (pdpRunning && pdp_mqtt != nullptr && !pdp_mqtt->connected && !pdp_mqtt->reconnectInProgress)
-        // {
-        //     std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-        //     pdp_mqtt->reconnectInProgress = true;
-        //     MQTTAsync_reconnect(pdp_mqtt->client);
-        // }
     }
 };
 
@@ -735,13 +704,6 @@ void pdp_connect_lost(void *context, char *cause)
             std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             pdp_mqtt->connected = false;
         }
-
-        // if (pdpRunning && pdp_mqtt != nullptr && !pdp_mqtt->connected && !pdp_mqtt->reconnectInProgress)
-        // {
-        //     std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-        //     pdp_mqtt->reconnectInProgress = true;
-        //     MQTTAsync_reconnect(pdp_mqtt->client);
-        // }
     }
 };
 
@@ -833,7 +795,6 @@ int ptp_unsubscribe(const char *topic)
             std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             ptp_mqtt->sub_topic_latest = topic;
         }
-        opts.context = NULL;
         opts.onSuccess = ptp_unsubscribe_success;
         opts.onFailure = ptp_unsubscribe_failure;
         return MQTTAsync_unsubscribe(ptp_mqtt->client, topic, &opts);
@@ -924,13 +885,6 @@ void ptp_connect_failure(void *context, MQTTAsync_failureData *response)
             ptp_mqtt->connected = false;
             ptp_mqtt->reconnectInProgress = false;
         }
-
-        // if (ptpRunning && ptp_mqtt != nullptr && !ptp_mqtt->connected && !ptp_mqtt->reconnectInProgress)
-        // {
-        //     std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
-        //     ptp_mqtt->reconnectInProgress = true;
-        //     MQTTAsync_reconnect(ptp_mqtt->client);
-        // }
     }
 };
 
@@ -970,13 +924,6 @@ void ptp_connect_lost(void *context, char *cause)
             std::unique_lock<std::mutex> lk(ptp_mqtt_mutex);
             ptp_mqtt->connected = false;
         }
-
-        // if (ptpRunning && ptp_mqtt != nullptr && !ptp_mqtt->connected && !ptp_mqtt->reconnectInProgress)
-        // {
-        //     std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
-        //     ptp_mqtt->reconnectInProgress = true;
-        //     MQTTAsync_reconnect(ptp_mqtt->client);
-        // }
     }
 };
 
