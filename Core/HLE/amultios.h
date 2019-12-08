@@ -72,7 +72,6 @@ typedef struct PTPTopic
   int sport;
   SceNetEtherAddr destinationMac;
   int dport;
-  std::vector<PTPConnection> backlog;
 } PTPTopic;
 
 typedef struct

@@ -32,11 +32,13 @@ std::thread ptpThread;
 std::shared_ptr<AmultiosMqtt> g_ptp_mqtt = nullptr;
 std::mutex ptp_mqtt_mutex, ptp_running_mutex;
 std::condition_variable ptp_running_cv;
-
-std::vector<PTPTopic> ptp_topic(255);
 std::mutex ptp_queue_mutex;
 std::vector<PTPMessage> ptp_queue;
-std::mutex ptp_states_mutex;
+
+std::vector<PTPTopic> ptp_topic(255);
+
+std::mutex ptp_peer_mutex;
+std::vector<PTPConnection> ptp_peer_connection;
 
 volatile MQTTAsync_token token;
 
@@ -288,7 +290,7 @@ void ctl_publish_success(void *context, MQTTAsync_successData *response)
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->pub_topic_latest.c_str(), ctl_mqtt->pub_payload_len_latest, ctl_mqtt->qos_latest);
+        VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->pub_topic_latest.c_str(), ctl_mqtt->pub_payload_len_latest, ctl_mqtt->qos_latest);
     }
 };
 
@@ -306,7 +308,7 @@ void ctl_subscribe_success(void *context, MQTTAsync_successData *response)
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->sub_topic_latest.c_str(), ctl_mqtt->qos_latest);
+        INFO_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->sub_topic_latest.c_str(), ctl_mqtt->qos_latest);
         std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
         ctl_mqtt->subscribed += 1;
     }
@@ -326,7 +328,7 @@ void ctl_unsubscribe_success(void *context, MQTTAsync_successData *response)
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->sub_topic_latest.c_str());
+        INFO_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->sub_topic_latest.c_str());
         std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
         ctl_mqtt->subscribed -= 1;
     }
@@ -346,7 +348,7 @@ void ctl_connect_success(void *context, MQTTAsync_successData *response)
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", ctl_mqtt->mqtt_id.c_str());
+        INFO_LOG(AMULTIOS, "[%s] Connect Success", ctl_mqtt->mqtt_id.c_str());
         {
             std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
             ctl_mqtt->connected = true;
@@ -383,7 +385,7 @@ void ctl_disconnect_success(void *context, MQTTAsync_successData *response)
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", ctl_mqtt->mqtt_id.c_str());
+        INFO_LOG(AMULTIOS, "[%s] Disconnect Success", ctl_mqtt->mqtt_id.c_str());
         threadStatus = ADHOCCTL_STATE_DISCONNECTED;
         {
             std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
@@ -615,7 +617,7 @@ void pdp_publish_success(void *context, MQTTAsync_successData *response)
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->pub_topic_latest.c_str(), pdp_mqtt->pub_payload_len_latest, pdp_mqtt->qos_latest);
+        VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->pub_topic_latest.c_str(), pdp_mqtt->pub_payload_len_latest, pdp_mqtt->qos_latest);
     }
 };
 
@@ -633,7 +635,7 @@ void pdp_subscribe_success(void *context, MQTTAsync_successData *response)
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->sub_topic_latest.c_str(), pdp_mqtt->qos_latest);
+        INFO_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->sub_topic_latest.c_str(), pdp_mqtt->qos_latest);
         std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
         pdp_mqtt->subscribed += 1;
     }
@@ -653,7 +655,7 @@ void pdp_unsubscribe_success(void *context, MQTTAsync_successData *response)
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->sub_topic_latest.c_str());
+        INFO_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->sub_topic_latest.c_str());
         std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
         pdp_mqtt->subscribed -= 1;
     }
@@ -673,7 +675,7 @@ void pdp_connect_success(void *context, MQTTAsync_successData *response)
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", pdp_mqtt->mqtt_id.c_str());
+        INFO_LOG(AMULTIOS, "[%s] Connect Success", pdp_mqtt->mqtt_id.c_str());
         std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
         pdp_mqtt->connected = true;
         pdp_mqtt->reconnectInProgress = false;
@@ -706,7 +708,7 @@ void pdp_disconnect_success(void *context, MQTTAsync_successData *response)
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", pdp_mqtt->mqtt_id.c_str());
+        INFO_LOG(AMULTIOS, "[%s] Disconnect Success", pdp_mqtt->mqtt_id.c_str());
         std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
         pdp_mqtt->connected = false;
     }
@@ -808,7 +810,7 @@ int ptp_subscribe(const char *topic, int qos)
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr && ptp_mqtt->connected)
     {
-        NOTICE_LOG(AMULTIOS, "ptp_mqtt subscribe to topic:[%s] qos:[%d]", topic, qos);
+        INFO_LOG(AMULTIOS, "ptp_mqtt subscribe to topic:[%s] qos:[%d]", topic, qos);
         {
             std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             ptp_mqtt->sub_topic_latest = topic;
@@ -845,7 +847,7 @@ void ptp_publish_success(void *context, MQTTAsync_successData *response)
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->pub_topic_latest.c_str(), ptp_mqtt->pub_payload_len_latest, ptp_mqtt->qos_latest);
+        VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->pub_topic_latest.c_str(), ptp_mqtt->pub_payload_len_latest, ptp_mqtt->qos_latest);
     }
 };
 
@@ -863,7 +865,7 @@ void ptp_subscribe_success(void *context, MQTTAsync_successData *response)
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->sub_topic_latest.c_str(), ptp_mqtt->qos_latest);
+        INFO_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->sub_topic_latest.c_str(), ptp_mqtt->qos_latest);
         std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
         ptp_mqtt->subscribed += 1;
     }
@@ -883,7 +885,7 @@ void ptp_unsubscribe_success(void *context, MQTTAsync_successData *response)
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->sub_topic_latest.c_str());
+        INFO_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->sub_topic_latest.c_str());
         std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
         ptp_mqtt->subscribed -= 1;
     }
@@ -903,7 +905,7 @@ void ptp_connect_success(void *context, MQTTAsync_successData *response)
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", ptp_mqtt->mqtt_id.c_str());
+        INFO_LOG(AMULTIOS, "[%s] Connect Success", ptp_mqtt->mqtt_id.c_str());
         {
             std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             ptp_mqtt->connected = true;
@@ -938,7 +940,7 @@ void ptp_disconnect_success(void *context, MQTTAsync_successData *response)
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr)
     {
-        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", ptp_mqtt->mqtt_id.c_str());
+        INFO_LOG(AMULTIOS, "[%s] Disconnect Success", ptp_mqtt->mqtt_id.c_str());
         {
             std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             ptp_mqtt->connected = false;
@@ -1017,27 +1019,21 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
                 getMac(&link.sourceMac, topic_explode.at(4));
                 link.dport = std::stoi(topic_explode.at(3));
                 getMac(&link.destinationMac, topic_explode.at(2));
-                std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
-                    return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_LISTEN || obj.states == PTP_AMULTIOS_ACCEPT));
+
+                std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                std::vector<PTPConnection>::iterator cit = std::find_if(ptp_peer_connection.begin(), ptp_peer_connection.end(), [&](PTPConnection const &con) {
+                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
                 });
 
-                if (it != ptp_topic.end())
+                if (cit == ptp_peer_connection.end())
                 {
-                    std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
-                        return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
-                    });
-
-                    if (cit == it->backlog.end())
-                    {
-                        NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                        it->backlog.push_back(link);
-                    }
-                    else
-                    {
-                        NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                        cit->states = PTP_AMULTIOS_OPEN;
-                    }
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    ptp_peer_connection.push_back(link);
+                }
+                else
+                {
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    cit->states = PTP_AMULTIOS_OPEN;
                 }
             }
 
@@ -1050,27 +1046,21 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
                 getMac(&link.sourceMac, topic_explode.at(4));
                 link.dport = std::stoi(topic_explode.at(3));
                 getMac(&link.destinationMac, topic_explode.at(2));
-                std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
-                    return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_LISTEN || obj.states == PTP_AMULTIOS_ACCEPT));
+
+                std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                std::vector<PTPConnection>::iterator cit = std::find_if(ptp_peer_connection.begin(), ptp_peer_connection.end(), [&](PTPConnection const &con) {
+                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
                 });
 
-                if (it != ptp_topic.end())
+                if (cit == ptp_peer_connection.end())
                 {
-                    std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
-                        return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
-                    });
-
-                    if (cit == it->backlog.end())
-                    {
-                        NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                        it->backlog.push_back(link);
-                    }
-                    else
-                    {
-                        NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                        cit->states = PTP_AMULTIOS_CONNECT;
-                    }
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    ptp_peer_connection.push_back(link);
+                }
+                else
+                {
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    cit->states = PTP_AMULTIOS_CONNECT;
                 }
             }
 
@@ -1083,27 +1073,21 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
                 getMac(&link.sourceMac, topic_explode.at(4));
                 link.dport = std::stoi(topic_explode.at(3));
                 getMac(&link.destinationMac, topic_explode.at(2));
-                std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                std::vector<PTPTopic>::iterator it = std::find_if(ptp_topic.begin(), ptp_topic.end(), [&](PTPTopic const &obj) {
-                    return (isSameMAC(&obj.sourceMac, &link.destinationMac) && obj.sport == link.dport && (obj.states == PTP_AMULTIOS_OPEN || obj.states == PTP_AMULTIOS_CONNECT));
+
+                std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                std::vector<PTPConnection>::iterator cit = std::find_if(ptp_peer_connection.begin(), ptp_peer_connection.end(), [&](PTPConnection const &con) {
+                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
                 });
 
-                if (it != ptp_topic.end())
+                if (cit == ptp_peer_connection.end())
                 {
-                    std::vector<PTPConnection>::iterator cit = std::find_if(it->backlog.begin(), it->backlog.end(), [&](PTPConnection const &con) {
-                        return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
-                    });
-
-                    if (cit == it->backlog.end())
-                    {
-                        NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                        it->backlog.push_back(link);
-                    }
-                    else
-                    {
-                        NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                        cit->states = PTP_AMULTIOS_ACCEPT;
-                    }
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    ptp_peer_connection.push_back(link);
+                }
+                else
+                {
+                    NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    cit->states = PTP_AMULTIOS_ACCEPT;
                 }
             }
         }
@@ -1954,7 +1938,6 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                                 // Link PTP Socket
                                 ptp[i] = internal;
 
-                                std::lock_guard<std::mutex> lock(ptp_states_mutex);
                                 ptp_topic.at(i).states = PTP_AMULTIOS_OPEN;
                                 ptp_topic.at(i).sub_topic = sub_topic;
                                 ptp_topic.at(i).open_topic = open_topic;
@@ -2021,16 +2004,15 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                 { //GTA:VCS seems to use 0 for the portPtr
                     // Address Information
 
+                    ptp_topic.at(id - 1).states = PTP_AMULTIOS_ACCEPT;
                     bool found = false;
-
                     std::vector<PTPConnection>::iterator it;
                     {
-                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                        ptp_topic.at(id - 1).states = PTP_AMULTIOS_ACCEPT;
-                        it = ptp_topic.at(id - 1).backlog.begin();
-                        while (it != ptp_topic.at(id - 1).backlog.end())
+                        std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                        it= ptp_peer_connection.begin();
+                        while (it != ptp_peer_connection.end())
                         {
-                            if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_CONNECT)
+                            if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && (it->states == PTP_AMULTIOS_CONNECT || it->states == PTP_AMULTIOS_OPEN))
                             {
                                 found = true;
                                 break;
@@ -2050,11 +2032,11 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                         while (hasTime && !found)
                         {
                             hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
-                            std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                            it = ptp_topic.at(id - 1).backlog.begin();
-                            while (hasTime && it != ptp_topic.at(id - 1).backlog.end())
+                            std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                            it = ptp_peer_connection.begin();
+                            while (hasTime && it != ptp_peer_connection.end())
                             {
-                                if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_CONNECT)
+                                if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && (it->states == PTP_AMULTIOS_CONNECT || it->states == PTP_AMULTIOS_OPEN ))
                                 {
                                     found = true;
                                     break;
@@ -2114,8 +2096,11 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                                 // Link PTP Socket
                                 ptp[i] = internal;
 
-                                std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                                it->states = PTP_AMULTIOS_ESTABLISHED;
+                                {
+                                    std::lock_guard<std::mutex> lk(ptp_peer_mutex);
+                                    it->states = PTP_AMULTIOS_ESTABLISHED;
+                                }
+
                                 ptp_topic.at(i).states = PTP_AMULTIOS_ESTABLISHED;
                                 ptp_topic.at(i).sub_topic = ptp_topic.at(id - 1).sub_topic;
                                 ptp_topic.at(i).accept_topic = sub_topic;
@@ -2189,12 +2174,12 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
 
                     bool found = false;
                     std::vector<PTPConnection>::iterator it;
+                    ptp_topic.at(id - 1).states = PTP_AMULTIOS_CONNECT;
                     if (rc == MQTTASYNC_SUCCESS)
                     {
-                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                        ptp_topic.at(id - 1).states = PTP_AMULTIOS_CONNECT;
-                        it = ptp_topic.at(id - 1).backlog.begin();
-                        while (it != ptp_topic.at(id - 1).backlog.end())
+                        std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                        it = ptp_peer_connection.begin();
+                        while (it != ptp_peer_connection.end())
                         {
                             if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_ACCEPT)
                             {
@@ -2208,9 +2193,12 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                     if (found)
                     {
                         // Set Connected State
-                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                        {
+                            std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                            it->states = PTP_AMULTIOS_ESTABLISHED;
+                        }
+
                         ptp_topic.at(id - 1).pub_topic = "PTP/DATA/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
-                        it->states = PTP_AMULTIOS_ESTABLISHED;
                         socket->state = ADHOC_PTP_STATE_ESTABLISHED;
 
                         NOTICE_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Already Connected", id, socket->lport);
@@ -2234,9 +2222,9 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                         while (hasTime && !found)
                         {
                             hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
-                            std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                            it = ptp_topic.at(id - 1).backlog.begin();
-                            while (hasTime && it != ptp_topic.at(id - 1).backlog.end())
+                            std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                            it = ptp_peer_connection.begin();
+                            while (hasTime && it != ptp_peer_connection.end())
                             {
                                 if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_ACCEPT)
                                 {
@@ -2253,9 +2241,12 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                     if (found)
                     {
                         // Set Connected State
-                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
+                        {
+                            std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                            it->states = PTP_AMULTIOS_ESTABLISHED;
+                        }
+
                         ptp_topic.at(id - 1).pub_topic = "PTP/DATA/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
-                        it->states = PTP_AMULTIOS_ESTABLISHED;
                         socket->state = ADHOC_PTP_STATE_ESTABLISHED;
 
                         NOTICE_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Already Connected", id, socket->lport);
@@ -2294,7 +2285,6 @@ int AmultiosNetAdhocPtpClose(int id, int unknown)
 
             // Free Reference
             ptp[id - 1] = NULL;
-            std::lock_guard<std::mutex> lock(ptp_states_mutex);
             int rc = ptp_unsubscribe(ptp_topic.at(id - 1).sub_topic.c_str());
             ptp_topic.at(id - 1).states = PTP_AMULTIOS_CLOSED;
             // Success
@@ -2373,7 +2363,6 @@ int AmultiosNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int re
 
                                 // Link PTP Socket
                                 ptp[i] = internal;
-                                std::lock_guard<std::mutex> lock(ptp_states_mutex);
                                 ptp_topic.at(i).sourceMac = internal->laddr;
                                 ptp_topic.at(i).sport = internal->lport;
                                 ptp_topic.at(i).sub_topic = sub_topic;
@@ -2439,12 +2428,8 @@ int AmultiosNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                     if (flag)
                         timeout = 0;
 
-                    int rc;
-
-                    {
-                        std::lock_guard<std::mutex> lock(ptp_states_mutex);
-                        rc = ptp_publish(ptp_topic.at(id - 1).pub_topic.c_str(), (void *)data, *len, 1, timeout);
-                    }
+                    int rc = ptp_publish(ptp_topic.at(id - 1).pub_topic.c_str(), (void *)data, *len, 1, timeout);
+                    
 
                     // Success
                     if (rc == MQTTASYNC_SUCCESS)
