@@ -100,19 +100,40 @@ void __NetAdhocShutdown()
 
 	if (g_Config.bAmultiosMode)
 	{
-		ctlRunning = false;
+		{
+			std::lock_guard<std::mutex> lk(ctl_running_mutex);
+			ctlRunning = false;
+			ctl_running_cv.notify_one();
+		}
+		
+		__AMULTIOS_CTL_SHUTDOWN();
+		
 		if (ctlThread.joinable())
 		{
 			ctlThread.join();
 		}
 
-		pdpRunning = false;
+		{
+			std::lock_guard<std::mutex> lk(pdp_running_mutex);
+			pdpRunning = false;
+			pdp_running_cv.notify_one();
+		}
+
+		__AMULTIOS_PDP_SHUTDOWN();
+		
 		if (pdpThread.joinable())
 		{
 			pdpThread.join();
 		}
 
-		ptpRunning = false;
+		{
+			std::lock_guard<std::mutex> lk(ptp_running_mutex);
+			ptpRunning = false;
+			ptp_running_cv.notify_one();
+		}
+
+		__AMULTIOS_PTP_SHUTDOWN();
+		
 		if (ptpThread.joinable())
 		{
 			ptpThread.join();
@@ -178,9 +199,23 @@ static int getBlockingFlag(int id)
 
 void __NetAdhocInit()
 {
-	ctlRunning = false;
-	ptpRunning = false;
-	pdpRunning = false;
+	{
+		std::lock_guard<std::mutex> lk(ctl_running_mutex);
+		ctlRunning = false;
+		ctl_running_cv.notify_one();
+	}
+	{
+		std::lock_guard<std::mutex> lk(pdp_running_mutex);
+		pdpRunning = false;
+		pdp_running_cv.notify_one();
+	}
+
+	{
+		std::lock_guard<std::mutex> lk(ptp_running_mutex);
+		ptpRunning = false;
+		ptp_running_cv.notify_one();
+	}
+
 	friendFinderRunning = false;
 	netAdhocInited = false;
 	netAdhocctlInited = false;
@@ -203,9 +238,22 @@ void __NetAdhocInit()
 
 	if (g_Config.bAmultiosMode)
 	{
-		ctlRunning = true;
-		ptpRunning = true;
-		pdpRunning = true;
+		{
+			std::lock_guard<std::mutex> lk(ctl_running_mutex);
+			ctlRunning = true;
+			ctl_running_cv.notify_one();
+		}
+		{
+			std::lock_guard<std::mutex> lk(pdp_running_mutex);
+			pdpRunning = true;
+			pdp_running_cv.notify_one();
+		}
+
+		{
+			std::lock_guard<std::mutex> lk(ptp_running_mutex);
+			ptpRunning = true;
+			ptp_running_cv.notify_one();
+		}
 		ctlThread = std::thread(__AMULTIOS_CTL_INIT);
 		pdpThread = std::thread(__AMULTIOS_PDP_INIT);
 		ptpThread = std::thread(__AMULTIOS_PTP_INIT);

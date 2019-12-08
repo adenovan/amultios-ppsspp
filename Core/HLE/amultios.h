@@ -192,15 +192,18 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 
 extern bool ctlInited;
 extern bool ctlRunning;
-//extern AmultiosMqtt *ctl_mqtt;
+extern std::mutex ctl_running_mutex;
+extern std::condition_variable ctl_running_cv;
 extern std::thread ctlThread;
 
 extern bool pdpInited;
 extern bool pdpRunning;
-//extern AmultiosMqtt *pdp_mqtt;
+extern std::mutex pdp_running_mutex;
+extern std::condition_variable pdp_running_cv;
 extern std::thread pdpThread;
 
 extern bool ptpInited;
 extern bool ptpRunning;
-//extern AmultiosMqtt *ptp_mqtt;
+extern std::mutex ptp_running_mutex;
+extern std::condition_variable ptp_running_cv;
 extern std::thread ptpThread;
