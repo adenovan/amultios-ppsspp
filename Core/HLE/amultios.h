@@ -60,19 +60,7 @@ typedef struct PTPConnection
   int dport;
 } PTPConnection;
 
-typedef struct PTPTopic
-{
-  s32_le states;
-  std::string sub_topic;
-  std::string open_topic;
-  std::string accept_topic;
-  std::string connect_topic;
-  std::string pub_topic;
-  SceNetEtherAddr sourceMac;
-  int sport;
-  SceNetEtherAddr destinationMac;
-  int dport;
-} PTPTopic;
+
 
 typedef struct
 {
