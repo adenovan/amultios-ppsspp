@@ -1006,8 +1006,11 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
                 }
                 else
                 {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    cit->states = PTP_AMULTIOS_CONNECT;
+                    if (cit->states != PTP_AMULTIOS_ESTABLISHED)
+                    {
+                        NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        cit->states = PTP_AMULTIOS_CONNECT;
+                    }
                 }
             }
 
@@ -1034,7 +1037,10 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
                 else
                 {
                     NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    cit->states = PTP_AMULTIOS_ACCEPT;
+                    if (cit->states != PTP_AMULTIOS_ESTABLISHED)
+                    {
+                        cit->states = PTP_AMULTIOS_ACCEPT;
+                    }
                 }
             }
         }
@@ -2009,8 +2015,10 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                         uint8_t send = PTP_AMULTIOS_ACCEPT;
                         rc = ptp_publish(accept_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
 
-                        if (rc == MQTTASYNC_SUCCESS)
+                        int iResult = 0;
+                        if (tcpsock > 0 && rc == MQTTASYNC_SUCCESS)
                         {
+                            WARN_LOG(AMULTIOS, "[%s] accepting new socket", accept_topic.c_str());
                             SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
                             // Allocated Memory
                             if (internal != NULL)
