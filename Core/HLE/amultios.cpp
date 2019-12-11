@@ -1011,6 +1011,10 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
                         NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                         cit->states = PTP_AMULTIOS_CONNECT;
                     }
+                    else
+                    {
+                        WARN_LOG(AMULTIOS, "[%s] PTP CONNECT STATES Already Established src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    }
                 }
             }
 
@@ -1036,10 +1040,14 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
                 }
                 else
                 {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                     if (cit->states != PTP_AMULTIOS_ESTABLISHED)
                     {
+                        NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                         cit->states = PTP_AMULTIOS_ACCEPT;
+                    }
+                    else
+                    {
+                        WARN_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES already ESTABLISHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                     }
                 }
             }
@@ -1587,7 +1595,6 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                         free(internal);
                         return retval;
                     }
-                    free(internal);
                 }
 
                 ERROR_LOG(AMULTIOS, "PDP_MQTT CREATE FAILED %d , topic %s ", rc, sub_topic.c_str());
@@ -1865,8 +1872,8 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                             std::string sub_topic = "PTP/DATA/" + getMacString(saddr) + "/" + std::to_string(sport) + "/" + getMacString(daddr) + "/" + std::to_string(dport);
                             std::string pub_topic = "PTP/DATA/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(sport);
                             std::string open_topic = "PTP/ACCEPT/" + getMacString(saddr) + "/" + std::to_string(sport) + "/" + getMacString(daddr) + "/" + std::to_string(dport);
-                            int rc = ptp_subscribe(open_topic.c_str(), 0);
-                            rc = ptp_subscribe(sub_topic.c_str(), 0);
+                            int rc = ptp_subscribe(open_topic.c_str(), 1);
+                            rc = ptp_subscribe(sub_topic.c_str(), 1);
                             SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
 
                             // Allocated Memory
@@ -2010,7 +2017,7 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                         std::string sub_topic = "PTP/DATA/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport) + "/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport);
                         std::string accept_topic = "PTP/ACCEPT/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
                         // Allocate Memory
-                        int rc = ptp_subscribe(sub_topic.c_str(), 0);
+                        int rc = ptp_subscribe(sub_topic.c_str(), 1);
                         uint8_t send = PTP_AMULTIOS_ACCEPT;
                         rc = ptp_publish(accept_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
 
@@ -2298,7 +2305,7 @@ int AmultiosNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int re
                         {
                             // Switch into Listening Mode
                             std::string sub_topic = "PTP/CONNECT/" + getMacString(saddr) + "/" + std::to_string(sport) + "/#";
-                            int rc = ptp_subscribe(sub_topic.c_str(), 0);
+                            int rc = ptp_subscribe(sub_topic.c_str(), 1);
                             if ((iResult = listen(tcpsocket, backlog)) == 0 && rc == MQTTASYNC_SUCCESS)
                             {
                                 SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
