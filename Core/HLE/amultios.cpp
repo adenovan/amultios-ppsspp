@@ -974,12 +974,12 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
 
                 if (cit == ptp_peer_connection.end())
                 {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    INFO_LOG(AMULTIOS, "[%s] PTP OPEN PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                     ptp_peer_connection.push_back(link);
                 }
                 else
                 {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                     cit->states = PTP_AMULTIOS_OPEN;
                 }
             }
@@ -1001,14 +1001,14 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
 
                 if (cit == ptp_peer_connection.end())
                 {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    INFO_LOG(AMULTIOS, "[%s] PTP CONNECT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                     ptp_peer_connection.push_back(link);
                 }
                 else
                 {
                     if (cit->states != PTP_AMULTIOS_ESTABLISHED)
                     {
-                        NOTICE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        VERBOSE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                         cit->states = PTP_AMULTIOS_CONNECT;
                     }
                     else
@@ -1035,14 +1035,14 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
 
                 if (cit == ptp_peer_connection.end())
                 {
-                    NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    INFO_LOG(AMULTIOS, "[%s] PTP ACCEPT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                     ptp_peer_connection.push_back(link);
                 }
                 else
                 {
                     if (cit->states != PTP_AMULTIOS_ESTABLISHED)
                     {
-                        NOTICE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        VERBOSE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                         cit->states = PTP_AMULTIOS_ACCEPT;
                     }
                     else
@@ -1758,7 +1758,7 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                         return (isSameMAC(&obj.destinationMac, &socket->laddr) && obj.dport == socket->lport);
                     });
 
-                    if (it != pdp_queue.end())
+                    if (it != pdp_queue.end() && macInNetwork(&it->sourceMac))
                     {
                         PDPMessage packet = *it;
                         memcpy(buf, packet.message->payload, packet.message->payloadlen);
@@ -1872,7 +1872,7 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                             std::string sub_topic = "PTP/DATA/" + getMacString(saddr) + "/" + std::to_string(sport) + "/" + getMacString(daddr) + "/" + std::to_string(dport);
                             std::string pub_topic = "PTP/DATA/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(sport);
                             std::string open_topic = "PTP/ACCEPT/" + getMacString(saddr) + "/" + std::to_string(sport) + "/" + getMacString(daddr) + "/" + std::to_string(dport);
-                            int rc = ptp_subscribe(open_topic.c_str(), 1);
+                            int rc = ptp_subscribe(open_topic.c_str(), 2);
                             rc = ptp_subscribe(sub_topic.c_str(), 1);
                             SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
 
@@ -2019,7 +2019,7 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                         // Allocate Memory
                         int rc = ptp_subscribe(sub_topic.c_str(), 1);
                         uint8_t send = PTP_AMULTIOS_ACCEPT;
-                        rc = ptp_publish(accept_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
+                        rc = ptp_publish(accept_topic.c_str(), (void *)&send, sizeof(send), 2, 0);
 
                         int iResult = 0;
                         if (rc == MQTTASYNC_SUCCESS)
@@ -2133,11 +2133,10 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
 
                     // Connect Socket to Peer (Nonblocking)
                     uint8_t send = PTP_AMULTIOS_CONNECT;
-                    int rc = ptp_publish(connect_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
+                    int rc = ptp_publish(connect_topic.c_str(), (void *)&send, sizeof(send), 2, 0);
 
                     bool found = false;
                     std::vector<PTPConnection>::iterator it;
-                    if (rc == MQTTASYNC_SUCCESS)
                     {
                         std::lock_guard<std::mutex> lock(ptp_peer_mutex);
                         it = ptp_peer_connection.begin();
@@ -2241,6 +2240,12 @@ int AmultiosNetAdhocPtpClose(int id, int unknown)
             SceNetAdhocPtpStat *socket = ptp[id - 1];
             closesocket(socket->id);
             free(socket);
+
+            if (!ptp_pub_topic.at(id - 1).empty())
+            {
+                ptp_pub_topic.at(id - 1).clear();
+            }
+
             if (!ptp_sub_topic.at(id - 1).empty())
             {
                 ptp_unsubscribe(ptp_sub_topic.at(id - 1).c_str());
@@ -2305,7 +2310,7 @@ int AmultiosNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int re
                         {
                             // Switch into Listening Mode
                             std::string sub_topic = "PTP/CONNECT/" + getMacString(saddr) + "/" + std::to_string(sport) + "/#";
-                            int rc = ptp_subscribe(sub_topic.c_str(), 1);
+                            int rc = ptp_subscribe(sub_topic.c_str(), 2);
                             if ((iResult = listen(tcpsocket, backlog)) == 0 && rc == MQTTASYNC_SUCCESS)
                             {
                                 SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
