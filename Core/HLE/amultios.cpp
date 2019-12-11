@@ -2006,18 +2006,18 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
 
                     if (found && macInNetwork(&it->sourceMac))
                     {
-                        int tcpsock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
                         std::string sub_topic = "PTP/DATA/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport) + "/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport);
                         std::string accept_topic = "PTP/ACCEPT/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
                         // Allocate Memory
-                        auto ptp_mqtt = g_ptp_mqtt;
                         int rc = ptp_subscribe(sub_topic.c_str(), 0);
                         uint8_t send = PTP_AMULTIOS_ACCEPT;
                         rc = ptp_publish(accept_topic.c_str(), (void *)&send, sizeof(send), 1, 0);
 
                         int iResult = 0;
-                        if (tcpsock > 0 && rc == MQTTASYNC_SUCCESS)
+                        if (rc == MQTTASYNC_SUCCESS)
                         {
+                            int tcpsock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
                             WARN_LOG(AMULTIOS, "[%s] accepting new socket", accept_topic.c_str());
                             SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
                             // Allocated Memory
@@ -2076,9 +2076,9 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                                 // Free Memory
                                 free(internal);
                             }
+                            closesocket(tcpsock);
                         }
                         ERROR_LOG(SCENET, "sceNetAdhocPtpAccept[%i]: Failed Accept Connection Not found", id);
-                        closesocket(tcpsock);
                     }
 
                     // Action would block
