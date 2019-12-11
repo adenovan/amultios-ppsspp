@@ -1798,15 +1798,21 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
 
                     if (it != pdp_queue.end())
                     {
-                        PDPMessage packet = *it;
-                        memcpy(buf, packet.message->payload, packet.message->payloadlen);
-                        *saddr = packet.sourceMac;
-                        *sport = (uint16_t)packet.sport;
-                        *len = packet.message->payloadlen;
+                        if(macInNetwork(&it->sourceMac)){
+                            PDPMessage packet = *it;
+                            memcpy(buf, packet.message->payload, packet.message->payloadlen);
+                            *saddr = packet.sourceMac;
+                            *sport = (uint16_t)packet.sport;
+                            *len = packet.message->payloadlen;
+                            MQTTAsync_freeMessage(&it->message);
+                            MQTTAsync_free(it->topicName);
+                            pdp_queue.erase(it);
+                            return 0;
+                        }
+                        
                         MQTTAsync_freeMessage(&it->message);
                         MQTTAsync_free(it->topicName);
                         pdp_queue.erase(it);
-                        return 0;
                     }
                 }
 
