@@ -725,14 +725,11 @@ int pdp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
         msg.topicName = topicName,
         msg.topicLen = topicLen;
 
-        if (macInNetwork(&msg.sourceMac))
-        {
-            std::lock_guard<std::mutex> lock(pdp_queue_mutex);
-            pdp_queue.push_back(msg);
-            return 1;
-        }
-        MQTTAsync_freeMessage(&message);
-        MQTTAsync_free(topicName);
+        std::lock_guard<std::mutex> lock(pdp_queue_mutex);
+        pdp_queue.push_back(msg);
+
+        // MQTTAsync_freeMessage(&message);
+        // MQTTAsync_free(topicName);
     }
     return 1;
 };
@@ -1532,12 +1529,33 @@ int AmultiosNetAdhocTerm()
 
         {
             std::lock_guard<std::mutex> lk(pdp_queue_mutex);
+            for (auto p : pdp_queue)
+            {  
+               if(p.message != NULL){
+                MQTTAsync_freeMessage(&p.message);
+               } 
+
+               if(p.topicName != NULL){
+                MQTTAsync_free(p.topicName);
+               }
+            }
             pdp_queue.clear();
         }
 
         {
             std::lock_guard<std::mutex> lk(ptp_queue_mutex);
+            for (auto p : ptp_queue)
+            {  
+               if(p.message != NULL){
+                MQTTAsync_freeMessage(&p.message);
+               } 
+
+               if(p.topicName != NULL){
+                MQTTAsync_free(p.topicName);
+               }
+            }
             ptp_queue.clear();
+            
         }
 
         {
@@ -1784,7 +1802,6 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                         memcpy(buf, packet.message->payload, packet.message->payloadlen);
                         *saddr = packet.sourceMac;
                         *sport = (uint16_t)packet.sport;
-                        //pdp_queuee Length
                         *len = packet.message->payloadlen;
                         MQTTAsync_freeMessage(&it->message);
                         MQTTAsync_free(it->topicName);
