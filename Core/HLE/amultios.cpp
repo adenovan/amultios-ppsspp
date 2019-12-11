@@ -725,10 +725,14 @@ int pdp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
         msg.topicName = topicName,
         msg.topicLen = topicLen;
 
-        std::lock_guard<std::mutex> lock(pdp_queue_mutex);
-        pdp_queue.push_back(msg);
-        //MQTTAsync_freeMessage(&message);
-        //MQTTAsync_free(topicName);
+        if (macInNetwork(&msg.sourceMac))
+        {
+            std::lock_guard<std::mutex> lock(pdp_queue_mutex);
+            pdp_queue.push_back(msg);
+            return 1;
+        }
+        MQTTAsync_freeMessage(&message);
+        MQTTAsync_free(topicName);
     }
     return 1;
 };
@@ -1525,6 +1529,22 @@ int AmultiosNetAdhocTerm()
     if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
         rc = ctl_unsubscribe(ctl_mqtt->sub_topic.c_str());
+
+        {
+            std::lock_guard<std::mutex> lk(pdp_queue_mutex);
+            pdp_queue.clear();
+        }
+
+        {
+            std::lock_guard<std::mutex> lk(ptp_queue_mutex);
+            ptp_queue.clear();
+        }
+
+        {
+            std::lock_guard<std::mutex> lk(ptp_peer_mutex);
+            ptp_peer_connection.clear();
+        }
+
         return rc;
     }
 
@@ -1758,7 +1778,7 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                         return (isSameMAC(&obj.destinationMac, &socket->laddr) && obj.dport == socket->lport);
                     });
 
-                    if (it != pdp_queue.end() && macInNetwork(&it->sourceMac))
+                    if (it != pdp_queue.end())
                     {
                         PDPMessage packet = *it;
                         memcpy(buf, packet.message->payload, packet.message->payloadlen);
