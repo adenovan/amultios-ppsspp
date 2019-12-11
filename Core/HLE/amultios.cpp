@@ -1809,10 +1809,11 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                             pdp_queue.erase(it);
                             return 0;
                         }
-                        
+
                         MQTTAsync_freeMessage(&it->message);
                         MQTTAsync_free(it->topicName);
                         pdp_queue.erase(it);
+                        WARN_LOG(AMULTIOS, "Receive PDP uknown message");
                     }
                 }
 
