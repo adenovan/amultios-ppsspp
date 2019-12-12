@@ -179,7 +179,7 @@ void deleteAmultiosPeer(SceNetEtherAddr *mac)
     }
 }
 
-bool macInNetwork(const SceNetEtherAddr * mac)
+bool macInNetwork(const SceNetEtherAddr *mac)
 {
     // Get Local MAC Address
     SceNetEtherAddr localMac;
@@ -342,7 +342,7 @@ void ctl_unsubscribe_failure(void *context, MQTTAsync_failureData *response)
 void ctl_connect_success(void *context, MQTTAsync_successData *response)
 {
     auto ctl_mqtt = g_ctl_mqtt;
-    if (ctl_mqtt != nullptr)
+    if (ctl_mqtt != nullptr && ctlInited)
     {
         INFO_LOG(AMULTIOS, "[%s] Connect Success", ctl_mqtt->mqtt_id.c_str());
         {
@@ -356,7 +356,7 @@ void ctl_connect_success(void *context, MQTTAsync_successData *response)
 void ctl_connect_failure(void *context, MQTTAsync_failureData *response)
 {
     auto ctl_mqtt = g_ctl_mqtt;
-    if (ctl_mqtt != nullptr)
+    if (ctl_mqtt != nullptr && ctlInited)
     {
         //ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptr->mqtt_id.c_str());
         threadStatus = ADHOCCTL_STATE_DISCONNECTED;
@@ -372,7 +372,7 @@ void ctl_connect_failure(void *context, MQTTAsync_failureData *response)
 void ctl_disconnect_success(void *context, MQTTAsync_successData *response)
 {
     auto ctl_mqtt = g_ctl_mqtt;
-    if (ctl_mqtt != nullptr)
+    if (ctl_mqtt != nullptr && ctlInited)
     {
         INFO_LOG(AMULTIOS, "[%s] Disconnect Success", ctl_mqtt->mqtt_id.c_str());
         threadStatus = ADHOCCTL_STATE_DISCONNECTED;
@@ -400,7 +400,7 @@ void ctl_disconnect_failure(void *context, MQTTAsync_failureData *response)
 void ctl_connect_lost(void *context, char *cause)
 {
     auto ctl_mqtt = g_ctl_mqtt;
-    if (ctl_mqtt != nullptr)
+    if (ctl_mqtt != nullptr && ctlInited)
     {
         threadStatus = ADHOCCTL_STATE_DISCONNECTED;
         // {
@@ -649,7 +649,7 @@ void pdp_unsubscribe_failure(void *context, MQTTAsync_failureData *response)
 void pdp_connect_success(void *context, MQTTAsync_successData *response)
 {
     auto pdp_mqtt = g_pdp_mqtt;
-    if (pdp_mqtt != nullptr)
+    if (pdp_mqtt != nullptr && pdpInited)
     {
         INFO_LOG(AMULTIOS, "[%s] Connect Success", pdp_mqtt->mqtt_id.c_str());
         std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
@@ -661,7 +661,7 @@ void pdp_connect_success(void *context, MQTTAsync_successData *response)
 void pdp_connect_failure(void *context, MQTTAsync_failureData *response)
 {
     auto pdp_mqtt = g_pdp_mqtt;
-    if (pdp_mqtt != nullptr)
+    if (pdp_mqtt != nullptr && pdpInited)
     {
         ERROR_LOG(AMULTIOS, "[%s] Connect Failure", pdp_mqtt->mqtt_id.c_str());
         {
@@ -675,7 +675,7 @@ void pdp_connect_failure(void *context, MQTTAsync_failureData *response)
 void pdp_disconnect_success(void *context, MQTTAsync_successData *response)
 {
     auto pdp_mqtt = g_pdp_mqtt;
-    if (pdp_mqtt != nullptr)
+    if (pdp_mqtt != nullptr && pdpInited)
     {
         INFO_LOG(AMULTIOS, "[%s] Disconnect Success", pdp_mqtt->mqtt_id.c_str());
         std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
@@ -865,7 +865,7 @@ void ptp_unsubscribe_failure(void *context, MQTTAsync_failureData *response)
 void ptp_connect_success(void *context, MQTTAsync_successData *response)
 {
     auto ptp_mqtt = g_ptp_mqtt;
-    if (ptp_mqtt != nullptr)
+    if (ptp_mqtt != nullptr && ptpInited)
     {
         INFO_LOG(AMULTIOS, "[%s] Connect Success", ptp_mqtt->mqtt_id.c_str());
         {
@@ -879,7 +879,7 @@ void ptp_connect_success(void *context, MQTTAsync_successData *response)
 void ptp_connect_failure(void *context, MQTTAsync_failureData *response)
 {
     auto ptp_mqtt = g_ptp_mqtt;
-    if (ptp_mqtt != nullptr)
+    if (ptp_mqtt != nullptr && ptpInited)
     {
         ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptp_mqtt->mqtt_id.c_str());
         {
@@ -893,7 +893,7 @@ void ptp_connect_failure(void *context, MQTTAsync_failureData *response)
 void ptp_disconnect_success(void *context, MQTTAsync_successData *response)
 {
     auto ptp_mqtt = g_ptp_mqtt;
-    if (ptp_mqtt != nullptr)
+    if (ptp_mqtt != nullptr && ptpInited)
     {
         INFO_LOG(AMULTIOS, "[%s] Disconnect Success", ptp_mqtt->mqtt_id.c_str());
         {
@@ -1121,33 +1121,30 @@ int __AMULTIOS_CTL_SHUTDOWN()
     {
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
         opts.onSuccess = ctl_disconnect_success;
-        opts.onFailure = ctl_disconnect_failure;
-
         int i = 0;
         MQTTAsync_token *tokens;
         rc = MQTTAsync_getPendingTokens(ctl_mqtt->client, &tokens);
-        if (rc == MQTTASYNC_SUCCESS && tokens)
-        {
-            while (tokens[i] != -1)
-            {
-                rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, tokens[i], 5000L);
-                MQTTAsync_free(tokens);
-                ++i;
-            }
-        }
+        // if (rc == MQTTASYNC_SUCCESS && tokens)
+        // {
+        //     while (tokens[i] != -1)
+        //     {
+        //         rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, tokens[i], 5000L);
+        //         MQTTAsync_free(tokens);
+        //         ++i;
+        //     }
+        // }
 
         int rc = MQTTAsync_disconnect(ctl_mqtt->client, &opts);
-        while (ctl_mqtt->connected)
-        {
-            sleep_ms(1);
-        }
+        // while (ctl_mqtt->connected)
+        // {
+        //     sleep_ms(1);
+        // }
 
         {
             std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
             MQTTAsync_destroy(&ctl_mqtt->client);
-            ctl_mqtt->client = NULL;
-            g_ctl_mqtt = nullptr;
-            pdpInited = false;
+            // ctl_mqtt->client = NULL;
+            // g_ctl_mqtt = nullptr;
         }
 
         NOTICE_LOG(AMULTIOS, "ctl_mqtt shutdown %d", rc);
@@ -1220,10 +1217,10 @@ int __AMULTIOS_PDP_SHUTDOWN()
         opts.onSuccess = pdp_disconnect_success;
         //opts.onFailure = pdp_disconnect_failure;
         int rc = MQTTAsync_disconnect(pdp_mqtt->client, &opts);
-        while (pdp_mqtt->connected)
-        {
-            sleep_ms(1);
-        }
+        // while (pdp_mqtt->connected)
+        // {
+        //     sleep_ms(1);
+        // }
 
         {
             std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
@@ -1301,18 +1298,18 @@ int __AMULTIOS_PTP_SHUTDOWN()
         opts.onSuccess = ptp_disconnect_success;
         //opts.onFailure = ptp_disconnect_failure;
         int rc = MQTTAsync_disconnect(ptp_mqtt->client, &opts);
-        while (ptp_mqtt->connected)
-        {
-            sleep_ms(1);
-        }
+        // while (ptp_mqtt->connected)
+        // {
+        //     sleep_ms(1);
+        // }
 
         {
             std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             MQTTAsync_destroy(&ptp_mqtt->client);
             //ptp_mqtt->client = NULL;
             //g_ptp_mqtt = nullptr;
-            ptpInited = false;
         }
+        ptpInited = false;
         NOTICE_LOG(AMULTIOS, "ptp_mqtt shutdown %d", rc);
     }
     return rc;
@@ -1532,14 +1529,16 @@ int AmultiosNetAdhocTerm()
         {
             std::lock_guard<std::mutex> lk(pdp_queue_mutex);
             for (auto p : pdp_queue)
-            {  
-               if(p.message != NULL){
-                MQTTAsync_freeMessage(&p.message);
-               } 
+            {
+                if (p.message != NULL)
+                {
+                    MQTTAsync_freeMessage(&p.message);
+                }
 
-               if(p.topicName != NULL){
-                MQTTAsync_free(p.topicName);
-               }
+                if (p.topicName != NULL)
+                {
+                    MQTTAsync_free(p.topicName);
+                }
             }
             pdp_queue.clear();
         }
@@ -1547,17 +1546,18 @@ int AmultiosNetAdhocTerm()
         {
             std::lock_guard<std::mutex> lk(ptp_queue_mutex);
             for (auto p : ptp_queue)
-            {  
-               if(p.message != NULL){
-                MQTTAsync_freeMessage(&p.message);
-               } 
+            {
+                if (p.message != NULL)
+                {
+                    MQTTAsync_freeMessage(&p.message);
+                }
 
-               if(p.topicName != NULL){
-                MQTTAsync_free(p.topicName);
-               }
+                if (p.topicName != NULL)
+                {
+                    MQTTAsync_free(p.topicName);
+                }
             }
             ptp_queue.clear();
-            
         }
 
         {
@@ -1800,7 +1800,8 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
 
                     if (it != pdp_queue.end())
                     {
-                        if(macInNetwork(&it->sourceMac)){
+                        if (macInNetwork(&it->sourceMac))
+                        {
                             memcpy(buf, it->message->payload, it->message->payloadlen);
                             *saddr = it->sourceMac;
                             *sport = (uint16_t)it->sport;
@@ -1918,7 +1919,7 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                             std::string pub_topic = "PTP/DATA/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(sport);
                             std::string open_topic = "PTP/ACCEPT/" + getMacString(saddr) + "/" + std::to_string(sport) + "/" + getMacString(daddr) + "/" + std::to_string(dport);
                             int rc = ptp_subscribe(open_topic.c_str(), 2);
-                            
+
                             //data flag which better 1 or 2?
                             rc = ptp_subscribe(sub_topic.c_str(), g_Config.iPtpQos);
                             SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
@@ -2067,7 +2068,7 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
 
                         // data flag which better 1 or 2?
                         int rc = ptp_subscribe(sub_topic.c_str(), g_Config.iPtpQos);
-                        
+
                         uint8_t send = PTP_AMULTIOS_ACCEPT;
                         rc = ptp_publish(accept_topic.c_str(), (void *)&send, sizeof(send), 2, 0);
 
@@ -2116,6 +2117,7 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
 
                                     {
                                         std::lock_guard<std::mutex> lk(ptp_peer_mutex);
+                                        it->id = i + 1;
                                         it->states = PTP_AMULTIOS_ESTABLISHED;
                                     }
                                     ptp_relay_topic.at(i) = accept_topic;
@@ -2252,6 +2254,7 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                         // Set Connected State
                         {
                             std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                            it->id = id;
                             it->states = PTP_AMULTIOS_ESTABLISHED;
                         }
                         socket->state = ADHOC_PTP_STATE_ESTABLISHED;
@@ -2290,6 +2293,25 @@ int AmultiosNetAdhocPtpClose(int id, int unknown)
             SceNetAdhocPtpStat *socket = ptp[id - 1];
             closesocket(socket->id);
             free(socket);
+
+            {
+                std::lock_guard<std::mutex> lk(ptp_peer_mutex);
+                auto i = ptp_peer_connection.begin();
+
+                while (i != ptp_peer_connection.end())
+                {
+                    // Do some stuff
+                    if (i->id == id)
+                    {
+                        NOTICE_LOG(AMULTIOS,"[%i] Removing Old Established Connection",i->id);
+                        ptp_peer_connection.erase(i);
+                    }
+                    else
+                    {
+                        ++i;
+                    }
+                }
+            }
 
             if (!ptp_pub_topic.at(id - 1).empty())
             {
@@ -2382,7 +2404,7 @@ int AmultiosNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int re
                                         memset(internal, 0, sizeof(SceNetAdhocPtpStat));
 
                                         // Copy Infrastructure Socket ID
-                                        internal->id = i;
+                                        internal->id = tcpsocket;
 
                                         // Copy Address Information
                                         internal->laddr = *saddr;
@@ -2541,7 +2563,7 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 
                         if (find != ptp_queue.end())
                         {
-  
+
                             memcpy(buf, find->message->payload, find->message->payloadlen);
                             *len = find->message->payloadlen;
                             MQTTAsync_freeMessage(&find->message);

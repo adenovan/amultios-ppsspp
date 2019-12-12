@@ -53,6 +53,7 @@ typedef struct PTPMessage
 
 typedef struct PTPConnection
 {
+  s32_le id;
   uint8_t states;
   SceNetEtherAddr sourceMac;
   int sport;
