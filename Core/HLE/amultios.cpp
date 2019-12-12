@@ -179,7 +179,7 @@ void deleteAmultiosPeer(SceNetEtherAddr *mac)
     }
 }
 
-bool macInNetwork(SceNetEtherAddr *mac)
+bool macInNetwork(const SceNetEtherAddr * mac)
 {
     // Get Local MAC Address
     SceNetEtherAddr localMac;
@@ -1795,17 +1795,16 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
 
                     std::lock_guard<std::mutex> lk(pdp_queue_mutex);
                     std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&socket](PDPMessage const &obj) {
-                        return (isSameMAC(&obj.destinationMac, &socket->laddr) && obj.dport == socket->lport);
+                        return isSameMAC(&obj.destinationMac, &socket->laddr) && obj.dport == socket->lport;
                     });
 
                     if (it != pdp_queue.end())
                     {
                         if(macInNetwork(&it->sourceMac)){
-                            PDPMessage packet = *it;
-                            memcpy(buf, packet.message->payload, packet.message->payloadlen);
-                            *saddr = packet.sourceMac;
-                            *sport = (uint16_t)packet.sport;
-                            *len = packet.message->payloadlen;
+                            memcpy(buf, it->message->payload, it->message->payloadlen);
+                            *saddr = it->sourceMac;
+                            *sport = (uint16_t)it->sport;
+                            *len = it->message->payloadlen;
                             MQTTAsync_freeMessage(&it->message);
                             MQTTAsync_free(it->topicName);
                             pdp_queue.erase(it);
@@ -1921,7 +1920,7 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                             int rc = ptp_subscribe(open_topic.c_str(), 2);
                             
                             //data flag which better 1 or 2?
-                            rc = ptp_subscribe(sub_topic.c_str(), 2);
+                            rc = ptp_subscribe(sub_topic.c_str(), g_Config.iPtpQos);
                             SceNetAdhocPtpStat *internal = (SceNetAdhocPtpStat *)malloc(sizeof(SceNetAdhocPtpStat));
 
                             // Allocated Memory
@@ -2067,7 +2066,7 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                         // Allocate Memory
 
                         // data flag which better 1 or 2?
-                        int rc = ptp_subscribe(sub_topic.c_str(), 2);
+                        int rc = ptp_subscribe(sub_topic.c_str(), g_Config.iPtpQos);
                         
                         uint8_t send = PTP_AMULTIOS_ACCEPT;
                         rc = ptp_publish(accept_topic.c_str(), (void *)&send, sizeof(send), 2, 0);
@@ -2469,7 +2468,7 @@ int AmultiosNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                     if (flag)
                         timeout = 0;
 
-                    int rc = ptp_publish(ptp_pub_topic.at(id - 1).c_str(), (void *)data, *len, 2, timeout);
+                    int rc = ptp_publish(ptp_pub_topic.at(id - 1).c_str(), (void *)data, *len, g_Config.iPtpQos, timeout);
 
                     // Success
                     if (rc == MQTTASYNC_SUCCESS)
@@ -2542,9 +2541,9 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 
                         if (find != ptp_queue.end())
                         {
-                            PTPMessage packet = *find;
-                            memcpy(buf, packet.message->payload, packet.message->payloadlen);
-                            *len = packet.message->payloadlen;
+  
+                            memcpy(buf, find->message->payload, find->message->payloadlen);
+                            *len = find->message->payloadlen;
                             MQTTAsync_freeMessage(&find->message);
                             MQTTAsync_free(find->topicName);
                             ptp_queue.erase(find);
@@ -2573,9 +2572,8 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 
                             if (find != ptp_queue.end())
                             {
-                                PTPMessage packet = *find;
-                                memcpy(buf, packet.message->payload, packet.message->payloadlen);
-                                *len = packet.message->payloadlen;
+                                memcpy(buf, find->message->payload, find->message->payloadlen);
+                                *len = find->message->payloadlen;
                                 MQTTAsync_freeMessage(&find->message);
                                 MQTTAsync_free(find->topicName);
                                 ptp_queue.erase(find);

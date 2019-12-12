@@ -624,6 +624,9 @@ void GameSettingsScreen::CreateViews() {
 	networkingSettings->Add(new Choice(n->T("Adhoc Multiplayer forum")))->OnClick.Handle(this, &GameSettingsScreen::OnAdhocGuides);
 
 	networkingSettings->Add(new CheckBox(&g_Config.bAmultiosMode, n->T("Amultios Online Mode", "Online Through Internet")));
+	static const char *ptpOpts[] = { "QOS 1 (Aggresive)", "QOS 2 (Reliable)" };
+	networkingSettings->Add(new PopupMultiChoice(&g_Config.iPtpQos, sy->T("PTP QOS"), ptpOpts, 1, ARRAY_SIZE(ptpOpts), sy->GetName(), screenManager()));
+
 	networkingSettings->Add(new CheckBox(&g_Config.bEnableWlan, n->T("Enable networking", "Enable networking/wlan (beta)")));
 	networkingSettings->Add(new CheckBox(&g_Config.bDiscordPresence, n->T("Send Discord Presence information")));
 

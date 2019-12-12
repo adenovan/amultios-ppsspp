@@ -97,7 +97,7 @@ bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2);
 // library method
 void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet);
 void deleteAmultiosPeer(SceNetEtherAddr *mac);
-bool macInNetwork(SceNetEtherAddr *mac);
+bool macInNetwork(const SceNetEtherAddr *mac);
 
 int ctl_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
 int ctl_subscribe(const char *topic, int qos);

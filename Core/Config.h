@@ -359,6 +359,7 @@ public:
 
 	// Networking
 	bool bAmultiosMode;
+	int iPtpQos;
 	bool bEnableWlan;
 	bool bEnableAdhocServer;
 	int iWlanAdhocChannel;

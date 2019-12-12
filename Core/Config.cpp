@@ -896,6 +896,7 @@ static ConfigSetting controlSettings[] = {
 
 static ConfigSetting networkSettings[] = {
 	ConfigSetting("AmultiosOnlineMode", &g_Config.bAmultiosMode, true, true, true),
+	ConfigSetting("PTPQos",&g_Config.iPtpQos,QOS_1,true,false),
 	ConfigSetting("EnableWlan", &g_Config.bEnableWlan, false, true, true),
 	ConfigSetting("EnableAdhocServer", &g_Config.bEnableAdhocServer, false, true, true),
 

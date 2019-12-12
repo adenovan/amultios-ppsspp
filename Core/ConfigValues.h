@@ -98,6 +98,11 @@ enum IOTimingMethods {
 	IOTIMING_REALISTIC = 2,
 };
 
+enum PTPQos{
+	QOS_1 = 1,
+	QOS_2 = 2,
+};
+
 enum class SmallDisplayZoom {
 	STRETCH = 0,
 	PARTIAL_STRETCH = 1,
