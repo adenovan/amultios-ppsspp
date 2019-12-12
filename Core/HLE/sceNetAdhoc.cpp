@@ -100,18 +100,19 @@ void __NetAdhocShutdown()
 
 	if (g_Config.bAmultiosMode)
 	{
+
 		{
 			std::lock_guard<std::mutex> lk(ctl_running_mutex);
 			ctlRunning = false;
 			ctl_running_cv.notify_one();
 		}
 
-		__AMULTIOS_CTL_SHUTDOWN();
-
 		if (ctlThread.joinable())
 		{
 			ctlThread.join();
 		}
+
+		__AMULTIOS_CTL_SHUTDOWN();
 
 		{
 			std::lock_guard<std::mutex> lk(pdp_running_mutex);
@@ -119,12 +120,12 @@ void __NetAdhocShutdown()
 			pdp_running_cv.notify_one();
 		}
 
-		__AMULTIOS_PDP_SHUTDOWN();
-
 		if (pdpThread.joinable())
 		{
 			pdpThread.join();
 		}
+
+		__AMULTIOS_PDP_SHUTDOWN();
 
 		{
 			std::lock_guard<std::mutex> lk(ptp_running_mutex);
@@ -132,12 +133,12 @@ void __NetAdhocShutdown()
 			ptp_running_cv.notify_one();
 		}
 
-		__AMULTIOS_PTP_SHUTDOWN();
-
 		if (ptpThread.joinable())
 		{
 			ptpThread.join();
 		}
+
+		__AMULTIOS_PTP_SHUTDOWN();
 	}
 }
 
@@ -2063,7 +2064,7 @@ static int sceNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac,
 									internal->lport = sport;
 									internal->pport = dport;
 
-									NOTICE_LOG(SCENET, "PTP_OPEN_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]",i + 1, getMacString(&internal->laddr).c_str(), internal->lport, getMacString(&internal->paddr).c_str(), internal->pport);
+									NOTICE_LOG(SCENET, "PTP_OPEN_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]", i + 1, getMacString(&internal->laddr).c_str(), internal->lport, getMacString(&internal->paddr).c_str(), internal->pport);
 									// Set Buffer Size
 									internal->rcv_sb_cc = bufsize;
 
@@ -2267,7 +2268,7 @@ static int sceNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int
 										// Link PTP Socket
 										ptp[i] = internal;
 
-										NOTICE_LOG(SCENET, "PTP_ACCEPT_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]", id,getMacString(&internal->laddr).c_str(), internal->lport, getMacString(&internal->paddr).c_str(), internal->pport);
+										NOTICE_LOG(SCENET, "PTP_ACCEPT_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]", id, getMacString(&internal->laddr).c_str(), internal->lport, getMacString(&internal->paddr).c_str(), internal->pport);
 										// Add Port Forward to Router
 										// sceNetPortOpen("TCP", internal->lport);
 
@@ -2390,7 +2391,7 @@ static int sceNetAdhocPtpConnect(int id, int timeout, int flag)
 					{
 						// Set Connected State
 						socket->state = ADHOC_PTP_STATE_ESTABLISHED;
-						NOTICE_LOG(SCENET, "PTP_CONNECT_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]",id, getMacString(&socket->laddr).c_str(), socket->lport, getMacString(&socket->paddr).c_str(), socket->pport);
+						NOTICE_LOG(SCENET, "PTP_CONNECT_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]", id, getMacString(&socket->laddr).c_str(), socket->lport, getMacString(&socket->paddr).c_str(), socket->pport);
 						//INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Already Connected", id, socket->lport);
 						// Success
 						return 0;
@@ -2429,7 +2430,7 @@ static int sceNetAdhocPtpConnect(int id, int timeout, int flag)
 								socket->state = ADHOC_PTP_STATE_ESTABLISHED;
 
 								uint8_t *pip = (uint8_t *)&peer.sin_addr.s_addr;
-								NOTICE_LOG(SCENET, "PTP_CONNECT_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]", id,getMacString(&socket->laddr).c_str(), socket->lport, getMacString(&socket->paddr).c_str(), socket->pport);
+								NOTICE_LOG(SCENET, "PTP_CONNECT_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]", id, getMacString(&socket->laddr).c_str(), socket->lport, getMacString(&socket->paddr).c_str(), socket->pport);
 								//INFO_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Established (%u.%u.%u.%u:%u)", id, socket->lport, pip[0], pip[1], pip[2], pip[3], socket->pport);
 
 								// Success
@@ -2487,7 +2488,7 @@ static int sceNetAdhocPtpClose(int id, int unknown)
 		{
 			// Cast Socket
 			SceNetAdhocPtpStat *socket = ptp[id - 1];
-			NOTICE_LOG(SCENET, "PTP_CLOSE_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]", id ,getMacString(&socket->laddr).c_str(), socket->lport, getMacString(&socket->paddr).c_str(), socket->pport);
+			NOTICE_LOG(SCENET, "PTP_CLOSE_INTERNAL[%i] [%s]:[%d]->[%s]:[%d]", id, getMacString(&socket->laddr).c_str(), socket->lport, getMacString(&socket->paddr).c_str(), socket->pport);
 
 			// Close Connection
 			closesocket(socket->id);
