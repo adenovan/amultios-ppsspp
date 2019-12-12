@@ -359,7 +359,7 @@ void ctl_connect_failure(void *context, MQTTAsync_failureData *response)
     if (ctl_mqtt != nullptr && ctlInited)
     {
         //ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptr->mqtt_id.c_str());
-        threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        //threadStatus = ADHOCCTL_STATE_DISCONNECTED;
 
         {
             std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
@@ -402,7 +402,7 @@ void ctl_connect_lost(void *context, char *cause)
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctlInited)
     {
-        threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        //threadStatus = ADHOCCTL_STATE_DISCONNECTED;
         // {
         //     std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
         //     ctl_mqtt->connected = false;
@@ -1338,7 +1338,15 @@ int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
         packet.mac = addres;
         strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
         memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
-        return ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+        int rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+        if(rc == MQTTASYNC_SUCCESS){
+            return 0;
+        }
+        else
+        {
+            threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        }
+
     }
     return MQTTASYNC_FAILURE;
 }
@@ -1514,7 +1522,7 @@ int AmultiosNetAdhocctlTerm()
         rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 5000L);
         return rc;
     }
-
+    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
     return rc;
 }
 
