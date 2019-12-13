@@ -98,7 +98,7 @@ void __NetAdhocShutdown()
 		dummyThreadHackAddr = 0;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 
 		{
@@ -237,7 +237,7 @@ void __NetAdhocInit()
 		adhocServerThread = std::thread(proAdhocServerThread, SERVER_PORT);
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		{
 			std::lock_guard<std::mutex> lk(ctl_running_mutex);
@@ -299,7 +299,7 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 	if (netAdhocctlInited)
 		return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		if (AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MQTTASYNC_SUCCESS)
 		{
@@ -374,7 +374,7 @@ static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 u
 		return -1;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPdpCreate(mac, port, bufferSize, unknown);
 	}
@@ -548,7 +548,7 @@ static int sceNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int
 		return -1;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPdpSend(id, mac, port, data, len, timeout, flag);
 	}
@@ -742,7 +742,7 @@ static int sceNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *d
 		return -1;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPdpRecv(id, addr, port, buf, dataLength, timeout, flag);
 	}
@@ -1023,7 +1023,7 @@ static int sceNetAdhocPdpDelete(int id, int unknown)
 	}
 	*/
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPdpDelete(id, unknown);
 	}
@@ -1099,7 +1099,7 @@ static int sceNetAdhocctlScan()
 {
 	INFO_LOG(SCENET, "sceNetAdhocctlScan() at %08x", currentMIPS->pc);
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocctlScan();
 	}
@@ -1316,7 +1316,7 @@ static u32 sceNetAdhocctlDisconnect()
 	if (netAdhocctlInited)
 	{
 		// Connected State (Adhoc Mode)
-		if (g_Config.bAmultiosMode)
+		if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 		{
 			AmultiosNetAdhocctlDisconnect();
 		}
@@ -1410,7 +1410,7 @@ int sceNetAdhocctlTerm()
 	{
 		netAdhocctlInited = false;
 
-		if (g_Config.bAmultiosMode)
+		if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 		{
 			AmultiosNetAdhocctlTerm();
 		}
@@ -1619,7 +1619,7 @@ int sceNetAdhocctlCreate(const char *groupName)
 		return -1;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocctlCreate(groupName);
 	}
@@ -1776,7 +1776,7 @@ int sceNetAdhocTerm()
 		// if (_manage_modules != 0) sceUtilityUnloadModule(PSP_MODULE_NET_INET);
 		// Library shutdown
 
-		if (g_Config.bAmultiosMode)
+		if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 		{
 			AmultiosNetAdhocTerm();
 		}
@@ -1973,7 +1973,7 @@ static int sceNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac,
 		return 0;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPtpOpen(srcmac, sport, dstmac, dport, bufsize, rexmt_int, rexmt_cnt, unknown);
 	}
@@ -2132,7 +2132,7 @@ static int sceNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int
 		return 0;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPtpAccept(id, peerMacAddrPtr, peerPortPtr, timeout, flag);
 	}
@@ -2330,7 +2330,7 @@ static int sceNetAdhocPtpConnect(int id, int timeout, int flag)
 		return 0;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPtpConnect(id, timeout, flag);
 	}
@@ -2475,7 +2475,7 @@ static int sceNetAdhocPtpClose(int id, int unknown)
 		return 0;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPtpClose(id, unknown);
 	}
@@ -2533,7 +2533,7 @@ static int sceNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int 
 		return 0;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPtpListen(srcmac, sport, bufsize, rexmt_int, rexmt_cnt, backlog, unk);
 	}
@@ -2687,7 +2687,7 @@ static int sceNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeou
 		return 0;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPtpSend(id, dataAddr, dataSizeAddr, timeout, flag);
 	}
@@ -2792,7 +2792,7 @@ static int sceNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeou
 		return 0;
 	}
 
-	if (g_Config.bAmultiosMode)
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPtpRecv(id, dataAddr, dataSizeAddr, timeout, flag);
 	}

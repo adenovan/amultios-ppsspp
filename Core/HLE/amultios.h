@@ -96,6 +96,7 @@ std::string getMacString(SceNetEtherAddr *addr);
 bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2);
 
 // library method
+std::string getModeAddress();
 void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet);
 void deleteAmultiosPeer(SceNetEtherAddr *mac);
 bool macInNetwork(const SceNetEtherAddr *mac);

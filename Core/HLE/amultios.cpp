@@ -5,7 +5,6 @@
 #include "amultios.h"
 #include "util/text/parsers.h"
 
-#define ADDRESS "tcp://amultios.net:1883"
 
 bool ctlInited = false;
 bool ctlRunning = false;
@@ -42,6 +41,15 @@ std::mutex ptp_peer_mutex;
 std::vector<PTPConnection> ptp_peer_connection;
 
 volatile MQTTAsync_token token;
+
+std::string getModeAddress(){
+    
+    std::string mode = "tcp://amultios.net:1883";
+    if(g_Config.iAdhocMode == DEV_MODE){
+        mode = "tcp://" + g_Config.proAdhocServer + ":1883";
+    }
+    return mode;
+}
 
 bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2)
 {
@@ -1070,7 +1078,7 @@ int __AMULTIOS_CTL_INIT()
         MQTTAsync_willOptions will = MQTTAsync_willOptions_initializer;
 
         g_ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
-        rc = MQTTAsync_create(&g_ctl_mqtt->client, ADDRESS, g_ctl_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
+        rc = MQTTAsync_create(&g_ctl_mqtt->client, getModeAddress().c_str(), g_ctl_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
         MQTTAsync_setCallbacks(g_ctl_mqtt->client, NULL, ctl_connect_lost, ctl_message_arrived, NULL);
 
         opts.context = NULL;
@@ -1165,7 +1173,7 @@ int __AMULTIOS_PDP_INIT()
         //MQTTAsync_willOptions will = MQTTAsync_willOptions_initializer;
 
         g_pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
-        rc = MQTTAsync_create(&g_pdp_mqtt->client, ADDRESS, g_pdp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
+        rc = MQTTAsync_create(&g_pdp_mqtt->client, getModeAddress().c_str(), g_pdp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
         MQTTAsync_setCallbacks(g_pdp_mqtt->client, NULL, pdp_connect_lost, pdp_message_arrived, NULL);
 
         opts.keepAliveInterval = 300;
@@ -1246,7 +1254,7 @@ int __AMULTIOS_PTP_INIT()
         MQTTAsync_willOptions will = MQTTAsync_willOptions_initializer;
 
         g_ptp_mqtt->mqtt_id = "PTP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
-        rc = MQTTAsync_create(&g_ptp_mqtt->client, ADDRESS, g_ptp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
+        rc = MQTTAsync_create(&g_ptp_mqtt->client, getModeAddress().c_str(), g_ptp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
         MQTTAsync_setCallbacks(g_ptp_mqtt->client, NULL, ptp_connect_lost, ptp_message_arrived, NULL);
 
         opts.context = NULL;

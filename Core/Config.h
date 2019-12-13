@@ -358,7 +358,7 @@ public:
 	bool bSavedataUpgrade;
 
 	// Networking
-	bool bAmultiosMode;
+	int iAdhocMode;
 	int iPtpQos;
 	bool bEnableWlan;
 	bool bEnableAdhocServer;

@@ -103,6 +103,12 @@ enum PTPQos{
 	QOS_2 = 2,
 };
 
+enum AdhocMode{
+	AMULTIOS_MODE = 0,
+	PRO_ADHOC_MODE = 1,
+	DEV_MODE = 2,
+};
+
 enum class SmallDisplayZoom {
 	STRETCH = 0,
 	PARTIAL_STRETCH = 1,

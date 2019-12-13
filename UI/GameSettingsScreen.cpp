@@ -620,16 +620,16 @@ void GameSettingsScreen::CreateViews() {
 	tabHolder->AddTab(ms->T("Networking"), networkingSettingsScroll);
 
 	networkingSettings->Add(new ItemHeader(ms->T("Networking")));
+	networkingSettings->Add(new CheckBox(&g_Config.bEnableWlan, n->T("Enable networking", "Enable networking/wlan (beta)")));
+	static const char *adhocOpts[] = { "Amultios Mode", "Pro Adhoc Mode","Dev Mode" };
+	networkingSettings->Add(new PopupMultiChoice(&g_Config.iAdhocMode, sy->T("Adhoc Mode"), adhocOpts, 0, ARRAY_SIZE(adhocOpts), sy->GetName(), screenManager()));
 
-	networkingSettings->Add(new Choice(n->T("Adhoc Multiplayer forum")))->OnClick.Handle(this, &GameSettingsScreen::OnAdhocGuides);
-
-	networkingSettings->Add(new CheckBox(&g_Config.bAmultiosMode, n->T("Amultios Online Mode", "Online Through Internet")));
+	networkingSettings->Add(new ItemHeader(ms->T("Amultios Mode")));
 	static const char *ptpOpts[] = { "QOS 1 (Aggresive)", "QOS 2 (Reliable)" };
 	networkingSettings->Add(new PopupMultiChoice(&g_Config.iPtpQos, sy->T("PTP QOS"), ptpOpts, 1, ARRAY_SIZE(ptpOpts), sy->GetName(), screenManager()));
 
-	networkingSettings->Add(new CheckBox(&g_Config.bEnableWlan, n->T("Enable networking", "Enable networking/wlan (beta)")));
+	networkingSettings->Add(new ItemHeader(ms->T("Pro Adhoc Mode")));
 	networkingSettings->Add(new CheckBox(&g_Config.bDiscordPresence, n->T("Send Discord Presence information")));
-
 	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.proAdhocServer, n->T("Change proAdhocServer Address"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeproAdhocServerAddress);
 	networkingSettings->Add(new CheckBox(&g_Config.bEnableAdhocServer, n->T("Enable built-in PRO Adhoc Server", "Enable built-in PRO Adhoc Server")));
 	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sMACAddress, n->T("Change Mac Address"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeMacAddress);
