@@ -1077,7 +1077,7 @@ int __AMULTIOS_CTL_INIT()
         opts.keepAliveInterval = 300;
         opts.retryInterval = 0;
         opts.cleansession = 1;
-        opts.connectTimeout = 20;
+        opts.connectTimeout = 60;
         //opts.automaticReconnect = 1;
         opts.onSuccess = ctl_connect_success;
         opts.onFailure = ctl_connect_failure;
@@ -1171,7 +1171,7 @@ int __AMULTIOS_PDP_INIT()
         opts.keepAliveInterval = 300;
         opts.retryInterval = 0;
         opts.cleansession = 1;
-        opts.connectTimeout = 20;
+        opts.connectTimeout = 60;
         //opts.maxInflight = 255;
         //opts.automaticReconnect = 1;
         opts.onSuccess = pdp_connect_success;
@@ -1253,7 +1253,7 @@ int __AMULTIOS_PTP_INIT()
         opts.keepAliveInterval = 300;
         opts.retryInterval = 0;
         opts.cleansession = 1;
-        opts.connectTimeout = 20;
+        opts.connectTimeout = 60;
         //opts.maxInflight = 255;
         //opts.automaticReconnect = 1;
         opts.onSuccess = ptp_connect_success;
