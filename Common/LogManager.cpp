@@ -95,7 +95,7 @@ static const LogNameTableEntry logTable[] = {
 	{LogTypes::SAVESTATE,  "SAVESTATE"},
 	{LogTypes::FRAMEBUF,   "FRAMEBUF"},
 	{LogTypes::AMULTIOS,   "AMULTIOS"},
-
+	{LogTypes::MQTT,       "MQTT"},
 	{LogTypes::SCEAUDIO,   "SCEAUDIO"},
 	{LogTypes::SCECTRL,    "SCECTRL"},
 	{LogTypes::SCEDISPLAY, "SCEDISP"},
