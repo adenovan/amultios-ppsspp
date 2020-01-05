@@ -743,9 +743,9 @@ int ctl_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
         else if (payload_ptr[0] == OPCODE_AMULTIOS_LOGIN_PASS)
         {
             AmultiosNetAdhocctlLoginPacketS2C *packet = (AmultiosNetAdhocctlLoginPacketS2C *)payload_ptr;
-            ctlStatusTopic = "AmultiosSynchronize/";
+            ctlStatusTopic = "AmultiosSynchronize";
             ctlStatusTopic.append(packet->game.data);
-            ctl_subscribe(ctlStatusTopic.c_str(), 2);
+            amultios_subscribe(ctlStatusTopic.c_str(), 2);
         }
         MQTTAsync_freeMessage(&message);
         MQTTAsync_free(topicName);
@@ -1309,7 +1309,7 @@ int __AMULTIOS_INIT()
         MQTTAsync_setTraceLevel(MQTTASYNC_TRACE_MAXIMUM);
         MQTTAsync_setTraceCallback(MqttTrace);
         opts.context = NULL;
-        opts.keepAliveInterval = 300;
+        //opts.keepAliveInterval = 20;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 60;
@@ -1383,7 +1383,7 @@ int __AMULTIOS_CTL_INIT()
         MQTTAsync_setCallbacks(g_ctl_mqtt->client, NULL, ctl_connect_lost, ctl_message_arrived, NULL);
 
         opts.context = NULL;
-        opts.keepAliveInterval = 300;
+        //opts.keepAliveInterval = 0;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 60;
@@ -1468,7 +1468,7 @@ int __AMULTIOS_PDP_INIT()
         rc = MQTTAsync_create(&g_pdp_mqtt->client, getModeAddress().c_str(), g_pdp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
         MQTTAsync_setCallbacks(g_pdp_mqtt->client, NULL, pdp_connect_lost, pdp_message_arrived, NULL);
 
-        opts.keepAliveInterval = 300;
+        //opts.keepAliveInterval = 0;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 60;
@@ -1540,7 +1540,7 @@ int __AMULTIOS_PTP_INIT()
         MQTTAsync_setCallbacks(g_ptp_mqtt->client, NULL, ptp_connect_lost, ptp_message_arrived, NULL);
 
         opts.context = NULL;
-        opts.keepAliveInterval = 300;
+        //opts.keepAliveInterval = 0;
         opts.retryInterval = 0;
         opts.cleansession = 1;
         opts.connectTimeout = 60;
@@ -1624,10 +1624,10 @@ int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
         {
             return 0;
         }
-        else
-        {
-            threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-        }
+        // else
+        // {
+        //     threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        // }
     }
     return MQTTASYNC_FAILURE;
 }
@@ -1814,7 +1814,7 @@ int AmultiosNetAdhocTerm()
     if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
         rc = ctl_unsubscribe(ctl_mqtt->sub_topic.c_str());
-        rc = ctl_unsubscribe(ctlStatusTopic.c_str());
+        rc = amultios_unsubscribe(ctlStatusTopic.c_str());
 
         {
             std::lock_guard<std::mutex> lk(pdp_queue_mutex);
