@@ -138,7 +138,7 @@ void __KernelInit()
 	__NetInit();
 	__NetAdhocInit();
 	__VaudioInit();
-	__CheatInit();
+	//__CheatInit();
 	__HeapInit();
 	__DmacInit();
 	__AudioCodecInit();
@@ -194,7 +194,7 @@ void __KernelShutdown()
 	__KernelThreadingShutdown();
 	__KernelMemoryShutdown();
 	__InterruptsShutdown();
-	__CheatShutdown();
+	//__CheatShutdown();
 	__KernelModuleShutdown();
 
 	CoreTiming::ClearPendingEvents();
