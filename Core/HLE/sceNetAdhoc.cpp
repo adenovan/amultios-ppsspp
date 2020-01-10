@@ -101,7 +101,6 @@ void __NetAdhocShutdown()
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 
-		__AMULTIOS_CTL_SHUTDOWN();
 
 		{
 			std::lock_guard<std::mutex> lk(ctl_running_mutex);
@@ -113,9 +112,7 @@ void __NetAdhocShutdown()
 		{
 			ctlThread.join();
 		}
-
-
-		__AMULTIOS_PDP_SHUTDOWN();
+		
 		{
 			std::lock_guard<std::mutex> lk(pdp_running_mutex);
 			pdpRunning = false;
@@ -128,9 +125,6 @@ void __NetAdhocShutdown()
 		}
 
 
-
-		__AMULTIOS_PTP_SHUTDOWN();
-
 		{
 			std::lock_guard<std::mutex> lk(ptp_running_mutex);
 			ptpRunning = false;
@@ -141,8 +135,7 @@ void __NetAdhocShutdown()
 		{
 			ptpThread.join();
 		}
-
-		__AMULTIOS_SHUTDOWN();
+		
 		{
 			std::lock_guard<std::mutex> lk(amultios_running_mutex);
 			amultiosRunning = false;
@@ -215,27 +208,27 @@ static int getBlockingFlag(int id)
 
 void __NetAdhocInit()
 {
-	{
-		std::lock_guard<std::mutex> lk(amultios_running_mutex);
-		amultiosRunning = false;
-		amultios_running_cv.notify_one();
-	}
-	{
-		std::lock_guard<std::mutex> lk(ctl_running_mutex);
-		ctlRunning = false;
-		ctl_running_cv.notify_one();
-	}
-	{
-		std::lock_guard<std::mutex> lk(pdp_running_mutex);
-		pdpRunning = false;
-		pdp_running_cv.notify_one();
-	}
+	// {
+	// 	std::lock_guard<std::mutex> lk(amultios_running_mutex);
+	// 	amultiosRunning = false;
+	// 	amultios_running_cv.notify_one();
+	// }
+	// {
+	// 	std::lock_guard<std::mutex> lk(ctl_running_mutex);
+	// 	ctlRunning = false;
+	// 	ctl_running_cv.notify_one();
+	// }
+	// {
+	// 	std::lock_guard<std::mutex> lk(pdp_running_mutex);
+	// 	pdpRunning = false;
+	// 	pdp_running_cv.notify_one();
+	// }
 
-	{
-		std::lock_guard<std::mutex> lk(ptp_running_mutex);
-		ptpRunning = false;
-		ptp_running_cv.notify_one();
-	}
+	// {
+	// 	std::lock_guard<std::mutex> lk(ptp_running_mutex);
+	// 	ptpRunning = false;
+	// 	ptp_running_cv.notify_one();
+	// }
 
 	friendFinderRunning = false;
 	netAdhocInited = false;

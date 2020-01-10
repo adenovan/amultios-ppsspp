@@ -19,6 +19,7 @@ typedef struct AmultiosMqtt
   bool connected;
   int subscribed;
   bool reconnectInProgress;
+  bool disconnectComplete;
 } AmultiosMqtt;
 
 typedef struct PDPMessage

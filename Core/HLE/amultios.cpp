@@ -50,9 +50,9 @@ std::vector<PTPConnection> ptp_peer_connection;
 
 volatile MQTTAsync_token token;
 
-
-void MqttTrace(enum MQTTASYNC_TRACE_LEVELS level, char* message){
-    VERBOSE_LOG(MQTT,"%s",message);
+void MqttTrace(enum MQTTASYNC_TRACE_LEVELS level, char *message)
+{
+    ERROR_LOG(MQTT, "%s", message);
 }
 
 std::string getModeAddress()
@@ -364,9 +364,9 @@ void amultios_unsubscribe_failure(void *context, MQTTAsync_failureData *response
 void amultios_connect_success(void *context, MQTTAsync_successData *response)
 {
     auto amultios_mqtt = g_amultios_mqtt;
-    if (amultios_mqtt != nullptr && amultiosInited)
+    if (amultios_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Connect Success", amultios_mqtt->mqtt_id.c_str());
+        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", amultios_mqtt->mqtt_id.c_str());
         {
             std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
             amultios_mqtt->connected = true;
@@ -380,39 +380,36 @@ void amultios_connect_failure(void *context, MQTTAsync_failureData *response)
     auto amultios_mqtt = g_amultios_mqtt;
     if (amultios_mqtt != nullptr && amultiosInited)
     {
-        //ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptr->mqtt_id.c_str());
-        //threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-
-        {
-            std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
-            amultios_mqtt->connected = false;
-            amultios_mqtt->reconnectInProgress = false;
-        }
+        ERROR_LOG(AMULTIOS, "[%s] Connect Failure", amultios_mqtt->mqtt_id.c_str());
+        std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
+        amultios_mqtt->connected = false;
+        amultios_mqtt->reconnectInProgress = false;
     }
 };
 
 void amultios_disconnect_success(void *context, MQTTAsync_successData *response)
 {
     auto amultios_mqtt = g_amultios_mqtt;
-    if (amultios_mqtt != nullptr && amultiosInited)
+    if (amultios_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Disconnect Success", amultios_mqtt->mqtt_id.c_str());
+        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", amultios_mqtt->mqtt_id.c_str());
+        std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
         amultios_mqtt->connected = false;
+        amultios_mqtt->disconnectComplete = true;
     }
 };
 
 void amultios_disconnect_failure(void *context, MQTTAsync_failureData *response)
 {
     auto amultios_mqtt = g_amultios_mqtt;
-    if (amultios_mqtt != nullptr && amultiosInited)
+    if (amultios_mqtt != nullptr)
     {
         ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", amultios_mqtt->mqtt_id.c_str());
-        threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-        {
-            std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
-            amultios_mqtt->connected = false;
-        }
+        std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
+        amultios_mqtt->connected = false;
+        amultios_mqtt->disconnectComplete = true;
     }
+    amultiosInited = false;
 };
 
 void amultios_connect_lost(void *context, char *cause)
@@ -571,9 +568,9 @@ void ctl_unsubscribe_failure(void *context, MQTTAsync_failureData *response)
 void ctl_connect_success(void *context, MQTTAsync_successData *response)
 {
     auto ctl_mqtt = g_ctl_mqtt;
-    if (ctl_mqtt != nullptr && ctlInited)
+    if (ctl_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Connect Success", ctl_mqtt->mqtt_id.c_str());
+        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", ctl_mqtt->mqtt_id.c_str());
         {
             std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
             ctl_mqtt->connected = true;
@@ -587,40 +584,40 @@ void ctl_connect_failure(void *context, MQTTAsync_failureData *response)
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctlInited)
     {
-        //ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptr->mqtt_id.c_str());
-        //threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-
-        {
-            std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
-            ctl_mqtt->connected = false;
-            ctl_mqtt->reconnectInProgress = false;
-        }
+        ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ctl_mqtt->mqtt_id.c_str());
+        std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
+        ctl_mqtt->connected = false;
+        ctl_mqtt->reconnectInProgress = false;
     }
 };
 
 void ctl_disconnect_success(void *context, MQTTAsync_successData *response)
 {
     auto ctl_mqtt = g_ctl_mqtt;
-    if (ctl_mqtt != nullptr && ctlInited)
+    if (ctl_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Disconnect Success", ctl_mqtt->mqtt_id.c_str());
-        threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+        std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
+        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", ctl_mqtt->mqtt_id.c_str());
+        //threadStatus = ADHOCCTL_STATE_DISCONNECTED;
         ctl_mqtt->connected = false;
+        //MQTTAsync_destroy(&ctl_mqtt->client);
+        ctl_mqtt->disconnectComplete = true;
     }
+    ctlInited = false;
 };
 
 void ctl_disconnect_failure(void *context, MQTTAsync_failureData *response)
 {
     auto ctl_mqtt = g_ctl_mqtt;
-    if (ctl_mqtt != nullptr && ctlInited)
+    if (ctl_mqtt != nullptr)
     {
         ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", ctl_mqtt->mqtt_id.c_str());
-        threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-        {
-            std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
-            ctl_mqtt->connected = false;
-        }
+        std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
+        ctl_mqtt->connected = false;
+        ctl_mqtt->disconnectComplete = true;
+        //MQTTAsync_destroy(&ctl_mqtt->client);
     }
+    ctlInited = false;
 };
 
 void ctl_connect_lost(void *context, char *cause)
@@ -884,9 +881,9 @@ void pdp_unsubscribe_failure(void *context, MQTTAsync_failureData *response)
 void pdp_connect_success(void *context, MQTTAsync_successData *response)
 {
     auto pdp_mqtt = g_pdp_mqtt;
-    if (pdp_mqtt != nullptr && pdpInited)
+    if (pdp_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Connect Success", pdp_mqtt->mqtt_id.c_str());
+        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", pdp_mqtt->mqtt_id.c_str());
         std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
         pdp_mqtt->connected = true;
         pdp_mqtt->reconnectInProgress = false;
@@ -896,35 +893,36 @@ void pdp_connect_success(void *context, MQTTAsync_successData *response)
 void pdp_connect_failure(void *context, MQTTAsync_failureData *response)
 {
     auto pdp_mqtt = g_pdp_mqtt;
-    if (pdp_mqtt != nullptr && pdpInited)
+    if (pdp_mqtt != nullptr)
     {
         ERROR_LOG(AMULTIOS, "[%s] Connect Failure", pdp_mqtt->mqtt_id.c_str());
-        {
-            std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-            pdp_mqtt->connected = false;
-            pdp_mqtt->reconnectInProgress = false;
-        }
+        std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+        pdp_mqtt->connected = false;
+        pdp_mqtt->reconnectInProgress = false;
     }
 };
 
 void pdp_disconnect_success(void *context, MQTTAsync_successData *response)
 {
     auto pdp_mqtt = g_pdp_mqtt;
-    if (pdp_mqtt != nullptr && pdpInited)
+    if (pdp_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Disconnect Success", pdp_mqtt->mqtt_id.c_str());
+        std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", pdp_mqtt->mqtt_id.c_str());
         pdp_mqtt->connected = false;
+        pdp_mqtt->disconnectComplete = true;
     }
 };
 
 void pdp_disconnect_failure(void *context, MQTTAsync_failureData *response)
 {
     auto pdp_mqtt = g_pdp_mqtt;
-    if (pdp_mqtt != nullptr && pdpInited)
+    if (pdp_mqtt != nullptr)
     {
         ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", pdp_mqtt->mqtt_id.c_str());
         std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
         pdp_mqtt->connected = false;
+        pdp_mqtt->disconnectComplete = true;
     }
 };
 
@@ -1102,9 +1100,9 @@ void ptp_unsubscribe_failure(void *context, MQTTAsync_failureData *response)
 void ptp_connect_success(void *context, MQTTAsync_successData *response)
 {
     auto ptp_mqtt = g_ptp_mqtt;
-    if (ptp_mqtt != nullptr && ptpInited)
+    if (ptp_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Connect Success", ptp_mqtt->mqtt_id.c_str());
+        NOTICE_LOG(AMULTIOS, "[%s] Connect Success", ptp_mqtt->mqtt_id.c_str());
         {
             std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             ptp_mqtt->connected = true;
@@ -1119,31 +1117,35 @@ void ptp_connect_failure(void *context, MQTTAsync_failureData *response)
     if (ptp_mqtt != nullptr && ptpInited)
     {
         ERROR_LOG(AMULTIOS, "[%s] Connect Failure", ptp_mqtt->mqtt_id.c_str());
-        {
-            std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
-            ptp_mqtt->connected = false;
-            ptp_mqtt->reconnectInProgress = false;
-        }
+        std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
+        ptp_mqtt->connected = false;
+        ptp_mqtt->reconnectInProgress = false;
     }
 };
 
 void ptp_disconnect_success(void *context, MQTTAsync_successData *response)
 {
     auto ptp_mqtt = g_ptp_mqtt;
-    if (ptp_mqtt != nullptr && ptpInited)
+    if (ptp_mqtt != nullptr)
     {
-        INFO_LOG(AMULTIOS, "[%s] Disconnect Success", ptp_mqtt->mqtt_id.c_str());
+        std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
+        NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", ptp_mqtt->mqtt_id.c_str());
         ptp_mqtt->connected = false;
+        ptp_mqtt->disconnectComplete = true;
+        //MQTTAsync_destroy(&ptp_mqtt->client);
     }
 };
 
 void ptp_disconnect_failure(void *context, MQTTAsync_failureData *response)
 {
     auto ptp_mqtt = g_ptp_mqtt;
-    if (ptp_mqtt != nullptr && ptpInited)
+    if (ptp_mqtt != nullptr)
     {
+        std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
         ERROR_LOG(AMULTIOS, "[%s] Disconnect Failure", ptp_mqtt->mqtt_id.c_str());
         ptp_mqtt->connected = false;
+        ptp_mqtt->disconnectComplete = true;
+        //MQTTAsync_destroy(&ptp_mqtt->client);
     }
 };
 
@@ -1189,7 +1191,7 @@ int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_
 
                 std::lock_guard<std::mutex> lock(ptp_queue_mutex);
                 ptp_queue.push_back(msg);
-                NOTICE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, topicLen);
+                VERBOSE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, topicLen);
             }
 
             if (std::strcmp(topic_explode.at(1).c_str(), "OPEN\0") == 0)
@@ -1298,6 +1300,7 @@ int __AMULTIOS_INIT()
     if (!amultiosInited)
     {
         amultiosInited = true;
+        std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
         g_amultios_mqtt = std::make_shared<AmultiosMqtt>();
         g_amultios_mqtt->subscribed = false;
         MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
@@ -1309,10 +1312,10 @@ int __AMULTIOS_INIT()
         MQTTAsync_setTraceLevel(MQTTASYNC_TRACE_MAXIMUM);
         MQTTAsync_setTraceCallback(MqttTrace);
         opts.context = NULL;
-        //opts.keepAliveInterval = 20;
+        opts.keepAliveInterval = 0;
         opts.retryInterval = 0;
         opts.cleansession = 1;
-        opts.connectTimeout = 60;
+        opts.connectTimeout = 0;
         //opts.automaticReconnect = 1;
         opts.onSuccess = amultios_connect_success;
         opts.onFailure = amultios_connect_failure;
@@ -1338,12 +1341,15 @@ int __AMULTIOS_INIT()
         {
             ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
         }
-
-        {
-            std::unique_lock<std::mutex> lk(amultios_running_mutex);
-            amultios_running_cv.wait(lk, [] { return amultiosRunning == false; });
-        }
     }
+
+    {
+        std::unique_lock<std::mutex> lk(amultios_running_mutex);
+        amultios_running_cv.wait(lk, [] { return amultiosRunning == false; });
+    }
+
+    __AMULTIOS_SHUTDOWN();
+
     NOTICE_LOG(AMULTIOS, "amultios_mqtt Thread Finished");
     return rc;
 }
@@ -1354,14 +1360,48 @@ int __AMULTIOS_SHUTDOWN()
     auto amultios_mqtt = g_amultios_mqtt;
     if (amultiosInited)
     {
-        std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
+        int i = 0;
+        MQTTAsync_token *tokens;
+        rc = MQTTAsync_getPendingTokens(amultios_mqtt->client, &tokens);
+        if (rc == MQTTASYNC_SUCCESS && tokens)
+        {
+            while (tokens[i] != -1)
+            {
+                rc = MQTTAsync_waitForCompletion(amultios_mqtt->client, tokens[i], 1000L);
+                MQTTAsync_free(tokens);
+                ++i;
+            }
+        }
+
+        amultios_mqtt->disconnectComplete = false;
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
+
+        //hope this callback destroy the socket
         opts.onSuccess = amultios_disconnect_success;
-        int rc = MQTTAsync_disconnect(amultios_mqtt->client, &opts);
-        MQTTAsync_destroy(&amultios_mqtt.get()->client);
-        NOTICE_LOG(AMULTIOS, "amultios_mqtt shutdown %d", rc);
+
+        //never got called
+        opts.onFailure = amultios_disconnect_failure;
+
+        opts.timeout = 1000;
+
+        rc = MQTTAsync_disconnect(amultios_mqtt->client, &opts);
+
+        //no need manual cleanup if no connection fail
+        if (rc != MQTTASYNC_SUCCESS)
+        {
+            //ok lets call it, if disconnection fail looks like on failure not do cleanup job if already disconnected.
+            sleep_ms(1000);
+            amultios_disconnect_failure(NULL, NULL);
+        }
+
+        while (!amultios_mqtt->disconnectComplete)
+        {
+            sleep_ms(1);
+        }
+
+        MQTTAsync_destroy(&amultios_mqtt->client);
         amultiosInited = false;
-        //MQTTAsync_terminate();
+        NOTICE_LOG(AMULTIOS, "amultios_mqtt shutdown %d", rc);
     }
     return rc;
 }
@@ -1373,6 +1413,7 @@ int __AMULTIOS_CTL_INIT()
     if (!ctlInited)
     {
         ctlInited = true;
+        //std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
         g_ctl_mqtt = std::make_shared<AmultiosMqtt>();
         g_ctl_mqtt->subscribed = false;
         MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
@@ -1383,10 +1424,10 @@ int __AMULTIOS_CTL_INIT()
         MQTTAsync_setCallbacks(g_ctl_mqtt->client, NULL, ctl_connect_lost, ctl_message_arrived, NULL);
 
         opts.context = NULL;
-        //opts.keepAliveInterval = 0;
+        opts.keepAliveInterval = 0;
         opts.retryInterval = 0;
         opts.cleansession = 1;
-        opts.connectTimeout = 60;
+        opts.connectTimeout = 0;
         //opts.automaticReconnect = 1;
         opts.onSuccess = ctl_connect_success;
         opts.onFailure = ctl_connect_failure;
@@ -1412,12 +1453,14 @@ int __AMULTIOS_CTL_INIT()
         {
             ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
         }
-
-        {
-            std::unique_lock<std::mutex> lk(ctl_running_mutex);
-            ctl_running_cv.wait(lk, [] { return ctlRunning == false; });
-        }
     }
+
+    {
+        std::unique_lock<std::mutex> lk(ctl_running_mutex);
+        ctl_running_cv.wait(lk, [] { return ctlRunning == false; });
+    }
+
+    __AMULTIOS_CTL_SHUTDOWN();
     NOTICE_LOG(AMULTIOS, "ctl_mqtt Thread Finished");
     return rc;
 }
@@ -1428,27 +1471,43 @@ int __AMULTIOS_CTL_SHUTDOWN()
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctlInited)
     {
-        std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
+
+        int i = 0;
+        MQTTAsync_token *tokens;
+        rc = MQTTAsync_getPendingTokens(ctl_mqtt->client, &tokens);
+        if (rc == MQTTASYNC_SUCCESS && tokens)
+        {
+            while (tokens[i] != -1)
+            {
+                rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, tokens[i], 1000L);
+                MQTTAsync_free(tokens);
+                ++i;
+            }
+        }
+
+        ctl_mqtt->disconnectComplete = false;
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
         opts.onSuccess = ctl_disconnect_success;
-        // int i = 0;
-        // MQTTAsync_token *tokens;
-        // rc = MQTTAsync_getPendingTokens(ctl_mqtt->client, &tokens);
-        // if (rc == MQTTASYNC_SUCCESS && tokens)
-        // {
-        //     while (tokens[i] != -1)
-        //     {
-        //         rc = MQTTAsync_waitForCompletion(ctl_mqtt->client, tokens[i], 5000L);
-        //         MQTTAsync_free(tokens);
-        //         ++i;
-        //     }
-        // }
+        opts.onFailure = ctl_disconnect_failure;
+        opts.timeout = 1000;
 
-        int rc = MQTTAsync_disconnect(ctl_mqtt->client, &opts);
-        MQTTAsync_destroy(&ctl_mqtt.get()->client);
+        rc = MQTTAsync_disconnect(ctl_mqtt->client, &opts);
 
-        NOTICE_LOG(AMULTIOS, "ctl_mqtt shutdown %d", rc);
+        if (rc != MQTTASYNC_SUCCESS)
+        {
+            sleep_ms(1000);
+            ctl_disconnect_failure(NULL, NULL);
+        }
+
+        while (!ctl_mqtt->disconnectComplete)
+        {
+            sleep_ms(1);
+        }
+
+        MQTTAsync_destroy(&ctl_mqtt->client);
+
         ctlInited = false;
+        NOTICE_LOG(AMULTIOS, "ctl_mqtt shutdown %d", rc);
     }
     return rc;
 }
@@ -1456,9 +1515,11 @@ int __AMULTIOS_CTL_SHUTDOWN()
 int __AMULTIOS_PDP_INIT()
 {
     int rc = MQTTASYNC_FAILURE;
+
     if (!pdpInited)
     {
         pdpInited = true;
+        //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
         g_pdp_mqtt = std::make_shared<AmultiosMqtt>();
         g_pdp_mqtt->subscribed = 0;
         MQTTAsync_connectOptions opts = MQTTAsync_connectOptions_initializer;
@@ -1468,10 +1529,10 @@ int __AMULTIOS_PDP_INIT()
         rc = MQTTAsync_create(&g_pdp_mqtt->client, getModeAddress().c_str(), g_pdp_mqtt->mqtt_id.c_str(), MQTTCLIENT_PERSISTENCE_NONE, NULL);
         MQTTAsync_setCallbacks(g_pdp_mqtt->client, NULL, pdp_connect_lost, pdp_message_arrived, NULL);
 
-        //opts.keepAliveInterval = 0;
+        opts.keepAliveInterval = 0;
         opts.retryInterval = 0;
         opts.cleansession = 1;
-        opts.connectTimeout = 60;
+        opts.connectTimeout = 0;
         //opts.maxInflight = 255;
         //opts.automaticReconnect = 1;
         opts.onSuccess = pdp_connect_success;
@@ -1495,13 +1556,14 @@ int __AMULTIOS_PDP_INIT()
         {
             ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
         }
-
-        {
-            std::unique_lock<std::mutex> lk(pdp_running_mutex);
-            pdp_running_cv.wait(lk, [] { return pdpRunning == false; });
-        }
     }
 
+    {
+        std::unique_lock<std::mutex> lk(pdp_running_mutex);
+        pdp_running_cv.wait(lk, [] { return pdpRunning == false; });
+    }
+
+    __AMULTIOS_PDP_SHUTDOWN();
     NOTICE_LOG(AMULTIOS, "pdp_mqtt Thread Finished");
     return rc;
 }
@@ -1512,12 +1574,39 @@ int __AMULTIOS_PDP_SHUTDOWN()
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdpInited)
     {
-        std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+        // int i = 0;
+        // MQTTAsync_token *tokens;
+        // rc = MQTTAsync_getPendingTokens(pdp_mqtt->client, &tokens);
+        // if (rc == MQTTASYNC_SUCCESS && tokens)
+        // {
+        //     while (tokens[i] != -1)
+        //     {
+        //         rc = MQTTAsync_waitForCompletion(pdp_mqtt->client, tokens[i], 1000L);
+        //         MQTTAsync_free(tokens);
+        //         ++i;
+        //     }
+        // }
+
+        pdp_mqtt->disconnectComplete = false;
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
         opts.onSuccess = pdp_disconnect_success;
-        //opts.onFailure = pdp_disconnect_failure;
-        int rc = MQTTAsync_disconnect(pdp_mqtt->client, &opts);
-        MQTTAsync_destroy(&pdp_mqtt.get()->client);
+        opts.onFailure = pdp_disconnect_failure;
+        opts.timeout = 1000;
+
+        rc = MQTTAsync_disconnect(pdp_mqtt->client, &opts);
+
+        if (rc != MQTTASYNC_SUCCESS)
+        {
+            sleep_ms(1000);
+            pdp_disconnect_failure(NULL, NULL);
+        }
+
+        while (!pdp_mqtt->disconnectComplete)
+        {
+            sleep_ms(1);
+        }
+
+        MQTTAsync_destroy(&pdp_mqtt->client);
         pdpInited = false;
         NOTICE_LOG(AMULTIOS, "pdp_mqtt shutdown %d", rc);
     }
@@ -1527,8 +1616,10 @@ int __AMULTIOS_PDP_SHUTDOWN()
 int __AMULTIOS_PTP_INIT()
 {
     int rc = MQTTASYNC_FAILURE;
+
     if (!ptpInited)
     {
+        //std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
         ptpInited = true;
         g_ptp_mqtt = std::make_shared<AmultiosMqtt>();
         g_ptp_mqtt->subscribed = 0;
@@ -1540,10 +1631,10 @@ int __AMULTIOS_PTP_INIT()
         MQTTAsync_setCallbacks(g_ptp_mqtt->client, NULL, ptp_connect_lost, ptp_message_arrived, NULL);
 
         opts.context = NULL;
-        //opts.keepAliveInterval = 0;
+        opts.keepAliveInterval = 0;
         opts.retryInterval = 0;
         opts.cleansession = 1;
-        opts.connectTimeout = 60;
+        opts.connectTimeout = 0;
         //opts.maxInflight = 255;
         //opts.automaticReconnect = 1;
         opts.onSuccess = ptp_connect_success;
@@ -1566,13 +1657,14 @@ int __AMULTIOS_PTP_INIT()
         {
             ERROR_LOG(AMULTIOS, "Failed to connect, return code %d\n", rc);
         }
-
-        {
-            std::unique_lock<std::mutex> lk(ptp_running_mutex);
-            ptp_running_cv.wait(lk, [] { return ptpRunning == false; });
-        }
     }
 
+    {
+        std::unique_lock<std::mutex> lk(ptp_running_mutex);
+        ptp_running_cv.wait(lk, [] { return ptpRunning == false; });
+    }
+
+    __AMULTIOS_PTP_SHUTDOWN();
     NOTICE_LOG(AMULTIOS, "ptp_mqtt Thread Finished");
     return rc;
 }
@@ -1583,13 +1675,39 @@ int __AMULTIOS_PTP_SHUTDOWN()
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptpInited)
     {
-        std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
+        // int i = 0;
+        // MQTTAsync_token *tokens;
+        // rc = MQTTAsync_getPendingTokens(ptp_mqtt->client, &tokens);
+        // if (rc == MQTTASYNC_SUCCESS && tokens)
+        // {
+        //     while (tokens[i] != -1)
+        //     {
+        //         rc = MQTTAsync_waitForCompletion(ptp_mqtt->client, tokens[i], 1000L);
+        //         MQTTAsync_free(tokens);
+        //         ++i;
+        //     }
+        // }
+
+        ptp_mqtt->disconnectComplete = false;
         MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
         opts.onSuccess = ptp_disconnect_success;
-        //opts.onFailure = ptp_disconnect_failure;
-        int rc = MQTTAsync_disconnect(ptp_mqtt->client, &opts);
-        MQTTAsync_destroy(&ptp_mqtt.get()->client);
+        opts.onFailure = ptp_disconnect_failure;
+        opts.timeout = 1000;
 
+        rc = MQTTAsync_disconnect(ptp_mqtt->client, &opts);
+
+        if (rc != MQTTASYNC_SUCCESS)
+        {
+            sleep_ms(1000);
+            ptp_disconnect_failure(NULL, NULL);
+        }
+
+        while (!ptp_mqtt->disconnectComplete)
+        {
+            sleep_ms(1);
+        }
+
+        MQTTAsync_destroy(&ptp_mqtt->client);
         ptpInited = false;
         NOTICE_LOG(AMULTIOS, "ptp_mqtt shutdown %d", rc);
     }
@@ -1624,10 +1742,6 @@ int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
         {
             return 0;
         }
-        // else
-        // {
-        //     threadStatus = ADHOCCTL_STATE_DISCONNECTED;
-        // }
     }
     return MQTTASYNC_FAILURE;
 }
@@ -1679,7 +1793,7 @@ int AmultiosNetAdhocctlCreate(const char *groupName)
                 if (iResult != MQTTASYNC_SUCCESS)
                 {
                     ERROR_LOG(AMULTIOS, "Mqtt Error when sending reason %d", iResult);
-                    threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+                    //threadStatus = ADHOCCTL_STATE_DISCONNECTED;
                 }
 
                 return 0;
@@ -1730,9 +1844,9 @@ int AmultiosNetAdhocctlScan()
             if (iResult != MQTTASYNC_SUCCESS)
             {
                 ERROR_LOG(AMULTIOS, "ctl_mqtt Error when sending scan reason %d", iResult);
-                threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+                //threadStatus = ADHOCCTL_STATE_DISCONNECTED;
                 //if (error == ECONNABORTED || error == ECONNRESET || error == ENOTCONN) return ERROR_NET_ADHOCCTL_NOT_INITIALIZED; // A case where it need to reconnect to AdhocServer
-                return ERROR_NET_ADHOCCTL_DISCONNECTED; // ERROR_NET_ADHOCCTL_BUSY
+                //return ERROR_NET_ADHOCCTL_DISCONNECTED; // ERROR_NET_ADHOCCTL_BUSY
             }
             // Return Success
             return 0;
@@ -1801,7 +1915,6 @@ int AmultiosNetAdhocctlTerm()
         getLocalMac(&addres);
         packet.mac = addres;
         rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 5000L);
-        return rc;
     }
     threadStatus = ADHOCCTL_STATE_DISCONNECTED;
     return rc;
