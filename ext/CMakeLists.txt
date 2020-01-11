@@ -15,7 +15,7 @@ endif()
 
 add_subdirectory(glslang)
 add_subdirectory(snappy)
-add_subdirectory(paho-mqtt-c)
+add_subdirectory(mosquitto)
 add_subdirectory(udis86)
 add_subdirectory(SPIRV-Cross-build)
 if(USE_DISCORD AND NOT IOS)

@@ -27,4 +27,4 @@
 	url = https://github.com/Tencent/rapidjson.git
 [submodule "ext/mosquitto"]
 	path = ext/mosquitto
-	url = https://github.com/eclipse/mosquitto.git
+	url = https://github.com/adenovan/mosquitto.git

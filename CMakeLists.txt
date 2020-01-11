@@ -1802,8 +1802,8 @@ if(USE_DISCORD AND NOT IOS)
 	target_link_libraries(${CoreLibName} discord-rpc)
 endif()
 
-include_directories(ext/paho-mqtt-c/src)
-target_link_libraries(${CoreLibName} paho-mqtt3a)
+include_directories(ext/mosquitto/lib)
+target_link_libraries(${CoreLibName} libmosquitto)
 
 setup_target_project(${CoreLibName} Core)
 

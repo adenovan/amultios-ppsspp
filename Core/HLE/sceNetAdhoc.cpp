@@ -37,6 +37,7 @@
 #include "Core/HLE/sceNet.h"
 #include "Core/HLE/proAdhocServer.h"
 #include "Core/HLE/amultios.h"
+//#include <mosquitto.h>
 
 // shared in sceNetAdhoc.h since it need to be used from sceNet.cpp also
 // TODO: Make accessor functions instead, and throw all this state in a struct.
@@ -101,52 +102,24 @@ void __NetAdhocShutdown()
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 
-
+		if (ctlInited)
 		{
-			std::lock_guard<std::mutex> lk(ctl_running_mutex);
-			ctlRunning = false;
-			ctl_running_cv.notify_one();
+			__AMULTIOS_CTL_SHUTDOWN();
 		}
 
-		if (ctlThread.joinable())
-		{
-			ctlThread.join();
-		}
-		
-		{
-			std::lock_guard<std::mutex> lk(pdp_running_mutex);
-			pdpRunning = false;
-			pdp_running_cv.notify_one();
+		if(pdpInited){
+			__AMULTIOS_PDP_SHUTDOWN();
 		}
 
-		if (pdpThread.joinable())
-		{
-			pdpThread.join();
+		if(ptpInited){
+			__AMULTIOS_PTP_SHUTDOWN();
 		}
 
-
-		{
-			std::lock_guard<std::mutex> lk(ptp_running_mutex);
-			ptpRunning = false;
-			ptp_running_cv.notify_one();
+		if(amultiosInited){
+			__AMULTIOS_SHUTDOWN();
 		}
 
-		if (ptpThread.joinable())
-		{
-			ptpThread.join();
-		}
-		
-		{
-			std::lock_guard<std::mutex> lk(amultios_running_mutex);
-			amultiosRunning = false;
-			amultios_running_cv.notify_one();
-		}
-
-		if (amultiosThread.joinable())
-		{
-			amultiosThread.join();
-		}
-
+		mosquitto_lib_cleanup();
 	}
 }
 
@@ -208,27 +181,6 @@ static int getBlockingFlag(int id)
 
 void __NetAdhocInit()
 {
-	// {
-	// 	std::lock_guard<std::mutex> lk(amultios_running_mutex);
-	// 	amultiosRunning = false;
-	// 	amultios_running_cv.notify_one();
-	// }
-	// {
-	// 	std::lock_guard<std::mutex> lk(ctl_running_mutex);
-	// 	ctlRunning = false;
-	// 	ctl_running_cv.notify_one();
-	// }
-	// {
-	// 	std::lock_guard<std::mutex> lk(pdp_running_mutex);
-	// 	pdpRunning = false;
-	// 	pdp_running_cv.notify_one();
-	// }
-
-	// {
-	// 	std::lock_guard<std::mutex> lk(ptp_running_mutex);
-	// 	ptpRunning = false;
-	// 	ptp_running_cv.notify_one();
-	// }
 
 	friendFinderRunning = false;
 	netAdhocInited = false;
@@ -252,31 +204,11 @@ void __NetAdhocInit()
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
-		{
-			std::lock_guard<std::mutex> lk(amultios_running_mutex);
-			amultiosRunning = true;
-			amultios_running_cv.notify_one();
-		}
-		{
-			std::lock_guard<std::mutex> lk(ctl_running_mutex);
-			ctlRunning = true;
-			ctl_running_cv.notify_one();
-		}
-		{
-			std::lock_guard<std::mutex> lk(pdp_running_mutex);
-			pdpRunning = true;
-			pdp_running_cv.notify_one();
-		}
-
-		{
-			std::lock_guard<std::mutex> lk(ptp_running_mutex);
-			ptpRunning = true;
-			ptp_running_cv.notify_one();
-		}
-		amultiosThread = std::thread(__AMULTIOS_INIT);
-		ctlThread = std::thread(__AMULTIOS_CTL_INIT);
-		pdpThread = std::thread(__AMULTIOS_PDP_INIT);
-		ptpThread = std::thread(__AMULTIOS_PTP_INIT);
+		mosquitto_lib_init();
+		__AMULTIOS_CTL_INIT();
+		__AMULTIOS_PDP_INIT();
+		__AMULTIOS_PTP_INIT();
+		__AMULTIOS_INIT();
 	}
 }
 
@@ -320,7 +252,7 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
-		if (AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MQTTASYNC_SUCCESS)
+		if (AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MOSQ_ERR_SUCCESS)
 		{
 			networkInited = true;
 		}

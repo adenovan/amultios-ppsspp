@@ -2,14 +2,14 @@
 
 extern "C"
 {
-#include "MQTTAsync.h"
+#include <mosquitto.h>
 }
 
 // Packet
 typedef struct AmultiosMqtt
 {
   std::string mqtt_id;
-  MQTTAsync client;
+  struct mosquitto * mclient;
   std::string pub_topic;
   std::string sub_topic;
   std::string pub_topic_latest;
@@ -24,9 +24,7 @@ typedef struct AmultiosMqtt
 
 typedef struct PDPMessage
 {
-  MQTTAsync_message * message = NULL;
-  char * topicName = NULL;
-  int topicLen;
+  struct mosquitto_message * message;
   int sport;
   int dport;
   SceNetEtherAddr sourceMac;
@@ -35,9 +33,7 @@ typedef struct PDPMessage
 
 typedef struct PTPMessage
 {
-  MQTTAsync_message *message = NULL;
-  char * topicName = NULL;
-  int topicLen;
+  struct mosquitto_message * message;
   int sport;
   int dport;
   SceNetEtherAddr sourceMac;
@@ -98,7 +94,7 @@ typedef struct
 } PACK AmultiosNetAdhocctlDisconnectPacketS2C;
 
 //util
-void MqttTrace(enum MQTTASYNC_TRACE_LEVELS level, char* message);
+void MqttTrace(void * level, char* message);
 std::vector<std::string> explode(std::string const &s, char delim);
 void getMac(SceNetEtherAddr *addr, std::string const &s);
 std::string getMacString(SceNetEtherAddr *addr);
@@ -113,67 +109,47 @@ bool macInNetwork(const SceNetEtherAddr *mac);
 int amultios_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
 int amultios_subscribe(const char *topic, int qos);
 int amultios_unsubscribe(const char *topic);
-void amultios_publish_success(void *context, MQTTAsync_successData *response);
-void amultios_publish_failure(void *context, MQTTAsync_failureData *response);
-void amultios_subscribe_success(void *context, MQTTAsync_successData *response);
-void amultios_subscribe_failure(void *context, MQTTAsync_failureData *response);
-void amultios_unsubscribe_success(void *context, MQTTAsync_successData *response);
-void amultios_unsubscribe_failure(void *context, MQTTAsync_failureData *response);
-void amultios_connect_success(void *context, MQTTAsync_successData *response);
-void amultios_connect_failure(void *context, MQTTAsync_failureData *response);
-void amultios_disconnect_success(void *context, MQTTAsync_successData *response);
-void amultios_disconnect_failure(void *context, MQTTAsync_failureData *response);
-void amultios_connect_lost(void *context, char *cause);
-int amultios_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message);
+void amultios_publish_callback(struct mosquitto *mosq, void *obj, int mid);
+void amultios_subscribe_callback(struct mosquitto * mosq, void *obj, int mid, int qos_count, const int *granted_qos);
+void amultios_unsubscribe_callback(struct mosquitto * mosq, void *obj, int mid);
+void amultios_connect_callback(struct mosquitto *mosq, void *obj, int rc);
+void amultios_disconnect_callback(struct mosquitto *mosq, void *obj);
+void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
+
 
 int ctl_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
 int ctl_subscribe(const char *topic, int qos);
 int ctl_unsubscribe(const char *topic);
-void ctl_publish_success(void *context, MQTTAsync_successData *response);
-void ctl_publish_failure(void *context, MQTTAsync_failureData *response);
-void ctl_subscribe_success(void *context, MQTTAsync_successData *response);
-void ctl_subscribe_failure(void *context, MQTTAsync_failureData *response);
-void ctl_unsubscribe_success(void *context, MQTTAsync_successData *response);
-void ctl_unsubscribe_failure(void *context, MQTTAsync_failureData *response);
-void ctl_connect_success(void *context, MQTTAsync_successData *response);
-void ctl_connect_failure(void *context, MQTTAsync_failureData *response);
-void ctl_disconnect_success(void *context, MQTTAsync_successData *response);
-void ctl_disconnect_failure(void *context, MQTTAsync_failureData *response);
-void ctl_connect_lost(void *context, char *cause);
-int ctl_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message);
+void ctl_publish_callback(struct mosquitto *mosq, void *obj, int mid);
+void ctl_subscribe_callback(struct mosquitto * mosq, void *obj, int mid, int qos_count, const int *granted_qos);
+void ctl_unsubscribe_callback(struct mosquitto * mosq, void *obj, int mid);
+void ctl_connect_callback(struct mosquitto *mosq, void *obj, int rc);
+void ctl_disconnect_callback(struct mosquitto *mosq, void *obj);
+void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
 int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
 int pdp_subscribe(const char *topic, int qos);
 int pdp_unsubscribe(const char *topic);
-void pdp_publish_success(void *context, MQTTAsync_successData *response);
-void pdp_publish_failure(void *context, MQTTAsync_failureData *response);
-void pdp_subscribe_success(void *context, MQTTAsync_successData *response);
-void pdp_subscribe_failure(void *context, MQTTAsync_failureData *response);
-void pdp_unsubscribe_success(void *context, MQTTAsync_successData *response);
-void pdp_unsubscribe_failure(void *context, MQTTAsync_failureData *response);
-void pdp_connect_success(void *context, MQTTAsync_successData *response);
-void pdp_connect_failure(void *context, MQTTAsync_failureData *response);
-void pdp_disconnect_success(void *context, MQTTAsync_successData *response);
-void pdp_disconnect_failure(void *context, MQTTAsync_failureData *response);
-void pdp_connect_lost(void *context, char *cause);
-int pdp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message);
+void pdp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
+void pdp_subscribe_callback(struct mosquitto * mosq, void *obj, int mid, int qos_count, const int *granted_qos);
+void pdp_unsubscribe_callback(struct mosquitto * mosq, void *obj, int mid);
+void pdp_connect_callback(struct mosquitto *mosq, void *obj, int rc);
+void pdp_disconnect_callback(struct mosquitto *mosq, void *obj);
+void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
+
 
 
 int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
 int ptp_subscribe(const char *topic, int qos);
 int ptp_unsubscribe(const char *topic);
-void ptp_publish_success(void *context, MQTTAsync_successData *response);
-void ptp_publish_failure(void *context, MQTTAsync_failureData *response);
-void ptp_subscribe_success(void *context, MQTTAsync_successData *response);
-void ptp_subscribe_failure(void *context, MQTTAsync_failureData *response);
-void ptp_unsubscribe_success(void *context, MQTTAsync_successData *response);
-void ptp_unsubscribe_failure(void *context, MQTTAsync_failureData *response);
-void ptp_connect_success(void *context, MQTTAsync_successData *response);
-void ptp_connect_failure(void *context, MQTTAsync_failureData *response);
-void ptp_disconnect_success(void *context, MQTTAsync_successData *response);
-void ptp_disconnect_failure(void *context, MQTTAsync_failureData *response);
-void ptp_connect_lost(void *context, char *cause);
-int ptp_message_arrived(void *context, char *topicName, int topicLen, MQTTAsync_message *message);
+void ptp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
+void ptp_subscribe_callback(struct mosquitto * mosq, void *obj, int mid, int qos_count, const int *granted_qos);
+void ptp_unsubscribe_callback(struct mosquitto * mosq, void *obj, int mid);
+void ptp_connect_callback(struct mosquitto *mosq, void *obj, int rc);
+void ptp_disconnect_callback(struct mosquitto *mosq, void *obj);
+void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
+
+
 
 int __AMULTIOS_INIT();
 int __AMULTIOS_SHUTDOWN();
@@ -208,24 +184,16 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 
 extern bool amultiosInited;
 extern bool amultiosRunning;
-extern std::mutex amultios_running_mutex;
-extern std::condition_variable amultios_running_cv;
-extern std::thread amultiosThread;
+
 
 extern bool ctlInited;
 extern bool ctlRunning;
-extern std::mutex ctl_running_mutex;
-extern std::condition_variable ctl_running_cv;
-extern std::thread ctlThread;
+
 
 extern bool pdpInited;
 extern bool pdpRunning;
-extern std::mutex pdp_running_mutex;
-extern std::condition_variable pdp_running_cv;
-extern std::thread pdpThread;
+
 
 extern bool ptpInited;
 extern bool ptpRunning;
-extern std::mutex ptp_running_mutex;
-extern std::condition_variable ptp_running_cv;
-extern std::thread ptpThread;
+
