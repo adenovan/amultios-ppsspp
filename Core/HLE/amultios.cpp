@@ -1558,7 +1558,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                         return ERROR_NET_ADHOC_WOULD_BLOCK;
                                     }
 
-                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, 1, timeout);
+                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, 0, timeout);
 
                                     if (rc == MOSQ_ERR_SUCCESS)
                                     {
@@ -1589,7 +1589,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                     }
                                     else
                                     {
-                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, 1, timeout);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, 0, timeout);
                                     }
                                 }
 
