@@ -953,6 +953,50 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
     }
 };
 
+int __AMULTIOS_START()
+{
+    int rc = MOSQ_ERR_CONN_PENDING;
+    if (amultiosInited)
+    {
+        auto amultios_mqtt = g_amultios_mqtt;
+        rc = mosquitto_loop_forever(amultios_mqtt->mclient, 60 * 1000, 1);
+    }
+    return rc;
+}
+
+int __AMULTIOS_CTL_START()
+{
+    int rc = MOSQ_ERR_CONN_PENDING;
+    if (ctlInited)
+    {
+        auto ctl_mqtt = g_ctl_mqtt;
+        rc = mosquitto_loop_forever(ctl_mqtt->mclient, 60 * 1000, 1);
+    }
+    return rc;
+}
+
+int __AMULTIOS_PDP_START()
+{
+    int rc = MOSQ_ERR_CONN_PENDING;
+    if (pdpInited)
+    {
+        auto pdp_mqtt = g_pdp_mqtt;
+        rc = mosquitto_loop_forever(pdp_mqtt->mclient, 60 * 1000, 1);
+    }
+    return rc;
+}
+
+int __AMULTIOS_PTP_START()
+{
+    int rc = MOSQ_ERR_CONN_PENDING;
+    if (ptpInited)
+    {
+        auto ptp_mqtt = g_ptp_mqtt;
+        rc = mosquitto_loop_forever(ptp_mqtt->mclient, 60 * 1000, 1);
+    }
+    return rc;
+}
+
 int __AMULTIOS_INIT()
 {
 
@@ -992,9 +1036,22 @@ int __AMULTIOS_INIT()
         }
 
         rc = mosquitto_loop_start(g_amultios_mqtt->mclient);
+
+        if (rc == MOSQ_ERR_SUCCESS)
+        {
+            g_amultios_mqtt->ownThread = false;
+        }
+
         if (rc != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to start loop %s\n", g_amultios_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
+        }
+
+        if (rc == MOSQ_ERR_NOT_SUPPORTED)
+        {
+            WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_amultios_mqtt->mqtt_id.c_str());
+            g_amultios_mqtt->ownThread = true;
+            amultiosThread = std::thread(__AMULTIOS_START);
         }
     }
     return rc;
@@ -1008,6 +1065,12 @@ int __AMULTIOS_SHUTDOWN()
     {
         rc = mosquitto_disconnect(amultios_mqtt->mclient);
         mosquitto_loop_stop(amultios_mqtt->mclient, false);
+
+        if (amultios_mqtt->ownThread && amultiosThread.joinable())
+        {
+            amultiosThread.join();
+        }
+
         mosquitto_destroy(amultios_mqtt->mclient);
         amultiosInited = false;
         NOTICE_LOG(AMULTIOS, "amultios_mqtt shutdown %d", rc);
@@ -1054,9 +1117,22 @@ int __AMULTIOS_CTL_INIT()
         }
 
         rc = mosquitto_loop_start(g_ctl_mqtt->mclient);
+
+        if (rc == MOSQ_ERR_SUCCESS)
+        {
+            g_ctl_mqtt->ownThread = false;
+        }
+
         if (rc != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to start loop %s\n", g_ctl_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
+        }
+
+        if (rc == MOSQ_ERR_NOT_SUPPORTED)
+        {
+            WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_ctl_mqtt->mqtt_id.c_str());
+            g_ctl_mqtt->ownThread = true;
+            ctlThread = std::thread(__AMULTIOS_CTL_START);
         }
     }
     return rc;
@@ -1068,9 +1144,19 @@ int __AMULTIOS_CTL_SHUTDOWN()
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctlInited)
     {
+        //wait disconnection!
+        sleep_ms(100);
         rc = mosquitto_disconnect(ctl_mqtt->mclient);
         mosquitto_loop_stop(ctl_mqtt->mclient, false);
+
+        if (ctl_mqtt->ownThread && ctlThread.joinable())
+        {
+            ctlThread.join();
+        }
+
+        NOTICE_LOG(AMULTIOS, "amultios_mqtt shutdown %d", rc);
         mosquitto_destroy(ctl_mqtt->mclient);
+
         ctlInited = false;
     }
     NOTICE_LOG(AMULTIOS, "ctl_mqtt Thread Finished");
@@ -1105,9 +1191,22 @@ int __AMULTIOS_PDP_INIT()
         }
 
         rc = mosquitto_loop_start(g_pdp_mqtt->mclient);
+
+        if (rc == MOSQ_ERR_SUCCESS)
+        {
+            g_pdp_mqtt->ownThread = false;
+        }
+
         if (rc != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to start loop %s\n", g_pdp_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
+        }
+
+        if (rc == MOSQ_ERR_NOT_SUPPORTED)
+        {
+            WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_pdp_mqtt->mqtt_id.c_str());
+            g_pdp_mqtt->ownThread = true;
+            pdpThread = std::thread(__AMULTIOS_PDP_START);
         }
     }
     return rc;
@@ -1121,6 +1220,12 @@ int __AMULTIOS_PDP_SHUTDOWN()
     {
         rc = mosquitto_disconnect(pdp_mqtt->mclient);
         mosquitto_loop_stop(pdp_mqtt->mclient, false);
+
+        if (pdp_mqtt->ownThread && pdpThread.joinable())
+        {
+            pdpThread.join();
+        }
+
         mosquitto_destroy(pdp_mqtt->mclient);
         pdpInited = false;
         NOTICE_LOG(AMULTIOS, "pdp_mqtt shutdown %d", rc);
@@ -1155,9 +1260,21 @@ int __AMULTIOS_PTP_INIT()
         }
 
         rc = mosquitto_loop_start(g_ptp_mqtt->mclient);
+        if (rc == MOSQ_ERR_SUCCESS)
+        {
+            g_ptp_mqtt->ownThread = false;
+        }
+
         if (rc != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to start loop %s\n", g_ptp_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
+        }
+
+        if (rc == MOSQ_ERR_NOT_SUPPORTED)
+        {
+            WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_ptp_mqtt->mqtt_id.c_str());
+            g_ptp_mqtt->ownThread = true;
+            ptpThread = std::thread(__AMULTIOS_PTP_START);
         }
     }
     return rc;
@@ -1171,7 +1288,14 @@ int __AMULTIOS_PTP_SHUTDOWN()
     {
         rc = mosquitto_disconnect(ptp_mqtt->mclient);
         mosquitto_loop_stop(ptp_mqtt->mclient, false);
+
+        if (ptp_mqtt->ownThread && ptpThread.joinable())
+        {
+            ptpThread.join();
+        }
+
         mosquitto_destroy(ptp_mqtt->mclient);
+
         ptpInited = false;
         NOTICE_LOG(AMULTIOS, "ptp_mqtt shutdown %d", rc);
     }
@@ -1379,7 +1503,7 @@ int AmultiosNetAdhocctlTerm()
         SceNetEtherAddr addres;
         getLocalMac(&addres);
         packet.mac = addres;
-        rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 5000L);
+        rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 0, 5000L);
     }
     threadStatus = ADHOCCTL_STATE_DISCONNECTED;
     return 0;

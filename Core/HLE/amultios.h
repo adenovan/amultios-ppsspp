@@ -17,6 +17,7 @@ typedef struct AmultiosMqtt
   std::string sub_topic_latest;
   int qos_latest;
   bool connected;
+  bool ownThread;
   int subscribed;
   bool reconnectInProgress;
   bool disconnectComplete;
@@ -152,12 +153,16 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 
 
 int __AMULTIOS_INIT();
+int __AMULTIOS_START();
 int __AMULTIOS_SHUTDOWN();
 int __AMULTIOS_CTL_INIT();
+int __AMULTIIS_CTL_START();
 int __AMULTIOS_CTL_SHUTDOWN();
 int __AMULTIOS_PDP_INIT();
+int __AMULTIOS_PDP_START();
 int __AMULTIOS_PDP_SHUTDOWN();
 int __AMULTIOS_PTP_INIT();
+int __AMULTIOS_PTP_START();
 int __AMULTIOS_PTP_SHUTDOWN();
 
 //HLE FUNCTION

@@ -101,22 +101,24 @@ void __NetAdhocShutdown()
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
+		if (pdpInited)
+		{
+			__AMULTIOS_PDP_SHUTDOWN();
+		}
+
+		if (ptpInited)
+		{
+			__AMULTIOS_PTP_SHUTDOWN();
+		}
+
+		if (amultiosInited)
+		{
+			__AMULTIOS_SHUTDOWN();
+		}
 
 		if (ctlInited)
 		{
 			__AMULTIOS_CTL_SHUTDOWN();
-		}
-
-		if(pdpInited){
-			__AMULTIOS_PDP_SHUTDOWN();
-		}
-
-		if(ptpInited){
-			__AMULTIOS_PTP_SHUTDOWN();
-		}
-
-		if(amultiosInited){
-			__AMULTIOS_SHUTDOWN();
 		}
 
 		mosquitto_lib_cleanup();
