@@ -46,6 +46,8 @@ std::vector<std::string> ptp_relay_topic(255);
 std::mutex ptp_peer_mutex;
 std::vector<PTPConnection> ptp_peer_connection;
 
+char ctlRoom[9];
+
 void MqttTrace(void *level, char *message)
 {
     INFO_LOG(MQTT, "%s", message);
@@ -98,7 +100,7 @@ std::vector<std::string> explode(std::string const &s, char delim)
     return result;
 }
 
-std::string getMacString(SceNetEtherAddr *addr)
+std::string getMacString(const SceNetEtherAddr *addr)
 {
     char macAddr[18];
     snprintf(macAddr, sizeof(macAddr), "%02x:%02x:%02x:%02x:%02x:%02x", addr->data[0], addr->data[1], addr->data[2], addr->data[3], addr->data[4], addr->data[5]);
@@ -583,7 +585,7 @@ void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
         else if (payload_ptr[0] == OPCODE_AMULTIOS_LOGIN_PASS)
         {
             AmultiosNetAdhocctlLoginPacketS2C *packet = (AmultiosNetAdhocctlLoginPacketS2C *)payload_ptr;
-            ctlStatusTopic = "AmultiosSynchronize";
+            ctlStatusTopic = "AmultiosSynchronize/";
             ctlStatusTopic.append(packet->game.data);
             amultios_subscribe(ctlStatusTopic.c_str(), 2);
         }
@@ -597,13 +599,13 @@ int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
+        rc = mosquitto_publish(pdp_mqtt->mclient, NULL, topic, size, payload, qos, false);
         {
             std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             pdp_mqtt->pub_topic_latest = topic;
             pdp_mqtt->pub_payload_len_latest = size;
             pdp_mqtt->qos_latest = qos;
         }
-        rc = mosquitto_publish(pdp_mqtt->mclient, NULL, topic, size, payload, qos, false);
     }
     return rc;
 }
@@ -631,11 +633,11 @@ int pdp_unsubscribe(const char *topic)
     int rc = MOSQ_ERR_CONN_PENDING;
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
+        rc = mosquitto_unsubscribe(pdp_mqtt->mclient, NULL, topic);
         {
             std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             pdp_mqtt->sub_topic_latest = topic;
         }
-        rc = mosquitto_unsubscribe(pdp_mqtt->mclient, NULL, topic);
     }
     return rc;
 }
@@ -714,8 +716,11 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
         getMac(&msg.sourceMac, topic_explode.at(3));
         msg.dport = std::stoi(topic_explode.at(2));
         getMac(&msg.destinationMac, topic_explode.at(1));
-        mosquitto_message_copy(msg.message, message);
+        msg.payload = malloc(message->payloadlen);
+        msg.payloadlen = message->payloadlen;
+        if (msg.payload != NULL)
         {
+            memcpy(msg.payload, message->payload, message->payloadlen);
             std::lock_guard<std::mutex> lock(pdp_queue_mutex);
             pdp_queue.push_back(msg);
         }
@@ -729,14 +734,13 @@ int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr && ptp_mqtt->connected && ptpInited)
     {
+        rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
         {
             std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             ptp_mqtt->pub_topic_latest = topic;
             ptp_mqtt->pub_payload_len_latest = size;
             ptp_mqtt->qos_latest = qos;
         }
-
-        rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
     }
     return rc;
 }
@@ -747,13 +751,13 @@ int ptp_subscribe(const char *topic, int qos)
     int rc = MOSQ_ERR_CONN_PENDING;
     if (ptp_mqtt != nullptr && ptp_mqtt->connected && ptpInited)
     {
+        rc = mosquitto_subscribe(ptp_mqtt->mclient, NULL, topic, qos);
         INFO_LOG(AMULTIOS, "ptp_mqtt subscribe to topic:[%s] qos:[%d]", topic, qos);
         {
             std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             ptp_mqtt->sub_topic_latest = topic;
             ptp_mqtt->qos_latest = qos;
         }
-        rc = mosquitto_subscribe(ptp_mqtt->mclient, NULL, topic, qos);
     }
     return rc;
 }
@@ -848,11 +852,16 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                 getMac(&msg.sourceMac, topic_explode.at(4));
                 msg.dport = std::stoi(topic_explode.at(3));
                 getMac(&msg.destinationMac, topic_explode.at(2));
-                mosquitto_message_copy(msg.message, message);
 
-                std::lock_guard<std::mutex> lock(ptp_queue_mutex);
-                ptp_queue.push_back(msg);
-                VERBOSE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
+                msg.payload = malloc(message->payloadlen);
+                msg.payloadlen = message->payloadlen;
+                if (msg.payload != NULL)
+                {
+                    memcpy(msg.payload, message->payload, message->payloadlen);
+                    std::lock_guard<std::mutex> lock(ptp_queue_mutex);
+                    ptp_queue.push_back(msg);
+                    VERBOSE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
+                }
             }
 
             if (std::strcmp(topic_explode.at(1).c_str(), "OPEN\0") == 0)
@@ -1521,9 +1530,9 @@ int AmultiosNetAdhocTerm()
             std::lock_guard<std::mutex> lk(pdp_queue_mutex);
             for (auto p : pdp_queue)
             {
-                if (p.message != NULL)
+                if (p.payload != NULL)
                 {
-                    mosquitto_message_free(&p.message);
+                    free(p.payload);
                 }
             }
             pdp_queue.clear();
@@ -1533,9 +1542,9 @@ int AmultiosNetAdhocTerm()
             std::lock_guard<std::mutex> lk(ptp_queue_mutex);
             for (auto p : ptp_queue)
             {
-                if (p.message != NULL)
+                if (p.payload != NULL)
                 {
-                    mosquitto_message_free(&p.message);
+                    free(p.payload);
                 }
             }
             ptp_queue.clear();
@@ -1569,7 +1578,7 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                 std::string sub_topic = "PDP/" + getMacString(saddr) + "/" + std::to_string(port) + "/#";
 
                 // Valid Socket produced
-                if ((rc = pdp_subscribe(sub_topic.c_str(), 0) == MOSQ_ERR_SUCCESS))
+                if ((rc = pdp_subscribe(sub_topic.c_str(), g_Config.iPtpQos) == MOSQ_ERR_SUCCESS))
                 {
                     // Change socket buffer size when necessary
                     // Allocate Memory for Internal Data
@@ -1673,7 +1682,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
                                     if (flag)
                                     {
-                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, 0, 0);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
 
                                         if (rc == MOSQ_ERR_SUCCESS)
                                         {
@@ -1682,7 +1691,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                         return ERROR_NET_ADHOC_WOULD_BLOCK;
                                     }
 
-                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, 0, timeout);
+                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
 
                                     if (rc == MOSQ_ERR_SUCCESS)
                                     {
@@ -1709,11 +1718,11 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
                                     if (flag)
                                     {
-                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, 0, 0);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
                                     }
                                     else
                                     {
-                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, 0, timeout);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
                                     }
                                 }
 
@@ -1776,24 +1785,25 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
 
                     std::lock_guard<std::mutex> lk(pdp_queue_mutex);
                     std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&socket](PDPMessage const &obj) {
-                        return isSameMAC(&obj.destinationMac, &socket->laddr) && obj.dport == socket->lport;
+                        //INFO_LOG(AMULTIOS,"INSIDE QUEUE[%d] [%s]:[%d] data len [%d]",(int) pdp_queue.size(),getMacString(&obj.destinationMac).c_str(),obj.dport,obj.payloadlen);
+                        return /*isSameMAC(&obj.destinationMac, &socket->laddr) &&*/ obj.dport == socket->lport;
                     });
 
                     if (it != pdp_queue.end())
                     {
                         if (macInNetwork(&it->sourceMac))
                         {
-                            memcpy(buf, it->message->payload, it->message->payloadlen);
+                            memcpy(buf, it->payload, it->payloadlen);
                             *saddr = it->sourceMac;
                             *sport = (uint16_t)it->sport;
-                            *len = it->message->payloadlen;
-                            mosquitto_message_free(&it->message);
+                            *len = it->payloadlen;
+                            free(it->payload);
                             pdp_queue.erase(it);
                             return 0;
                         }
 
                         WARN_LOG(AMULTIOS, "Receive PDP uknown message");
-                        mosquitto_message_free(&it->message);
+                        free(it->payload);
                         pdp_queue.erase(it);
                     }
                 }
@@ -1946,6 +1956,7 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                                 free(internal);
                             }
                         }
+                        closesocket(tcpsocket);
                     }
                 }
 
@@ -2479,7 +2490,8 @@ int AmultiosNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                         // Return Success
                         return 0;
                     }
-                    else
+
+                    if (ptpInited)
                     {
                         // Blocking Situation
                         if (flag)
@@ -2543,9 +2555,9 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                         if (find != ptp_queue.end())
                         {
 
-                            memcpy(buf, find->message->payload, find->message->payloadlen);
-                            *len = find->message->payloadlen;
-                            mosquitto_message_free(&find->message);
+                            memcpy(buf, find->payload, find->payloadlen);
+                            *len = find->payloadlen;
+                            free(find->payload);
                             ptp_queue.erase(find);
                             return 0;
                         }
@@ -2572,9 +2584,9 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 
                             if (find != ptp_queue.end())
                             {
-                                memcpy(buf, find->message->payload, find->message->payloadlen);
-                                *len = find->message->payloadlen;
-                                mosquitto_message_free(&find->message);
+                                memcpy(buf, find->payload, find->payloadlen);
+                                *len = find->payloadlen;
+                                free(find->payload);
                                 ptp_queue.erase(find);
                                 return 0;
                             }

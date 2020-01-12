@@ -25,7 +25,8 @@ typedef struct AmultiosMqtt
 
 typedef struct PDPMessage
 {
-  struct mosquitto_message * message;
+  void * payload;
+  int payloadlen;
   int sport;
   int dport;
   SceNetEtherAddr sourceMac;
@@ -34,7 +35,8 @@ typedef struct PDPMessage
 
 typedef struct PTPMessage
 {
-  struct mosquitto_message * message;
+  void * payload;
+  int payloadlen;
   int sport;
   int dport;
   SceNetEtherAddr sourceMac;
@@ -98,7 +100,7 @@ typedef struct
 void MqttTrace(void * level, char* message);
 std::vector<std::string> explode(std::string const &s, char delim);
 void getMac(SceNetEtherAddr *addr, std::string const &s);
-std::string getMacString(SceNetEtherAddr *addr);
+std::string getMacString(const SceNetEtherAddr *addr);
 bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2);
 
 // library method
