@@ -625,8 +625,8 @@ void GameSettingsScreen::CreateViews() {
 	networkingSettings->Add(new PopupMultiChoice(&g_Config.iAdhocMode, sy->T("Adhoc Mode"), adhocOpts, 0, ARRAY_SIZE(adhocOpts), sy->GetName(), screenManager()));
 
 	networkingSettings->Add(new ItemHeader(ms->T("Amultios Mode")));
-	static const char *ptpOpts[] = { "QOS 0 Lazy (Fast)","QOS 1 Once (Medium)", "QOS 2 Exact (Slow)" };
-	networkingSettings->Add(new PopupMultiChoice(&g_Config.iPtpQos, sy->T("PTP PACKET QOS"), ptpOpts, 1, ARRAY_SIZE(ptpOpts), sy->GetName(), screenManager()));
+	static const char *ptpOpts[] = { "Lazy (Fast)","Once (Medium)", "Exact (Slow)" };
+	networkingSettings->Add(new PopupMultiChoice(&g_Config.iPtpQos, sy->T("QOS"), ptpOpts, 0, ARRAY_SIZE(ptpOpts), sy->GetName(), screenManager()));
 
 	networkingSettings->Add(new ItemHeader(ms->T("Pro Adhoc Mode")));
 	networkingSettings->Add(new CheckBox(&g_Config.bDiscordPresence, n->T("Send Discord Presence information")));

@@ -46,6 +46,8 @@ std::vector<std::string> ptp_relay_topic(255);
 std::mutex ptp_peer_mutex;
 std::vector<PTPConnection> ptp_peer_connection;
 
+int bindOffset = 1100;
+
 char ctlRoom[9];
 
 void MqttTrace(void *level, char *message)
@@ -711,16 +713,17 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
     {
         std::string topic = message->topic;
         std::vector<std::string> topic_explode = explode(topic, '/');
+
         PDPMessage msg;
         msg.sport = std::stoi(topic_explode.at(4));
         getMac(&msg.sourceMac, topic_explode.at(3));
         msg.dport = std::stoi(topic_explode.at(2));
         getMac(&msg.destinationMac, topic_explode.at(1));
-        msg.payload = malloc(message->payloadlen);
         msg.payloadlen = message->payloadlen;
-        if (msg.payload != NULL)
+
+        char *data = (char *)message->payload;
+        msg.payload = std::vector<char>(data, data + msg.payloadlen);
         {
-            memcpy(msg.payload, message->payload, message->payloadlen);
             std::lock_guard<std::mutex> lock(pdp_queue_mutex);
             pdp_queue.push_back(msg);
         }
@@ -853,11 +856,10 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                 msg.dport = std::stoi(topic_explode.at(3));
                 getMac(&msg.destinationMac, topic_explode.at(2));
 
-                msg.payload = malloc(message->payloadlen);
+                char *data = (char *)message->payload;
                 msg.payloadlen = message->payloadlen;
-                if (msg.payload != NULL)
+                msg.payload = std::vector<char>(data, data + msg.payloadlen);
                 {
-                    memcpy(msg.payload, message->payload, message->payloadlen);
                     std::lock_guard<std::mutex> lock(ptp_queue_mutex);
                     ptp_queue.push_back(msg);
                     VERBOSE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
@@ -1528,25 +1530,11 @@ int AmultiosNetAdhocTerm()
         rc = amultios_unsubscribe(ctlStatusTopic.c_str());
         {
             std::lock_guard<std::mutex> lk(pdp_queue_mutex);
-            for (auto p : pdp_queue)
-            {
-                if (p.payload != NULL)
-                {
-                    free(p.payload);
-                }
-            }
             pdp_queue.clear();
         }
 
         {
             std::lock_guard<std::mutex> lk(ptp_queue_mutex);
-            for (auto p : ptp_queue)
-            {
-                if (p.payload != NULL)
-                {
-                    free(p.payload);
-                }
-            }
             ptp_queue.clear();
         }
 
@@ -1608,7 +1596,7 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                         if (i < 255 && retval != ERROR_NET_ADHOC_PORT_IN_USE)
                         {
                             // Fill in Data
-                            internal->id = rc;
+                            internal->id = i;
                             internal->laddr = *saddr;
                             internal->lport = port; //should use the port given to the socket (in case it's UNUSED_PORT port) isn't?
                             internal->rcv_sb_cc = bufferSize;
@@ -1793,17 +1781,17 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                     {
                         if (macInNetwork(&it->sourceMac))
                         {
-                            memcpy(buf, it->payload, it->payloadlen);
+                            memcpy(buf, it->payload.data(), it->payloadlen);
                             *saddr = it->sourceMac;
                             *sport = (uint16_t)it->sport;
                             *len = it->payloadlen;
-                            free(it->payload);
+                            //free(it->payload);
                             pdp_queue.erase(it);
                             return 0;
                         }
 
                         WARN_LOG(AMULTIOS, "Receive PDP uknown message");
-                        free(it->payload);
+                        //free(it->payload);
                         pdp_queue.erase(it);
                     }
                 }
@@ -1852,6 +1840,16 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
                 // Free Translation Slot
                 pdp[id - 1] = NULL;
                 int rc = pdp_unsubscribe(pdp_topic.at(id - 1).c_str());
+
+                //remove that packet!
+                {
+                    std::lock_guard<std::mutex> lock(pdp_queue_mutex);
+                    pdp_queue.erase(
+                        std::remove_if(pdp_queue.begin(), pdp_queue.end(),
+                                       [sock](const PDPMessage &o) { return o.dport == sock->lport; }),
+                        pdp_queue.end());
+                }
+
                 // Success
                 return 0;
             }
@@ -2280,27 +2278,24 @@ int AmultiosNetAdhocPtpClose(int id, int unknown)
         if (id > 0 && id <= 255 && ptp[id - 1] != NULL)
         {
             // Cast Socket
-            SceNetAdhocPtpStat *socket = ptp[id - 1];
-            closesocket(socket->id);
-            free(socket);
+            SceNetAdhocPtpStat * socket = ptp[id - 1];
 
             {
                 std::lock_guard<std::mutex> lk(ptp_peer_mutex);
-                auto i = ptp_peer_connection.begin();
+                ptp_peer_connection.erase(
+                    std::remove_if(ptp_peer_connection.begin(), ptp_peer_connection.end(),
+                                   [id](const PTPConnection &o) { return o.id == id; }),
+                    ptp_peer_connection.end());
+            }
 
-                while (i != ptp_peer_connection.end())
-                {
-                    // Do some stuff
-                    if (i->id == id)
-                    {
-                        NOTICE_LOG(AMULTIOS, "[%i] Removing Old Established Connection", i->id);
-                        ptp_peer_connection.erase(i);
-                    }
-                    else
-                    {
-                        ++i;
-                    }
-                }
+            {
+                std::lock_guard<std::mutex> lk(ptp_queue_mutex);
+                ptp_queue.erase(
+                    std::remove_if(ptp_queue.begin(), ptp_queue.end(),
+                                   [socket](const PTPMessage &it) {
+                                       return (isSameMAC(&it.destinationMac, &socket->laddr) && it.dport == socket->lport && isSameMAC(&it.sourceMac, &socket->paddr) && it.sport == socket->pport);
+                                   }),
+                    ptp_queue.end());
             }
 
             if (!ptp_pub_topic.at(id - 1).empty())
@@ -2321,6 +2316,8 @@ int AmultiosNetAdhocPtpClose(int id, int unknown)
             }
 
             // Free Reference
+            closesocket(socket->id);
+            free(socket);
             ptp[id - 1] = NULL;
 
             // Success
@@ -2361,10 +2358,11 @@ int AmultiosNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int re
                     {
 
                         // Binding Information for local Port
+                        int bindPort = sport + bindOffset;
                         sockaddr_in addr;
                         addr.sin_family = AF_INET;
                         addr.sin_addr.s_addr = INADDR_ANY;
-                        addr.sin_port = htons(sport + portOffset);
+                        addr.sin_port = htons(bindPort);
 
                         int iResult = 0;
                         // Bound Socket to local Port
@@ -2555,9 +2553,8 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                         if (find != ptp_queue.end())
                         {
 
-                            memcpy(buf, find->payload, find->payloadlen);
+                            memcpy(buf, find->payload.data(), find->payloadlen);
                             *len = find->payloadlen;
-                            free(find->payload);
                             ptp_queue.erase(find);
                             return 0;
                         }
@@ -2584,9 +2581,8 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 
                             if (find != ptp_queue.end())
                             {
-                                memcpy(buf, find->payload, find->payloadlen);
+                                memcpy(buf, find->payload.data(), find->payloadlen);
                                 *len = find->payloadlen;
-                                free(find->payload);
                                 ptp_queue.erase(find);
                                 return 0;
                             }

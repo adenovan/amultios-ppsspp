@@ -9,7 +9,7 @@ extern "C"
 typedef struct AmultiosMqtt
 {
   std::string mqtt_id;
-  struct mosquitto * mclient;
+  struct mosquitto *mclient;
   std::string pub_topic;
   std::string sub_topic;
   std::string pub_topic_latest;
@@ -25,7 +25,7 @@ typedef struct AmultiosMqtt
 
 typedef struct PDPMessage
 {
-  void * payload;
+  std::vector<char> payload;
   int payloadlen;
   int sport;
   int dport;
@@ -35,14 +35,13 @@ typedef struct PDPMessage
 
 typedef struct PTPMessage
 {
-  void * payload;
+  std::vector<char> payload;
   int payloadlen;
   int sport;
   int dport;
   SceNetEtherAddr sourceMac;
   SceNetEtherAddr destinationMac;
 } PTPMessage;
-
 
 #define PTP_AMULTIOS_CLOSED 0
 #define PTP_AMULTIOS_OPEN 1
@@ -75,7 +74,6 @@ typedef struct
   SceNetAdhocctlNickname name;
 } PACK AmultiosNetAdhocctlConnectPacketS2C;
 
-
 typedef struct
 {
   SceNetAdhocctlPacketBase base;
@@ -97,7 +95,7 @@ typedef struct
 } PACK AmultiosNetAdhocctlDisconnectPacketS2C;
 
 //util
-void MqttTrace(void * level, char* message);
+void MqttTrace(void *level, char *message);
 std::vector<std::string> explode(std::string const &s, char delim);
 void getMac(SceNetEtherAddr *addr, std::string const &s);
 std::string getMacString(const SceNetEtherAddr *addr);
@@ -113,19 +111,18 @@ int amultios_publish(const char *topic, void *payload, size_t size, int qos, uns
 int amultios_subscribe(const char *topic, int qos);
 int amultios_unsubscribe(const char *topic);
 void amultios_publish_callback(struct mosquitto *mosq, void *obj, int mid);
-void amultios_subscribe_callback(struct mosquitto * mosq, void *obj, int mid, int qos_count, const int *granted_qos);
-void amultios_unsubscribe_callback(struct mosquitto * mosq, void *obj, int mid);
+void amultios_subscribe_callback(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos);
+void amultios_unsubscribe_callback(struct mosquitto *mosq, void *obj, int mid);
 void amultios_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void amultios_disconnect_callback(struct mosquitto *mosq, void *obj);
 void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
-
 
 int ctl_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
 int ctl_subscribe(const char *topic, int qos);
 int ctl_unsubscribe(const char *topic);
 void ctl_publish_callback(struct mosquitto *mosq, void *obj, int mid);
-void ctl_subscribe_callback(struct mosquitto * mosq, void *obj, int mid, int qos_count, const int *granted_qos);
-void ctl_unsubscribe_callback(struct mosquitto * mosq, void *obj, int mid);
+void ctl_subscribe_callback(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos);
+void ctl_unsubscribe_callback(struct mosquitto *mosq, void *obj, int mid);
 void ctl_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void ctl_disconnect_callback(struct mosquitto *mosq, void *obj);
 void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
@@ -134,25 +131,21 @@ int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
 int pdp_subscribe(const char *topic, int qos);
 int pdp_unsubscribe(const char *topic);
 void pdp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
-void pdp_subscribe_callback(struct mosquitto * mosq, void *obj, int mid, int qos_count, const int *granted_qos);
-void pdp_unsubscribe_callback(struct mosquitto * mosq, void *obj, int mid);
+void pdp_subscribe_callback(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos);
+void pdp_unsubscribe_callback(struct mosquitto *mosq, void *obj, int mid);
 void pdp_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void pdp_disconnect_callback(struct mosquitto *mosq, void *obj);
 void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
-
-
 
 int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
 int ptp_subscribe(const char *topic, int qos);
 int ptp_unsubscribe(const char *topic);
 void ptp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
-void ptp_subscribe_callback(struct mosquitto * mosq, void *obj, int mid, int qos_count, const int *granted_qos);
-void ptp_unsubscribe_callback(struct mosquitto * mosq, void *obj, int mid);
+void ptp_subscribe_callback(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos);
+void ptp_unsubscribe_callback(struct mosquitto *mosq, void *obj, int mid);
 void ptp_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void ptp_disconnect_callback(struct mosquitto *mosq, void *obj);
 void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
-
-
 
 int __AMULTIOS_INIT();
 int __AMULTIOS_START();
@@ -192,15 +185,11 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 extern bool amultiosInited;
 extern bool amultiosRunning;
 
-
 extern bool ctlInited;
 extern bool ctlRunning;
-
 
 extern bool pdpInited;
 extern bool pdpRunning;
 
-
 extern bool ptpInited;
 extern bool ptpRunning;
-
