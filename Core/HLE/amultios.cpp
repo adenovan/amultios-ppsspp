@@ -17,7 +17,7 @@ bool ctlRunning = false;
 std::thread ctlThread;
 std::shared_ptr<AmultiosMqtt> g_ctl_mqtt = nullptr;
 std::mutex ctl_mqtt_mutex;
-std::string ctlStatusTopic = "";
+std::string ctlStatusTopic;
 
 bool pdpInited = false;
 bool pdpRunning = false;
@@ -39,20 +39,25 @@ std::mutex ptp_mqtt_mutex;
 std::mutex ptp_queue_mutex;
 std::vector<PTPMessage> ptp_queue;
 
-std::vector<std::string> ptp_sub_topic(255);
-std::vector<std::string> ptp_pub_topic(255);
-std::vector<std::string> ptp_relay_topic(255);
+std::vector<std::string> ptp_sub_topic(255, "");
+std::vector<std::string> ptp_pub_topic(255, "");
+std::vector<std::string> ptp_relay_topic(255, "");
 
 std::mutex ptp_peer_mutex;
 std::vector<PTPConnection> ptp_peer_connection;
 
-int bindOffset = 1100;
-
-char ctlRoom[9];
+int bindOffset = 0;
 
 void MqttTrace(void *level, char *message)
 {
     INFO_LOG(MQTT, "%s", message);
+}
+
+std::string getCurrentGroup()
+{
+    char * gname = (char *)parameter.group_name.data;
+    std::string s(gname,ADHOCCTL_GROUPNAME_LEN);
+    return s;
 }
 
 std::string getModeAddress()
@@ -64,6 +69,16 @@ std::string getModeAddress()
         mode = g_Config.proAdhocServer;
     }
     return mode;
+}
+
+void getBroadcastMAC(SceNetEtherAddr *addr)
+{
+    // Broadcast MAC
+    memcpy(addr->data, "\xFF\xFF\xFF\xFF\xFF\xFF", ETHER_ADDR_LEN);
+    //NOTICE_LOG(AMULTIOS,"MAC Checking %02x%02x%02x%02x%02x%02x",addr->data[0],addr->data[1],addr->data[2],addr->data[3],addr->data[4],addr->data[5]);
+    //if (memcmp(addr->data, "\xFF\xFF\xFF\xFF\xFF\xFF", ETHER_ADDR_LEN) == 0) return true;
+    // Normal MAC
+    //return false;
 }
 
 bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2)
@@ -264,6 +279,7 @@ int amultios_subscribe(const char *topic, int qos)
     int rc = MOSQ_ERR_CONN_PENDING;
     if (amultios_mqtt != nullptr && amultios_mqtt->connected && amultiosInited)
     {
+        NOTICE_LOG(AMULTIOS, "Amultios Game Info topic %s", topic);
         {
             std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
             amultios_mqtt->sub_topic_latest = topic;
@@ -490,7 +506,7 @@ void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
         char *payload_ptr = static_cast<char *>(message->payload);
         if (payload_ptr[0] == OPCODE_CONNECT_BSSID)
         {
-            NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] Incoming Opcode connect BSSID");
+            NOTICE_LOG(AMULTIOS, "[CTL_NETWORK] Incoming connect BSSID");
             // Cast Packet
             SceNetAdhocctlConnectBSSIDPacketS2C *packet = (SceNetAdhocctlConnectBSSIDPacketS2C *)payload_ptr;
             // Update BSSID
@@ -512,7 +528,7 @@ void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 
             // Should only add non-existing group (or replace an existing group) to prevent Ford Street Racing from showing a strange game session list
             SceNetAdhocctlScanInfo *group = findGroup(&packet->mac);
-
+            //group->
             if (group != NULL)
             {
                 // Copy Group Name
@@ -601,6 +617,7 @@ int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
+        VERBOSE_LOG(AMULTIOS, "Publishing to topic [%s]", topic);
         rc = mosquitto_publish(pdp_mqtt->mclient, NULL, topic, size, payload, qos, false);
         {
             std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
@@ -716,6 +733,7 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 
         PDPMessage msg;
         msg.sport = std::stoi(topic_explode.at(4));
+
         getMac(&msg.sourceMac, topic_explode.at(3));
         msg.dport = std::stoi(topic_explode.at(2));
         getMac(&msg.destinationMac, topic_explode.at(1));
@@ -1522,12 +1540,39 @@ int AmultiosNetAdhocctlTerm()
 
 int AmultiosNetAdhocTerm()
 {
-    int rc;
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
-        rc = ctl_unsubscribe(ctl_mqtt->sub_topic.c_str());
-        rc = amultios_unsubscribe(ctlStatusTopic.c_str());
+        ctl_unsubscribe(ctl_mqtt->sub_topic.c_str());
+
+        if (!ctlStatusTopic.empty())
+        {
+            amultios_unsubscribe(ctlStatusTopic.c_str());
+        }
+
+        for (auto it : ptp_relay_topic)
+        {
+            if (!it.empty())
+            {
+                ptp_unsubscribe(it.c_str());
+                it.clear();
+            }
+        }
+
+        for (auto it : ptp_sub_topic)
+        {
+            if (!it.empty())
+            {
+                ptp_unsubscribe(it.c_str());
+                it.clear();
+            }
+        }
+
+        for (auto it : ptp_pub_topic)
+        {
+            it.clear();
+        }
+
         {
             std::lock_guard<std::mutex> lk(pdp_queue_mutex);
             pdp_queue.clear();
@@ -1542,8 +1587,6 @@ int AmultiosNetAdhocTerm()
             std::lock_guard<std::mutex> lk(ptp_peer_mutex);
             ptp_peer_connection.clear();
         }
-
-        return rc;
     }
 
     return 0;
@@ -1563,10 +1606,18 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
             {
 
                 int rc;
-                std::string sub_topic = "PDP/" + getMacString(saddr) + "/" + std::to_string(port) + "/#";
+                std::string group_s = getCurrentGroup();
+                std::string sub_topic = "/" + std::to_string(port) + "/#";
+                rc = pdp_subscribe(("PDP/SINGLE/" + getMacString(saddr) + sub_topic).c_str(), g_Config.iPtpQos);
+                rc = pdp_subscribe(("PDP/BROADCAST/ff:ff:ff:ff:ff:ff" + sub_topic).c_str(), g_Config.iPtpQos);
+
+                if (group_s.length() > 0)
+                {
+                    rc = pdp_subscribe(("PDP/" + group_s + "/ff:ff:ff:ff:ff:ff" + sub_topic).c_str(), g_Config.iPtpQos);
+                }
 
                 // Valid Socket produced
-                if ((rc = pdp_subscribe(sub_topic.c_str(), g_Config.iPtpQos) == MOSQ_ERR_SUCCESS))
+                if (rc == MOSQ_ERR_SUCCESS)
                 {
                     // Change socket buffer size when necessary
                     // Allocate Memory for Internal Data
@@ -1665,7 +1716,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                     //_acquireNetworkLock();
                                     int rc;
                                     SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
-                                    std::string pdp_single_topic = "PDP/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                    std::string pdp_single_topic = "PDP/SINGLE/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
                                     //NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic.c_str());
 
                                     if (flag)
@@ -1694,28 +1745,40 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                             {
 
                                 // Acquire Peer Lock
-                                peerlock.lock();
+                                //peerlock.lock();
 
                                 // Iterate Peers
-                                SceNetAdhocctlPeerInfo *peer = friends;
+                                // SceNetAdhocctlPeerInfo *peer = friends;
                                 SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
-                                for (; peer != NULL; peer = peer->next)
-                                {
-                                    int rc;
-                                    std::string pdp_single_topic = "PDP/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                // for (; peer != NULL; peer = peer->next)
+                                // {
+                                SceNetEtherAddr addr;
+                                getBroadcastMAC(&addr);
+                                int rc;
+                                std::string pdp_single_topic;
+                                std::string group_s = getCurrentGroup();
 
-                                    if (flag)
-                                    {
-                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
-                                    }
-                                    else
-                                    {
-                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
-                                    }
+                                if (group_s.length() > 0)
+                                {
+                                    pdp_single_topic = "PDP/" + group_s + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                }
+                                else
+                                {
+                                    pdp_single_topic = "PDP/BROADCAST/ff:ff:ff:ff:ff:ff/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
                                 }
 
+                                if (flag)
+                                {
+                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
+                                }
+                                else
+                                {
+                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
+                                }
+                                //}
+
                                 // Free Peer Lock
-                                peerlock.unlock();
+                                //peerlock.unlock();
 
                                 // Free Network Lock
                                 //_freeNetworkLock();
@@ -1772,27 +1835,27 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                 {
 
                     std::lock_guard<std::mutex> lk(pdp_queue_mutex);
-                    std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&socket](PDPMessage const &obj) {
+                    std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&](PDPMessage const &obj) {
                         //INFO_LOG(AMULTIOS,"INSIDE QUEUE[%d] [%s]:[%d] data len [%d]",(int) pdp_queue.size(),getMacString(&obj.destinationMac).c_str(),obj.dport,obj.payloadlen);
-                        return /*isSameMAC(&obj.destinationMac, &socket->laddr) &&*/ obj.dport == socket->lport;
+                        return /*isSameMAC(&obj.destinationMac, &socket->laddr) &&*/ macInNetwork(&obj.sourceMac) && obj.dport == socket->lport;
                     });
 
                     if (it != pdp_queue.end())
                     {
-                        if (macInNetwork(&it->sourceMac))
-                        {
-                            memcpy(buf, it->payload.data(), it->payloadlen);
-                            *saddr = it->sourceMac;
-                            *sport = (uint16_t)it->sport;
-                            *len = it->payloadlen;
-                            //free(it->payload);
-                            pdp_queue.erase(it);
-                            return 0;
-                        }
-
-                        WARN_LOG(AMULTIOS, "Receive PDP uknown message");
+                        //if (macInNetwork(&it->sourceMac))
+                        // {
+                        memcpy(buf, it->payload.data(), it->payloadlen);
+                        *saddr = it->sourceMac;
+                        *sport = (uint16_t)it->sport;
+                        *len = it->payloadlen;
                         //free(it->payload);
                         pdp_queue.erase(it);
+                        return 0;
+                        //}
+
+                        //WARN_LOG(AMULTIOS, "Receive PDP uknown message");
+                        //free(it->payload);
+                        //pdp_queue.erase(it);
                     }
                 }
 
@@ -1838,8 +1901,18 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
                 // free(sock);
 
                 // Free Translation Slot
-                pdp[id - 1] = NULL;
-                int rc = pdp_unsubscribe(pdp_topic.at(id - 1).c_str());
+
+                if (!pdp_topic.at(id - 1).empty())
+                {
+                    int rc = pdp_unsubscribe(("PDP/SINGLE/" + getMacString(&sock->laddr) + pdp_topic.at(id - 1)).c_str());
+                    rc = pdp_unsubscribe(("PDP/BROADCAST/ff:ff:ff:ff:ff:ff" + pdp_topic.at(id - 1)).c_str());
+
+                    std::string group_s = getCurrentGroup();
+                    if (group_s.length() > 0)
+                    {
+                        rc = pdp_unsubscribe(("PDP/" + group_s + "/ff:ff:ff:ff:ff:ff" + pdp_topic.at(id - 1)).c_str());
+                    }
+                }
 
                 //remove that packet!
                 {
@@ -1850,6 +1923,7 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
                         pdp_queue.end());
                 }
 
+                pdp[id - 1] = NULL;
                 // Success
                 return 0;
             }
@@ -2278,7 +2352,7 @@ int AmultiosNetAdhocPtpClose(int id, int unknown)
         if (id > 0 && id <= 255 && ptp[id - 1] != NULL)
         {
             // Cast Socket
-            SceNetAdhocPtpStat * socket = ptp[id - 1];
+            SceNetAdhocPtpStat *socket = ptp[id - 1];
 
             {
                 std::lock_guard<std::mutex> lk(ptp_peer_mutex);
