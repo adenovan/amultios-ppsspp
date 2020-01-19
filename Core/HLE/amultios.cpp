@@ -4,7 +4,7 @@
 #include "base/timeutil.h"
 #include "amultios.h"
 #include "util/text/parsers.h"
-
+#include "snappy.h"
 bool amultiosInited = false;
 bool amultiosRunning = false;
 std::thread amultiosThread;
@@ -618,13 +618,19 @@ int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
-        INFO_LOG(AMULTIOS, "Publishing to topic [%s]", topic);
-        rc = mosquitto_publish(pdp_mqtt->mclient, NULL, topic, size, payload, qos, false);
+        char *data = (char *)payload;
+        std::string input(data, data + (int)size);
+        std::string output;
+        size_t success = snappy::Compress(input.data(), input.size(), &output);
+        if (success > 0)
         {
-            std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-            pdp_mqtt->pub_topic_latest = topic;
-            pdp_mqtt->pub_payload_len_latest = size;
-            pdp_mqtt->qos_latest = qos;
+            rc = mosquitto_publish(pdp_mqtt->mclient, NULL, topic, success, output.data(), qos, false);
+            {
+                std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+                pdp_mqtt->pub_topic_latest = topic;
+                pdp_mqtt->pub_payload_len_latest = size;
+                pdp_mqtt->qos_latest = qos;
+            }
         }
     }
     return rc;
@@ -730,9 +736,9 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
     if (message && pdpInited)
     {
         std::string topic = message->topic;
-        std::vector<std::string> topic_explode(explode(topic, '/'));
         try
         {
+            std::vector<std::string> topic_explode(explode(topic, '/'));
             PDPMessage msg;
             msg.sport = std::stoi(topic_explode.at(5));
             getMac(&msg.sourceMac, topic_explode.at(4));
@@ -741,11 +747,19 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
             msg.payloadlen = message->payloadlen;
 
             char *data = (char *)message->payload;
-            msg.payload = std::vector<char>(data, data + msg.payloadlen);
-            DEBUG_LOG(AMULTIOS, "PDP Message Received len:[%d]", msg.payloadlen);
+            std::string input(data, data + (int)msg.payloadlen);
+
+            bool success = snappy::Uncompress(input.data(), input.size(), &msg.payload);
+
+            if (success)
             {
-                std::lock_guard<std::mutex> lock(pdp_queue_mutex);
-                pdp_queue.push_back(msg);
+                msg.payloadlen = msg.payload.length();
+                //msg.payload = std::vector<char>(data, data + msg.payloadlen);
+                DEBUG_LOG(AMULTIOS, "PDP Message Received len:[%d]", msg.payloadlen);
+                {
+                    std::lock_guard<std::mutex> lock(pdp_queue_mutex);
+                    pdp_queue.push_back(msg);
+                }
             }
         }
         catch (const std::out_of_range &ex)
@@ -762,7 +776,30 @@ int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr && ptp_mqtt->connected && ptpInited)
     {
-        rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
+        try
+        {
+            std::vector<std::string> topic_explode(explode(topic, '/'));
+            if (std::strcmp(topic_explode.at(1).c_str(), "D\0") == 0)
+            {
+                char *data = (char *)payload;
+                std::string input(data, data + (int)size);
+                std::string output;
+                size_t success = snappy::Compress(input.data(), input.size(), &output);
+                if (success > 0)
+                {
+                    rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, success, output.data(), qos, false);
+                }
+            }
+            else
+            {
+                rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
+            }
+        }
+        catch (const std::out_of_range &ex)
+        {
+            ERROR_LOG(AMULTIOS, "PTP Failed to parse topic [%s]", topic);
+        }
+
         {
             std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             ptp_mqtt->pub_topic_latest = topic;
@@ -870,11 +907,10 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
         {
 
             std::string topic = message->topic;
-            std::vector<std::string> topic_explode(explode(topic, '/'));
-
             try
             {
-                if (std::strcmp(topic_explode.at(1).c_str(), "DATA\0") == 0)
+                std::vector<std::string> topic_explode(explode(topic, '/'));
+                if (std::strcmp(topic_explode.at(1).c_str(), "D\0") == 0)
                 {
 
                     PTPMessage msg;
@@ -884,16 +920,22 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                     getMac(&msg.destinationMac, topic_explode.at(2));
 
                     char *data = (char *)message->payload;
-                    msg.payloadlen = message->payloadlen;
-                    msg.payload = std::vector<char>(data, data + msg.payloadlen);
+                    std::string input(data, data + (int)msg.payloadlen);
+
+                    bool success = snappy::Uncompress(input.data(), input.size(), &msg.payload);
+
+                    if (success)
                     {
-                        std::lock_guard<std::mutex> lock(ptp_queue_mutex);
-                        ptp_queue.push_back(msg);
-                        VERBOSE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
+                        msg.payloadlen = msg.payload.length();
+                        {
+                            DEBUG_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
+                            std::lock_guard<std::mutex> lock(ptp_queue_mutex);
+                            ptp_queue.push_back(msg);
+                        }
                     }
                 }
 
-                if (std::strcmp(topic_explode.at(1).c_str(), "OPEN\0") == 0)
+                if (std::strcmp(topic_explode.at(1).c_str(), "O\0") == 0)
                 {
                     //VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                     PTPConnection link;
@@ -920,7 +962,7 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                     }
                 }
 
-                if (std::strcmp(topic_explode.at(1).c_str(), "CONNECT\0") == 0)
+                if (std::strcmp(topic_explode.at(1).c_str(), "C\0") == 0)
                 {
                     //VERBOSE_LOG(AMULTIOS, "[%s] PTP CONNECT message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                     PTPConnection link;
@@ -954,7 +996,7 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                     }
                 }
 
-                if (std::strcmp(topic_explode.at(1).c_str(), "ACCEPT\0") == 0)
+                if (std::strcmp(topic_explode.at(1).c_str(), "A\0") == 0)
                 {
                     //VERBOSE_LOG(AMULTIOS, "[%s] PTP ACCEPT message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
                     PTPConnection link;
@@ -1622,8 +1664,8 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                 int rc;
                 std::string group_s = getCurrentGroup();
                 std::string sub_topic = "/" + std::to_string(port) + "/#";
-                rc = pdp_subscribe(("PDP/SINGLE/" + getMacString(saddr) + sub_topic).c_str(), g_Config.iPtpQos);
-                rc = pdp_subscribe(("PDP/BROADCAST/ff:ff:ff:ff:ff:ff" + sub_topic).c_str(), g_Config.iPtpQos);
+                rc = pdp_subscribe(("PDP/S/" + getMacString(saddr) + sub_topic).c_str(), g_Config.iPtpQos);
+                rc = pdp_subscribe(("PDP/B/ff:ff:ff:ff:ff:ff" + sub_topic).c_str(), g_Config.iPtpQos);
 
                 if (group_s.length() > 0)
                 {
@@ -1730,7 +1772,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                     //_acquireNetworkLock();
                                     int rc;
                                     SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
-                                    std::string pdp_single_topic = "PDP/SINGLE/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                    std::string pdp_single_topic = "PDP/S/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
                                     //NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic.c_str());
 
                                     if (flag)
@@ -1778,7 +1820,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                 }
                                 else
                                 {
-                                    pdp_single_topic = "PDP/BROADCAST/ff:ff:ff:ff:ff:ff/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                    pdp_single_topic = "PDP/B/ff:ff:ff:ff:ff:ff/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
                                 }
 
                                 if (flag)
@@ -1842,8 +1884,8 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
             // Valid Arguments
             if (saddr != NULL && port != NULL && buf != NULL && len != NULL && *len > 0)
             {
-                // if (flag)
-                //     timeout = 0;
+                if (flag)
+                    timeout = 0;
 
                 //if (pdp_queue.size() > 0)
                 //{
@@ -1868,7 +1910,7 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                     //free(it->payload);
                     //pdp_queue.erase(it);
                 }
-                WARN_LOG(AMULTIOS, "No Message Found in network");
+                //WARN_LOG(AMULTIOS, "No Message Found in network");
                 //}
 
                 if (flag)
@@ -1916,8 +1958,8 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
 
                 if (!pdp_topic.at(id - 1).empty())
                 {
-                    int rc = pdp_unsubscribe(("PDP/SINGLE/" + getMacString(&sock->laddr) + pdp_topic.at(id - 1)).c_str());
-                    rc = pdp_unsubscribe(("PDP/BROADCAST/ff:ff:ff:ff:ff:ff" + pdp_topic.at(id - 1)).c_str());
+                    int rc = pdp_unsubscribe(("PDP/S/" + getMacString(&sock->laddr) + pdp_topic.at(id - 1)).c_str());
+                    rc = pdp_unsubscribe(("PDP/B/ff:ff:ff:ff:ff:ff" + pdp_topic.at(id - 1)).c_str());
 
                     std::string group_s = getCurrentGroup();
                     if (group_s.length() > 0)
@@ -1988,9 +2030,9 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                                 sport = ntohs(addr.sin_port) - portOffset;
                             }
 
-                            std::string sub_topic = "PTP/DATA/" + getMacString(saddr) + "/" + std::to_string(sport) + "/" + getMacString(daddr) + "/" + std::to_string(dport);
-                            std::string pub_topic = "PTP/DATA/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(sport);
-                            std::string open_topic = "PTP/ACCEPT/" + getMacString(saddr) + "/" + std::to_string(sport) + "/" + getMacString(daddr) + "/" + std::to_string(dport);
+                            std::string sub_topic = "PTP/D/" + getMacString(saddr) + "/" + std::to_string(sport) + "/" + getMacString(daddr) + "/" + std::to_string(dport);
+                            std::string pub_topic = "PTP/D/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(sport);
+                            std::string open_topic = "PTP/A/" + getMacString(saddr) + "/" + std::to_string(sport) + "/" + getMacString(daddr) + "/" + std::to_string(dport);
                             int rc = ptp_subscribe(open_topic.c_str(), 2);
 
                             //data flag which better 1 or 2?
@@ -2136,8 +2178,8 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                     if (found && macInNetwork(&it->sourceMac))
                     {
 
-                        std::string sub_topic = "PTP/DATA/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport) + "/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport);
-                        std::string accept_topic = "PTP/ACCEPT/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
+                        std::string sub_topic = "PTP/D/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport) + "/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport);
+                        std::string accept_topic = "PTP/A/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
                         // Allocate Memory
 
                         // data flag which better 1 or 2?
@@ -2196,7 +2238,7 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                                     }
                                     ptp_relay_topic.at(i) = accept_topic;
                                     ptp_sub_topic.at(i) = sub_topic;
-                                    ptp_pub_topic.at(i) = "PTP/DATA/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
+                                    ptp_pub_topic.at(i) = "PTP/D/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport) + "/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport);
                                     // Add Port Forward to Router
                                     // sceNetPortOpen("TCP", internal->lport);
 
@@ -2255,7 +2297,7 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                 // Grab Peer IP
                 if (macInNetwork(&socket->paddr))
                 {
-                    std::string connect_topic = "PTP/CONNECT/" + getMacString(&socket->paddr) + "/" + std::to_string(socket->pport) + "/" + getMacString(&socket->laddr) + "/" + std::to_string(socket->lport);
+                    std::string connect_topic = "PTP/C/" + getMacString(&socket->paddr) + "/" + std::to_string(socket->pport) + "/" + getMacString(&socket->laddr) + "/" + std::to_string(socket->lport);
 
                     // Connect Socket to Peer (Nonblocking)
                     uint8_t send = PTP_AMULTIOS_CONNECT;
@@ -2455,7 +2497,7 @@ int AmultiosNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int re
                         if ((iResult = bind(tcpsocket, (sockaddr *)&addr, sizeof(addr))) == 0)
                         {
                             // Switch into Listening Mode
-                            std::string sub_topic = "PTP/CONNECT/" + getMacString(saddr) + "/" + std::to_string(sport) + "/#";
+                            std::string sub_topic = "PTP/C/" + getMacString(saddr) + "/" + std::to_string(sport) + "/#";
                             int rc = ptp_subscribe(sub_topic.c_str(), 2);
                             if ((iResult = listen(tcpsocket, backlog)) == 0 && rc == MOSQ_ERR_SUCCESS)
                             {

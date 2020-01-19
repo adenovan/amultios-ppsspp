@@ -25,7 +25,7 @@ typedef struct AmultiosMqtt
 
 typedef struct PDPMessage
 {
-  std::vector<char> payload;
+  std::string payload;
   int payloadlen;
   int sport;
   int dport;
@@ -35,7 +35,7 @@ typedef struct PDPMessage
 
 typedef struct PTPMessage
 {
-  std::vector<char> payload;
+  std::string payload;
   int payloadlen;
   int sport;
   int dport;
