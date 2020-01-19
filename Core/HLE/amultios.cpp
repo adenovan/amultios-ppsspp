@@ -918,6 +918,7 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                     getMac(&msg.sourceMac, topic_explode.at(4));
                     msg.dport = std::stoi(topic_explode.at(3));
                     getMac(&msg.destinationMac, topic_explode.at(2));
+                    msg.payloadlen = message->payloadlen;
 
                     char *data = (char *)message->payload;
                     std::string input(data, data + (int)msg.payloadlen);
@@ -1792,6 +1793,11 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                     {
                                         return 0;
                                     }
+
+                                    if (!flag)
+                                    {
+                                        WARN_LOG(AMULTIOS, "Warning Send Reached Timeout timeout [%d] len[%d]", timeout, len);
+                                    }
                                     return ERROR_NET_ADHOC_TIMEOUT;
                                 }
                             }
@@ -1915,6 +1921,11 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
 
                 if (flag)
                     return ERROR_NET_ADHOC_WOULD_BLOCK;
+
+                if (!flag)
+                {
+                    WARN_LOG(AMULTIOS, "Warning Receive Reached Timeout timeout [%d] len[%d]", timeout, len);
+                }
                 return ERROR_NET_ADHOC_TIMEOUT;
             }
 
