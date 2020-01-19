@@ -618,7 +618,7 @@ int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
-        VERBOSE_LOG(AMULTIOS, "Publishing to topic [%s]", topic);
+        INFO_LOG(AMULTIOS, "Publishing to topic [%s]", topic);
         rc = mosquitto_publish(pdp_mqtt->mclient, NULL, topic, size, payload, qos, false);
         {
             std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
@@ -1842,8 +1842,8 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
             // Valid Arguments
             if (saddr != NULL && port != NULL && buf != NULL && len != NULL && *len > 0)
             {
-                if (flag)
-                    timeout = 0;
+                // if (flag)
+                //     timeout = 0;
 
                 //if (pdp_queue.size() > 0)
                 //{
