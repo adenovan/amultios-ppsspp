@@ -96,7 +96,7 @@ typedef struct
 
 //util
 void MqttTrace(void *level, char *message);
-std::vector<std::string> explode(std::string const &s, char delim);
+void explode(std::vector<std::string> &result,std::string const &s, char delim);
 void getMac(SceNetEtherAddr *addr, std::string const &s);
 std::string getMacString(const SceNetEtherAddr *addr);
 bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2);

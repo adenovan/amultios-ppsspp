@@ -55,8 +55,9 @@ void MqttTrace(void *level, char *message)
 
 std::string getCurrentGroup()
 {
-    char * gname = (char *)parameter.group_name.data;
-    std::string s(gname,ADHOCCTL_GROUPNAME_LEN);
+    char *gname = (char *)parameter.group_name.data;
+    std::string s(gname, ADHOCCTL_GROUPNAME_LEN);
+    s.erase(std::find(s.begin(), s.end(), '\0'), s.end());
     return s;
 }
 
@@ -729,21 +730,27 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
     if (message && pdpInited)
     {
         std::string topic = message->topic;
-        std::vector<std::string> topic_explode = explode(topic, '/');
-
-        PDPMessage msg;
-        msg.sport = std::stoi(topic_explode.at(4));
-
-        getMac(&msg.sourceMac, topic_explode.at(3));
-        msg.dport = std::stoi(topic_explode.at(2));
-        getMac(&msg.destinationMac, topic_explode.at(1));
-        msg.payloadlen = message->payloadlen;
-
-        char *data = (char *)message->payload;
-        msg.payload = std::vector<char>(data, data + msg.payloadlen);
+        std::vector<std::string> topic_explode(explode(topic, '/'));
+        try
         {
-            std::lock_guard<std::mutex> lock(pdp_queue_mutex);
-            pdp_queue.push_back(msg);
+            PDPMessage msg;
+            msg.sport = std::stoi(topic_explode.at(5));
+            getMac(&msg.sourceMac, topic_explode.at(4));
+            msg.dport = std::stoi(topic_explode.at(3));
+            getMac(&msg.destinationMac, topic_explode.at(2));
+            msg.payloadlen = message->payloadlen;
+
+            char *data = (char *)message->payload;
+            msg.payload = std::vector<char>(data, data + msg.payloadlen);
+            DEBUG_LOG(AMULTIOS, "PDP Message Received len:[%d]", msg.payloadlen);
+            {
+                std::lock_guard<std::mutex> lock(pdp_queue_mutex);
+                pdp_queue.push_back(msg);
+            }
+        }
+        catch (const std::out_of_range &ex)
+        {
+            ERROR_LOG(AMULTIOS, "Failed To Parse PDP Message Topic[%s]", message->topic);
         }
     }
 };
@@ -863,120 +870,127 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
         {
 
             std::string topic = message->topic;
-            std::vector<std::string> topic_explode = explode(topic, '/');
+            std::vector<std::string> topic_explode(explode(topic, '/'));
 
-            if (std::strcmp(topic_explode.at(1).c_str(), "DATA\0") == 0)
+            try
             {
-
-                PTPMessage msg;
-                msg.sport = std::stoi(topic_explode.at(5));
-                getMac(&msg.sourceMac, topic_explode.at(4));
-                msg.dport = std::stoi(topic_explode.at(3));
-                getMac(&msg.destinationMac, topic_explode.at(2));
-
-                char *data = (char *)message->payload;
-                msg.payloadlen = message->payloadlen;
-                msg.payload = std::vector<char>(data, data + msg.payloadlen);
+                if (std::strcmp(topic_explode.at(1).c_str(), "DATA\0") == 0)
                 {
-                    std::lock_guard<std::mutex> lock(ptp_queue_mutex);
-                    ptp_queue.push_back(msg);
-                    VERBOSE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
-                }
-            }
 
-            if (std::strcmp(topic_explode.at(1).c_str(), "OPEN\0") == 0)
-            {
-                //VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                PTPConnection link;
-                link.states = PTP_AMULTIOS_OPEN;
-                link.sport = std::stoi(topic_explode.at(5));
-                getMac(&link.sourceMac, topic_explode.at(4));
-                link.dport = std::stoi(topic_explode.at(3));
-                getMac(&link.destinationMac, topic_explode.at(2));
+                    PTPMessage msg;
+                    msg.sport = std::stoi(topic_explode.at(5));
+                    getMac(&msg.sourceMac, topic_explode.at(4));
+                    msg.dport = std::stoi(topic_explode.at(3));
+                    getMac(&msg.destinationMac, topic_explode.at(2));
 
-                std::lock_guard<std::mutex> lock(ptp_peer_mutex);
-                std::vector<PTPConnection>::iterator cit = std::find_if(ptp_peer_connection.begin(), ptp_peer_connection.end(), [&link](PTPConnection const &con) {
-                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
-                });
-
-                if (cit == ptp_peer_connection.end())
-                {
-                    INFO_LOG(AMULTIOS, "[%s] PTP OPEN PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    ptp_peer_connection.push_back(link);
-                }
-                else
-                {
-                    VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    cit->states = PTP_AMULTIOS_OPEN;
-                }
-            }
-
-            if (std::strcmp(topic_explode.at(1).c_str(), "CONNECT\0") == 0)
-            {
-                //VERBOSE_LOG(AMULTIOS, "[%s] PTP CONNECT message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                PTPConnection link;
-                link.states = PTP_AMULTIOS_CONNECT;
-                link.sport = std::stoi(topic_explode.at(5));
-                getMac(&link.sourceMac, topic_explode.at(4));
-                link.dport = std::stoi(topic_explode.at(3));
-                getMac(&link.destinationMac, topic_explode.at(2));
-
-                std::lock_guard<std::mutex> lock(ptp_peer_mutex);
-                std::vector<PTPConnection>::iterator cit = std::find_if(ptp_peer_connection.begin(), ptp_peer_connection.end(), [&link](PTPConnection const &con) {
-                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
-                });
-
-                if (cit == ptp_peer_connection.end())
-                {
-                    INFO_LOG(AMULTIOS, "[%s] PTP CONNECT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    ptp_peer_connection.push_back(link);
-                }
-                else
-                {
-                    if (cit->states != PTP_AMULTIOS_ESTABLISHED)
+                    char *data = (char *)message->payload;
+                    msg.payloadlen = message->payloadlen;
+                    msg.payload = std::vector<char>(data, data + msg.payloadlen);
                     {
-                        VERBOSE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                        cit->states = PTP_AMULTIOS_CONNECT;
+                        std::lock_guard<std::mutex> lock(ptp_queue_mutex);
+                        ptp_queue.push_back(msg);
+                        VERBOSE_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
+                    }
+                }
+
+                if (std::strcmp(topic_explode.at(1).c_str(), "OPEN\0") == 0)
+                {
+                    //VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    PTPConnection link;
+                    link.states = PTP_AMULTIOS_OPEN;
+                    link.sport = std::stoi(topic_explode.at(5));
+                    getMac(&link.sourceMac, topic_explode.at(4));
+                    link.dport = std::stoi(topic_explode.at(3));
+                    getMac(&link.destinationMac, topic_explode.at(2));
+
+                    std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                    std::vector<PTPConnection>::iterator cit = std::find_if(ptp_peer_connection.begin(), ptp_peer_connection.end(), [&link](PTPConnection const &con) {
+                        return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                    });
+
+                    if (cit == ptp_peer_connection.end())
+                    {
+                        INFO_LOG(AMULTIOS, "[%s] PTP OPEN PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        ptp_peer_connection.push_back(link);
                     }
                     else
                     {
-                        WARN_LOG(AMULTIOS, "[%s] PTP CONNECT STATES Already Established src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        cit->states = PTP_AMULTIOS_OPEN;
                     }
                 }
-            }
 
-            if (std::strcmp(topic_explode.at(1).c_str(), "ACCEPT\0") == 0)
-            {
-                //VERBOSE_LOG(AMULTIOS, "[%s] PTP ACCEPT message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                PTPConnection link;
-                link.states = PTP_AMULTIOS_ACCEPT;
-                link.sport = std::stoi(topic_explode.at(5));
-                getMac(&link.sourceMac, topic_explode.at(4));
-                link.dport = std::stoi(topic_explode.at(3));
-                getMac(&link.destinationMac, topic_explode.at(2));
-
-                std::lock_guard<std::mutex> lock(ptp_peer_mutex);
-                std::vector<PTPConnection>::iterator cit = std::find_if(ptp_peer_connection.begin(), ptp_peer_connection.end(), [&link](PTPConnection const &con) {
-                    return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
-                });
-
-                if (cit == ptp_peer_connection.end())
+                if (std::strcmp(topic_explode.at(1).c_str(), "CONNECT\0") == 0)
                 {
-                    INFO_LOG(AMULTIOS, "[%s] PTP ACCEPT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                    ptp_peer_connection.push_back(link);
-                }
-                else
-                {
-                    if (cit->states != PTP_AMULTIOS_ESTABLISHED)
+                    //VERBOSE_LOG(AMULTIOS, "[%s] PTP CONNECT message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    PTPConnection link;
+                    link.states = PTP_AMULTIOS_CONNECT;
+                    link.sport = std::stoi(topic_explode.at(5));
+                    getMac(&link.sourceMac, topic_explode.at(4));
+                    link.dport = std::stoi(topic_explode.at(3));
+                    getMac(&link.destinationMac, topic_explode.at(2));
+
+                    std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                    std::vector<PTPConnection>::iterator cit = std::find_if(ptp_peer_connection.begin(), ptp_peer_connection.end(), [&link](PTPConnection const &con) {
+                        return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                    });
+
+                    if (cit == ptp_peer_connection.end())
                     {
-                        VERBOSE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                        cit->states = PTP_AMULTIOS_ACCEPT;
+                        INFO_LOG(AMULTIOS, "[%s] PTP CONNECT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        ptp_peer_connection.push_back(link);
                     }
                     else
                     {
-                        WARN_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES already ESTABLISHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        if (cit->states != PTP_AMULTIOS_ESTABLISHED)
+                        {
+                            VERBOSE_LOG(AMULTIOS, "[%s] PTP CONNECT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                            cit->states = PTP_AMULTIOS_CONNECT;
+                        }
+                        else
+                        {
+                            WARN_LOG(AMULTIOS, "[%s] PTP CONNECT STATES Already Established src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        }
                     }
                 }
+
+                if (std::strcmp(topic_explode.at(1).c_str(), "ACCEPT\0") == 0)
+                {
+                    //VERBOSE_LOG(AMULTIOS, "[%s] PTP ACCEPT message src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                    PTPConnection link;
+                    link.states = PTP_AMULTIOS_ACCEPT;
+                    link.sport = std::stoi(topic_explode.at(5));
+                    getMac(&link.sourceMac, topic_explode.at(4));
+                    link.dport = std::stoi(topic_explode.at(3));
+                    getMac(&link.destinationMac, topic_explode.at(2));
+
+                    std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                    std::vector<PTPConnection>::iterator cit = std::find_if(ptp_peer_connection.begin(), ptp_peer_connection.end(), [&link](PTPConnection const &con) {
+                        return (isSameMAC(&con.sourceMac, &link.sourceMac) && isSameMAC(&con.destinationMac, &link.destinationMac) && con.dport == link.dport && con.sport == link.sport);
+                    });
+
+                    if (cit == ptp_peer_connection.end())
+                    {
+                        INFO_LOG(AMULTIOS, "[%s] PTP ACCEPT PUSHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        ptp_peer_connection.push_back(link);
+                    }
+                    else
+                    {
+                        if (cit->states != PTP_AMULTIOS_ESTABLISHED)
+                        {
+                            VERBOSE_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                            cit->states = PTP_AMULTIOS_ACCEPT;
+                        }
+                        else
+                        {
+                            WARN_LOG(AMULTIOS, "[%s] PTP ACCEPT STATES already ESTABLISHED src [%s]:[%s] dst [%s]:[%s] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        }
+                    }
+                }
+            }
+            catch (const std::out_of_range &ex)
+            {
+                ERROR_LOG(AMULTIOS, "Failed To Parse PTP Message Topic[%s]", message->topic);
             }
         }
     }
@@ -1760,7 +1774,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
                                 if (group_s.length() > 0)
                                 {
-                                    pdp_single_topic = "PDP/" + group_s + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                    pdp_single_topic = "PDP/" + group_s + "/ff:ff:ff:ff:ff:ff/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
                                 }
                                 else
                                 {
@@ -1831,33 +1845,31 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                 if (flag)
                     timeout = 0;
 
-                if (pdp_queue.size() > 0)
+                //if (pdp_queue.size() > 0)
+                //{
+
+                std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&](PDPMessage const &obj) {
+                    //INFO_LOG(AMULTIOS,"INSIDE QUEUE[%d] [%s]:[%d] data len [%d]",(int) pdp_queue.size(),getMacString(&obj.destinationMac).c_str(),obj.dport,obj.payloadlen);
+                    return /*isSameMAC(&obj.destinationMac, &socket->laddr) &&*/ macInNetwork(&obj.sourceMac) && obj.dport == socket->lport;
+                });
+
+                if (it != pdp_queue.end())
                 {
-
+                    //if (macInNetwork(&it->sourceMac))
+                    // {
                     std::lock_guard<std::mutex> lk(pdp_queue_mutex);
-                    std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&](PDPMessage const &obj) {
-                        //INFO_LOG(AMULTIOS,"INSIDE QUEUE[%d] [%s]:[%d] data len [%d]",(int) pdp_queue.size(),getMacString(&obj.destinationMac).c_str(),obj.dport,obj.payloadlen);
-                        return /*isSameMAC(&obj.destinationMac, &socket->laddr) &&*/ macInNetwork(&obj.sourceMac) && obj.dport == socket->lport;
-                    });
-
-                    if (it != pdp_queue.end())
-                    {
-                        //if (macInNetwork(&it->sourceMac))
-                        // {
-                        memcpy(buf, it->payload.data(), it->payloadlen);
-                        *saddr = it->sourceMac;
-                        *sport = (uint16_t)it->sport;
-                        *len = it->payloadlen;
-                        //free(it->payload);
-                        pdp_queue.erase(it);
-                        return 0;
-                        //}
-
-                        //WARN_LOG(AMULTIOS, "Receive PDP uknown message");
-                        //free(it->payload);
-                        //pdp_queue.erase(it);
-                    }
+                    memcpy(buf, it->payload.data(), it->payloadlen);
+                    *saddr = it->sourceMac;
+                    *sport = (uint16_t)it->sport;
+                    *len = it->payloadlen;
+                    pdp_queue.erase(it);
+                    return 0;
+                    //}
+                    //free(it->payload);
+                    //pdp_queue.erase(it);
                 }
+                WARN_LOG(AMULTIOS, "No Message Found in network");
+                //}
 
                 if (flag)
                     return ERROR_NET_ADHOC_WOULD_BLOCK;
@@ -2617,7 +2629,6 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                 if (flag)
                 {
                     timeout = 0;
-                    std::lock_guard<std::mutex> lk(ptp_queue_mutex);
                     if (ptp_queue.size() > 0)
                     {
                         std::vector<PTPMessage>::iterator find = std::find_if(ptp_queue.begin(), ptp_queue.end(), [&socket](PTPMessage const &it) {
@@ -2626,7 +2637,7 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
 
                         if (find != ptp_queue.end())
                         {
-
+                            std::lock_guard<std::mutex> lk(ptp_queue_mutex);
                             memcpy(buf, find->payload.data(), find->payloadlen);
                             *len = find->payloadlen;
                             ptp_queue.erase(find);
@@ -2646,21 +2657,21 @@ int AmultiosNetAdhocPtpRecv(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                     {
                         hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
 
-                        if (ptp_queue.size() > 0)
+                        //if (ptp_queue.size() > 0)
+                        //{
+                        std::vector<PTPMessage>::iterator find = std::find_if(ptp_queue.begin(), ptp_queue.end(), [&socket](PTPMessage const &it) {
+                            return (isSameMAC(&it.destinationMac, &socket->laddr) && it.dport == socket->lport && isSameMAC(&it.sourceMac, &socket->paddr) && it.sport == socket->pport);
+                        });
+
+                        if (find != ptp_queue.end())
                         {
                             std::lock_guard<std::mutex> lk(ptp_queue_mutex);
-                            std::vector<PTPMessage>::iterator find = std::find_if(ptp_queue.begin(), ptp_queue.end(), [&socket](PTPMessage const &it) {
-                                return (isSameMAC(&it.destinationMac, &socket->laddr) && it.dport == socket->lport && isSameMAC(&it.sourceMac, &socket->paddr) && it.sport == socket->pport);
-                            });
-
-                            if (find != ptp_queue.end())
-                            {
-                                memcpy(buf, find->payload.data(), find->payloadlen);
-                                *len = find->payloadlen;
-                                ptp_queue.erase(find);
-                                return 0;
-                            }
+                            memcpy(buf, find->payload.data(), find->payloadlen);
+                            *len = find->payloadlen;
+                            ptp_queue.erase(find);
+                            return 0;
                         }
+                        //}
                         // Wait a bit...
                         sleep_ms(1);
                     }
