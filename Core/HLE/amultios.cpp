@@ -322,7 +322,7 @@ void amultios_publish_callback(struct mosquitto *mosq, void *obj, int mid)
     auto amultios_mqtt = g_amultios_mqtt;
     if (amultios_mqtt != nullptr && amultiosInited)
     {
-        VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", amultios_mqtt->mqtt_id.c_str(), amultios_mqtt->pub_topic_latest.c_str(), amultios_mqtt->pub_payload_len_latest, amultios_mqtt->qos_latest);
+        VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%u] qos [%d] ", amultios_mqtt->mqtt_id.c_str(), amultios_mqtt->pub_topic_latest.c_str(), (uint32_t)amultios_mqtt->pub_payload_len_latest, amultios_mqtt->qos_latest);
     }
 };
 
@@ -445,7 +445,7 @@ void ctl_publish_callback(struct mosquitto *mosq, void *obj, int mid)
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctlInited)
     {
-        INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->pub_topic_latest.c_str(), ctl_mqtt->pub_payload_len_latest, ctl_mqtt->qos_latest);
+        INFO_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%u] qos [%d] ", ctl_mqtt->mqtt_id.c_str(), ctl_mqtt->pub_topic_latest.c_str(), (uint32_t)ctl_mqtt->pub_payload_len_latest, ctl_mqtt->qos_latest);
     }
 };
 
@@ -673,7 +673,7 @@ void pdp_publish_callback(struct mosquitto *mosq, void *obj, int mid)
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr && pdpInited)
     {
-        VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->pub_topic_latest.c_str(), pdp_mqtt->pub_payload_len_latest, pdp_mqtt->qos_latest);
+        VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%u] qos [%d] ", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->pub_topic_latest.c_str(), (uint8_t)pdp_mqtt->pub_payload_len_latest, pdp_mqtt->qos_latest);
     }
 };
 
@@ -844,7 +844,7 @@ void ptp_publish_callback(struct mosquitto *mosq, void *obj, int mid)
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr && ptpInited)
     {
-        VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%lu] qos [%d] ", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->pub_topic_latest.c_str(), ptp_mqtt->pub_payload_len_latest, ptp_mqtt->qos_latest);
+        VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%u] qos [%d] ", ptp_mqtt->mqtt_id.c_str(), ptp_mqtt->pub_topic_latest.c_str(), (uint32_t)ptp_mqtt->pub_payload_len_latest, ptp_mqtt->qos_latest);
     }
 };
 
@@ -1924,7 +1924,7 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
 
                 if (!flag)
                 {
-                    WARN_LOG(AMULTIOS, "Warning Receive Reached Timeout timeout [%d] len[%d]", timeout, len);
+                    WARN_LOG(AMULTIOS, "Warning Receive Reached Timeout timeout [%d] len[%d]", timeout, *len);
                 }
                 return ERROR_NET_ADHOC_TIMEOUT;
             }
