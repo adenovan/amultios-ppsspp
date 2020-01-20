@@ -755,7 +755,7 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
             {
                 msg.payloadlen = msg.payload.length();
                 //msg.payload = std::vector<char>(data, data + msg.payloadlen);
-                DEBUG_LOG(AMULTIOS, "PDP Message Received len:[%d]", msg.payloadlen);
+                //DEBUG_LOG(AMULTIOS, "PDP Message Received len:[%d]", msg.payloadlen);
                 {
                     std::lock_guard<std::mutex> lock(pdp_queue_mutex);
                     pdp_queue.push_back(msg);
@@ -1045,7 +1045,7 @@ int __AMULTIOS_START()
     if (amultiosInited)
     {
         auto amultios_mqtt = g_amultios_mqtt;
-        rc = mosquitto_loop_forever(amultios_mqtt->mclient, 60 * 1000, 1);
+        rc = mosquitto_loop_forever(amultios_mqtt->mclient, 1000, 1);
     }
     return rc;
 }
@@ -1056,7 +1056,7 @@ int __AMULTIOS_CTL_START()
     if (ctlInited)
     {
         auto ctl_mqtt = g_ctl_mqtt;
-        rc = mosquitto_loop_forever(ctl_mqtt->mclient, 60 * 1000, 1);
+        rc = mosquitto_loop_forever(ctl_mqtt->mclient, 1000, 1);
     }
     return rc;
 }
@@ -1067,7 +1067,7 @@ int __AMULTIOS_PDP_START()
     if (pdpInited)
     {
         auto pdp_mqtt = g_pdp_mqtt;
-        rc = mosquitto_loop_forever(pdp_mqtt->mclient, 60 * 1000, 1);
+        rc = mosquitto_loop_forever(pdp_mqtt->mclient, 1, 1);
     }
     return rc;
 }
@@ -1078,7 +1078,7 @@ int __AMULTIOS_PTP_START()
     if (ptpInited)
     {
         auto ptp_mqtt = g_ptp_mqtt;
-        rc = mosquitto_loop_forever(ptp_mqtt->mclient, 60 * 1000, 1);
+        rc = mosquitto_loop_forever(ptp_mqtt->mclient, 1, 1);
     }
     return rc;
 }
@@ -1103,6 +1103,7 @@ int __AMULTIOS_INIT()
         mosquitto_subscribe_callback_set(g_amultios_mqtt->mclient, amultios_subscribe_callback);
         mosquitto_unsubscribe_callback_set(g_amultios_mqtt->mclient, amultios_unsubscribe_callback);
         mosquitto_message_callback_set(g_amultios_mqtt->mclient, amultios_message_callback);
+        mosquitto_threaded_set(g_amultios_mqtt->mclient,true);
 
         // initialize will message
         AmultiosNetAdhocctlDisconnectPacketS2C packet;
@@ -1121,24 +1122,24 @@ int __AMULTIOS_INIT()
             ERROR_LOG(AMULTIOS, "[%s] Failed to connect, return code %s\n", g_amultios_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
         }
 
-        rc = mosquitto_loop_start(g_amultios_mqtt->mclient);
+        //rc = mosquitto_loop_start(g_amultios_mqtt->mclient);
 
-        if (rc == MOSQ_ERR_SUCCESS)
-        {
-            g_amultios_mqtt->ownThread = false;
-        }
+        //if (rc == MOSQ_ERR_SUCCESS)
+        //{
+            //g_amultios_mqtt->ownThread = false;
+        //}
 
         if (rc != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to start loop %s\n", g_amultios_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
         }
 
-        if (rc == MOSQ_ERR_NOT_SUPPORTED)
-        {
+        //if (rc == MOSQ_ERR_NOT_SUPPORTED)
+        //{
             WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_amultios_mqtt->mqtt_id.c_str());
             g_amultios_mqtt->ownThread = true;
             amultiosThread = std::thread(__AMULTIOS_START);
-        }
+        //}
     }
     return rc;
 }
@@ -1150,7 +1151,7 @@ int __AMULTIOS_SHUTDOWN()
     if (amultiosInited)
     {
         rc = mosquitto_disconnect(amultios_mqtt->mclient);
-        mosquitto_loop_stop(amultios_mqtt->mclient, false);
+        //mosquitto_loop_stop(amultios_mqtt->mclient, false);
 
         if (amultios_mqtt->ownThread && amultiosThread.joinable())
         {
@@ -1185,6 +1186,7 @@ int __AMULTIOS_CTL_INIT()
         mosquitto_subscribe_callback_set(g_ctl_mqtt->mclient, ctl_subscribe_callback);
         mosquitto_unsubscribe_callback_set(g_ctl_mqtt->mclient, ctl_unsubscribe_callback);
         mosquitto_message_callback_set(g_ctl_mqtt->mclient, ctl_message_callback);
+        mosquitto_threaded_set(g_ctl_mqtt->mclient,true);
 
         // initialize will message
         AmultiosNetAdhocctlDisconnectPacketS2C packet;
@@ -1202,24 +1204,24 @@ int __AMULTIOS_CTL_INIT()
             ERROR_LOG(AMULTIOS, "[%s] Failed to connect, return code %s\n", g_ctl_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
         }
 
-        rc = mosquitto_loop_start(g_ctl_mqtt->mclient);
+        //rc = mosquitto_loop_start(g_ctl_mqtt->mclient);
 
-        if (rc == MOSQ_ERR_SUCCESS)
-        {
-            g_ctl_mqtt->ownThread = false;
-        }
+        //if (rc == MOSQ_ERR_SUCCESS)
+        //{
+        //    g_ctl_mqtt->ownThread = false;
+        // }
 
         if (rc != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to start loop %s\n", g_ctl_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
         }
 
-        if (rc == MOSQ_ERR_NOT_SUPPORTED)
-        {
+        //if (rc == MOSQ_ERR_NOT_SUPPORTED)
+        //{
             WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_ctl_mqtt->mqtt_id.c_str());
             g_ctl_mqtt->ownThread = true;
             ctlThread = std::thread(__AMULTIOS_CTL_START);
-        }
+        //}
     }
     return rc;
 }
@@ -1233,7 +1235,7 @@ int __AMULTIOS_CTL_SHUTDOWN()
         //wait disconnection!
         sleep_ms(100);
         rc = mosquitto_disconnect(ctl_mqtt->mclient);
-        mosquitto_loop_stop(ctl_mqtt->mclient, false);
+        //mosquitto_loop_stop(ctl_mqtt->mclient, false);
 
         if (ctl_mqtt->ownThread && ctlThread.joinable())
         {
@@ -1270,30 +1272,31 @@ int __AMULTIOS_PDP_INIT()
         mosquitto_subscribe_callback_set(g_pdp_mqtt->mclient, pdp_subscribe_callback);
         mosquitto_unsubscribe_callback_set(g_pdp_mqtt->mclient, pdp_unsubscribe_callback);
         mosquitto_message_callback_set(g_pdp_mqtt->mclient, pdp_message_callback);
+        mosquitto_threaded_set(g_pdp_mqtt->mclient, true);
 
-        if ((rc = mosquitto_connect(g_pdp_mqtt->mclient, getModeAddress().c_str(), 1883, 60)) != MOSQ_ERR_SUCCESS)
+        if ((rc = mosquitto_connect(g_pdp_mqtt->mclient, getModeAddress().c_str(), 1883, 300)) != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to connect, return code %s\n", g_pdp_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
         }
 
-        rc = mosquitto_loop_start(g_pdp_mqtt->mclient);
+        /*rc = mosquitto_loop_start(g_pdp_mqtt->mclient);
 
         if (rc == MOSQ_ERR_SUCCESS)
         {
             g_pdp_mqtt->ownThread = false;
-        }
+        }*/
 
         if (rc != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to start loop %s\n", g_pdp_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
         }
 
-        if (rc == MOSQ_ERR_NOT_SUPPORTED)
-        {
-            WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_pdp_mqtt->mqtt_id.c_str());
-            g_pdp_mqtt->ownThread = true;
-            pdpThread = std::thread(__AMULTIOS_PDP_START);
-        }
+        //if (rc == MOSQ_ERR_NOT_SUPPORTED)
+        //{
+        WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_pdp_mqtt->mqtt_id.c_str());
+        g_pdp_mqtt->ownThread = true;
+        pdpThread = std::thread(__AMULTIOS_PDP_START);
+        //}
     }
     return rc;
 }
@@ -1305,7 +1308,7 @@ int __AMULTIOS_PDP_SHUTDOWN()
     if (pdpInited)
     {
         rc = mosquitto_disconnect(pdp_mqtt->mclient);
-        mosquitto_loop_stop(pdp_mqtt->mclient, false);
+        //mosquitto_loop_stop(pdp_mqtt->mclient, false);
 
         if (pdp_mqtt->ownThread && pdpThread.joinable())
         {
@@ -1339,29 +1342,29 @@ int __AMULTIOS_PTP_INIT()
         mosquitto_subscribe_callback_set(g_ptp_mqtt->mclient, ptp_subscribe_callback);
         mosquitto_unsubscribe_callback_set(g_ptp_mqtt->mclient, ptp_unsubscribe_callback);
         mosquitto_message_callback_set(g_ptp_mqtt->mclient, ptp_message_callback);
-
+        mosquitto_threaded_set(g_ptp_mqtt->mclient,true);
         if ((rc = mosquitto_connect(g_ptp_mqtt->mclient, getModeAddress().c_str(), 1883, 60)) != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to connect, return code %s\n", g_ptp_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
         }
 
-        rc = mosquitto_loop_start(g_ptp_mqtt->mclient);
-        if (rc == MOSQ_ERR_SUCCESS)
-        {
-            g_ptp_mqtt->ownThread = false;
-        }
+        //rc = mosquitto_loop_start(g_ptp_mqtt->mclient);
+        //if (rc == MOSQ_ERR_SUCCESS)
+        //{
+        //    g_ptp_mqtt->ownThread = false;
+        //}
 
         if (rc != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to start loop %s\n", g_ptp_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
         }
 
-        if (rc == MOSQ_ERR_NOT_SUPPORTED)
-        {
+        //if (rc == MOSQ_ERR_NOT_SUPPORTED)
+        //{
             WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_ptp_mqtt->mqtt_id.c_str());
             g_ptp_mqtt->ownThread = true;
             ptpThread = std::thread(__AMULTIOS_PTP_START);
-        }
+        //}
     }
     return rc;
 }
@@ -1373,7 +1376,7 @@ int __AMULTIOS_PTP_SHUTDOWN()
     if (ptpInited)
     {
         rc = mosquitto_disconnect(ptp_mqtt->mclient);
-        mosquitto_loop_stop(ptp_mqtt->mclient, false);
+        //mosquitto_loop_stop(ptp_mqtt->mclient, false);
 
         if (ptp_mqtt->ownThread && ptpThread.joinable())
         {
@@ -1779,15 +1782,25 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                     if (flag)
                                     {
                                         rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
-
                                         if (rc == MOSQ_ERR_SUCCESS)
                                         {
+                                            // auto pdp_mqtt = g_pdp_mqtt;
+                                            // if (pdp_mqtt->connected)
+                                            // {
+                                            //     mosquitto_loop(pdp_mqtt->mclient, timeout, 1);
+                                            // }
                                             return 0;
                                         }
                                         return ERROR_NET_ADHOC_WOULD_BLOCK;
                                     }
 
                                     rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
+
+                                    // auto pdp_mqtt = g_pdp_mqtt;
+                                    // if (pdp_mqtt->connected)
+                                    // {
+                                    //     mosquitto_loop(pdp_mqtt->mclient, timeout, 1);
+                                    // }
 
                                     if (rc == MOSQ_ERR_SUCCESS)
                                     {
@@ -1806,16 +1819,8 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                             else
                             {
 
-                                // Acquire Peer Lock
-                                //peerlock.lock();
-
-                                // Iterate Peers
-                                // SceNetAdhocctlPeerInfo *peer = friends;
+                                /*Group Broadcast overflow the socket
                                 SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
-                                // for (; peer != NULL; peer = peer->next)
-                                // {
-                                SceNetEtherAddr addr;
-                                getBroadcastMAC(&addr);
                                 int rc;
                                 std::string pdp_single_topic;
                                 std::string group_s = getCurrentGroup();
@@ -1836,16 +1841,36 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                 else
                                 {
                                     rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
+                                }*/
+
+                                peerlock.lock();
+
+                                // Iterate Peers
+                                SceNetAdhocctlPeerInfo *peer = friends;
+                                SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
+                                for (; peer != NULL; peer = peer->next)
+                                {
+                                    int rc;
+                                    std::string pdp_single_topic = "PDP/S/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+
+                                    if (flag)
+                                    {
+                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
+                                    }
+                                    else
+                                    {
+                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
+                                    }
                                 }
-                                //}
 
                                 // Free Peer Lock
-                                //peerlock.unlock();
+                                peerlock.unlock();
 
-                                // Free Network Lock
-                                //_freeNetworkLock();
-
-                                // Success, Broadcast never fails!
+                                // auto pdp_mqtt = g_pdp_mqtt;
+                                // if (pdp_mqtt->connected)
+                                // {
+                                //     mosquitto_loop(pdp_mqtt->mclient, timeout, 1);
+                                // }
                                 return 0;
                             }
                         }
@@ -1890,41 +1915,48 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
             // Valid Arguments
             if (saddr != NULL && port != NULL && buf != NULL && len != NULL && *len > 0)
             {
+
                 if (flag)
                     timeout = 0;
 
                 //if (pdp_queue.size() > 0)
                 //{
-
-                std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&](PDPMessage const &obj) {
+                //INFO_LOG(AMULTIOS, "Start PDP Loop");
+                std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&socket](PDPMessage const &obj) {
                     //INFO_LOG(AMULTIOS,"INSIDE QUEUE[%d] [%s]:[%d] data len [%d]",(int) pdp_queue.size(),getMacString(&obj.destinationMac).c_str(),obj.dport,obj.payloadlen);
-                    return /*isSameMAC(&obj.destinationMac, &socket->laddr) &&*/ macInNetwork(&obj.sourceMac) && obj.dport == socket->lport;
+                    return /*isSameMAC(&obj.destinationMac, &socket->laddr) && macInNetwork(&obj.sourceMac) && */ obj.dport == socket->lport;
                 });
+
+                // auto pdp_mqtt = g_pdp_mqtt;
+                // if (pdp_mqtt->connected)
+                // {
+                //     mosquitto_loop(pdp_mqtt->mclient, timeout, 1);
+                // }
 
                 if (it != pdp_queue.end())
                 {
-                    //if (macInNetwork(&it->sourceMac))
-                    // {
                     std::lock_guard<std::mutex> lk(pdp_queue_mutex);
-                    memcpy(buf, it->payload.data(), it->payloadlen);
-                    *saddr = it->sourceMac;
-                    *sport = (uint16_t)it->sport;
-                    *len = it->payloadlen;
+                    if (macInNetwork(&it->sourceMac))
+                    {
+                        memcpy(buf, it->payload.data(), it->payloadlen);
+                        *saddr = it->sourceMac;
+                        *sport = (uint16_t)it->sport;
+                        *len = it->payloadlen;
+                        DEBUG_LOG(AMULTIOS, "Got Pdp Message [%d]", it->payloadlen);
+                        pdp_queue.erase(it);
+                        return 0;
+                    }
+                    DEBUG_LOG(AMULTIOS, "Discarding Uknown Message");
                     pdp_queue.erase(it);
-                    return 0;
-                    //}
-                    //free(it->payload);
-                    //pdp_queue.erase(it);
                 }
-                //WARN_LOG(AMULTIOS, "No Message Found in network");
-                //}
 
+                DEBUG_LOG(AMULTIOS, "No Message Found");
                 if (flag)
                     return ERROR_NET_ADHOC_WOULD_BLOCK;
 
                 if (!flag)
                 {
-                    WARN_LOG(AMULTIOS, "Warning Receive Reached Timeout timeout [%d] len[%d]", timeout, *len);
+                    DEBUG_LOG(AMULTIOS, "Warning Receive Reached Timeout timeout [%d] len[%d]", timeout, *len);
                 }
                 return ERROR_NET_ADHOC_TIMEOUT;
             }
