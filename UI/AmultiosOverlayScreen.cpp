@@ -21,7 +21,7 @@ void AmultiosOverlayScreen::CreateViews()
 
 	I18NCategory *aa = GetI18NCategory("Amultios");
 	UIContext &dc = *screenManager()->getUIContext();
-	Margins actionMenuMargins(0, 20, 15, 0);
+	Margins actionMenuMargins(0, 0, 15, 0);
 	Margins lineMargins(10, 10, 10, 10);
 	tabHolder_ = new TabHolder(ORIENT_HORIZONTAL, 64, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, 1.0f));
 	ViewGroup *leftColumn = tabHolder_;
@@ -30,9 +30,17 @@ void AmultiosOverlayScreen::CreateViews()
 	LinearLayout *rightColumnItems = new LinearLayout(ORIENT_VERTICAL);
 	rightColumn->Add(rightColumnItems);
 
-	Choice *continueChoice = rightColumnItems->Add(new Choice(aa->T("Continue")));
-	continueChoice->OnClick.Handle<UIScreen>(this, &UIScreen::OnBack);
+	if (g_Config.bPauseMenuExitsEmulator)
+	{
+		I18NCategory *mm = GetI18NCategory("MainMenu");
+		rightColumnItems->Add(new Choice(aa->T("Exit")))->OnClick.Handle(this, &AmultiosOverlayScreen::OnExitToMenu);
+	}
+	else
+	{
+		rightColumnItems->Add(new Choice(aa->T("Exit to menu")))->OnClick.Handle(this, &AmultiosOverlayScreen::OnExitToMenu);
+	}
 
+	rightColumnItems->Add(new Spacer(25.0));
 	std::string gameId = g_paramSFO.GetDiscID();
 	if (g_Config.hasGameConfig(gameId))
 	{
@@ -45,28 +53,16 @@ void AmultiosOverlayScreen::CreateViews()
 		rightColumnItems->Add(new Choice(aa->T("Create Game Config")))->OnClick.Handle(this, &AmultiosOverlayScreen::OnCreateConfig);
 	}
 
-	rightColumnItems->Add(new Spacer(25.0));
-	if (g_Config.bPauseMenuExitsEmulator)
-	{
-		I18NCategory *mm = GetI18NCategory("MainMenu");
-		rightColumnItems->Add(new Choice(aa->T("Exit")))->OnClick.Handle(this, &AmultiosOverlayScreen::OnExitToMenu);
-	}
-	else
-	{
-		rightColumnItems->Add(new Choice(aa->T("Exit to menu")))->OnClick.Handle(this, &AmultiosOverlayScreen::OnExitToMenu);
-	}
-
 	tabHolder_->SetTag("AmultiosHome");
-	tabHolder_->SetClip(true);
+	//tabHolder_->SetClip(true);
 
 	LinearLayout *box_ = new LinearLayout(ORIENT_VERTICAL);
 	scrollChat_ = box_->Add(new ScrollView(ORIENT_VERTICAL, new LinearLayoutParams(0.8f)));
 	scrollChat_->SetTag("AmultiosChatScreen");
 	chatVert_ = scrollChat_->Add(new LinearLayout(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
 	chatVert_->SetSpacing(0);
-	LinearLayout *bottom = scrollChat_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
 
-	ScrollView *scrollStatus = new ScrollView(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins));
+	ScrollView *scrollStatus = new ScrollView(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, lineMargins));
 	scrollStatus->SetTag("AmultiosPlayerStatus");
 	statusVert_ = scrollStatus->Add(new LinearLayout(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
 	statusVert_->SetSpacing(0);
@@ -74,29 +70,41 @@ void AmultiosOverlayScreen::CreateViews()
 	ScrollView *scrollAccount = new ScrollView(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT));
 	scrollStatus->SetTag("AmultiosAccountInformation");
 
-#if defined(_ANDROID_)
-	bottom->Add(new Button(aa->T("Type Something"), new LayoutParams(WRAP_CONTENT, FILL_PARENT)))->OnClick.Handle(this, &AmultiosOverlayScreen::OnSubmit);
-#else
+	rightColumnItems->Add(new Spacer(50.0));
+	Choice *continueChoice = rightColumnItems->Add(new Choice(aa->T("Continue")));
+	continueChoice->OnClick.Handle<UIScreen>(this, &UIScreen::OnBack);
+
+#if !defined(MOBILE_DEVICE)
 	chatEdit_ = box_->Add(new TextEdit("", aa->T("Type Something"), new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
 	chatEdit_->SetMaxLen(144);
 	chatEdit_->OnEnter.Handle(this, &AmultiosOverlayScreen::OnSubmit);
 	UI::EnableFocusMovement(true);
+#else
+	box_->Add(new Spacer(20.0));
+	rightColumnItems->Add(new Choice(aa->T("Type Something")))->OnClick.Handle(this, &AmultiosOverlayScreen::OnSubmit);
 #endif
 
 	tabHolder_->AddTab(aa->T("Amultios"), box_);
 	tabHolder_->AddTab(aa->T("Player Status"), scrollStatus);
 	tabHolder_->AddTab(aa->T("Account Information"), scrollAccount);
 	tabHolder_->SetCurrentTab(0, true);
-
 	root_ = new LinearLayout(ORIENT_HORIZONTAL);
+
+#if !defined(MOBILE_DEVICE)
 	rightColumn->ReplaceLayoutParams(new LinearLayoutParams(300, FILL_PARENT, actionMenuMargins));
+#else
+	rightColumn->ReplaceLayoutParams(new LinearLayoutParams(250, FILL_PARENT, actionMenuMargins));
+#endif
 	root_->Add(leftColumn);
 	root_->Add(rightColumn);
-	root_->SetBG(UI::Drawable(0x99000000));
+	root_->SetBG(UI::Drawable(0x88000000));
+
+#if !defined(MOBILE_DEVICE)
 	root_->SetDefaultFocusView(chatEdit_);
 	root_->SetFocus();
-	UpdateChat();
+#endif
 	cmList.listenPlayerStatus();
+	cmList.Update();
 }
 
 void AmultiosOverlayScreen::dialogFinished(const Screen *dialog, DialogResult result)
@@ -165,8 +173,15 @@ void AmultiosOverlayScreen::UpdateChat()
 	if (chatVert_ != nullptr)
 	{
 		chatVert_->Clear();
+		Margins lineMargins(0, 0, 0, 5);
 		std::list<ChatMessages::ChatMessage> messages = cmList.GetMessages();
+
 		int maxLength = 90;
+#if !defined(MOBILE_DEVICE)
+		maxLength = 90;
+#else
+		maxLength = 60;
+#endif
 		int currentTextLength = 0;
 		for (auto iter = messages.begin(); iter != messages.end(); ++iter)
 		{
@@ -175,8 +190,8 @@ void AmultiosOverlayScreen::UpdateChat()
 			{
 				int start = 0;
 				int pos = maxLength - (iter->room.length() + iter->name.length());
-				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, WRAP_CONTENT)));
-				TextView *GroupView = line->Add(new TextView("[" + iter->room + "]", FLAG_DYNAMIC_ASCII, true));
+				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins)));
+				TextView *GroupView = line->Add(new TextView(" [" + iter->room + "]", FLAG_DYNAMIC_ASCII, true));
 				GroupView->SetTextColor(0xFF000000 | iter->roomcolor);
 				TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
 				nameView->SetTextColor(0xFF000000 | iter->namecolor);
@@ -199,21 +214,22 @@ void AmultiosOverlayScreen::UpdateChat()
 				while (remain.length() > maxLength)
 				{
 					std::string part = remain.substr(0, maxLength);
-					LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, WRAP_CONTENT)));
+					LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins)));
 					TextView *chatView = line->Add(new TextView(part, FLAG_DYNAMIC_ASCII, true));
 					chatView->SetTextColor(0xFF000000 | iter->textcolor);
 					remain = remain.substr(part.length(), remain.length());
 				}
 
-				LinearLayout *linelast = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, WRAP_CONTENT)));
+				LinearLayout *linelast = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins)));
 				TextView *chatViewlast = linelast->Add(new TextView(remain, FLAG_DYNAMIC_ASCII, true));
 				chatViewlast->SetTextColor(0xFF000000 | iter->textcolor);
 			}
 			else
 			{
-				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LayoutParams(FILL_PARENT, WRAP_CONTENT)));
-				TextView *GroupView = line->Add(new TextView("[" + iter->room + "]", FLAG_DYNAMIC_ASCII, true));
+				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins)));
+				TextView *GroupView = line->Add(new TextView(" [" + iter->room + "]", FLAG_DYNAMIC_ASCII, true));
 				GroupView->SetTextColor(0xFF000000 | iter->roomcolor);
+
 				TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
 				nameView->SetTextColor(0xFF000000 | iter->namecolor);
 				TextView *chatView = line->Add(new TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
@@ -240,7 +256,7 @@ void AmultiosOverlayScreen::UpdateStatus()
 		return;
 	}
 	statusVert_->Clear();
-	Margins lineMargins(0, 0, 0, 10);
+	Margins lineMargins(0, 0, 0, 0);
 
 	const JsonNode *gameNode = root.getArray("status");
 
@@ -262,14 +278,12 @@ void AmultiosOverlayScreen::UpdateStatus()
 			std::string Players = group.getString("players", "player");
 			LinearLayout *line = statusVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
 
-
-			LinearLayout * view = line->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(WRAP_CONTENT, WRAP_CONTENT,lineMargins)));
-			view->SetBG(UI::Drawable(0x99121212));
+			LinearLayout *view = line->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(WRAP_CONTENT, WRAP_CONTENT, lineMargins)));
+			view->SetBG(UI::Drawable(0xFF121212));
 			TextView *GroupView = view->Add(new TextView(" " + GroupName, FLAG_DYNAMIC_ASCII, true));
 			GroupView->SetTextColor(0xFF45BFCA);
 			TextView *PlayersView = line->Add(new TextView(Players, FLAG_DYNAMIC_ASCII, true));
 			PlayersView->SetTextColor(0xBBFFFFFF);
-
 		}
 	}
 }

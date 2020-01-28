@@ -87,10 +87,26 @@ void amultios_sync()
     loginInfo.token = g_token;
     loginInfo.mac = g_Config.sMACAddress;
     loginInfo.nickname = g_Config.sNickName;
-    loginInfo.authServer = g_amultios_mqtt->connected;
-    loginInfo.ctlServer = g_ctl_mqtt->connected;
-    loginInfo.pdpServer = g_pdp_mqtt->connected;
-    loginInfo.ptpServer = g_ptp_mqtt->connected;
+    if (g_amultios_mqtt != nullptr)
+    {
+        loginInfo.authServer = g_amultios_mqtt->connected;
+    }
+
+    if (g_ctl_mqtt != nullptr)
+    {
+        loginInfo.ctlServer = g_ctl_mqtt->connected;
+    }
+
+    if (g_pdp_mqtt != nullptr)
+    {
+        loginInfo.pdpServer = g_pdp_mqtt->connected;
+    }
+
+    if (g_ptp_mqtt != nullptr)
+    {
+        loginInfo.ptpServer = g_ptp_mqtt->connected;
+    }
+
     loginInfo.party = getCurrentGroup();
     amultios_publish("TOKEN", (void *)g_token.data(), g_token.length(), 2, 0);
 }
@@ -172,8 +188,9 @@ void ChatMessages::Add(const std::string &text, const std::string &name, const s
     uint32_t green = 0x53C800;
     uint32_t red = 0x3643F4;
     uint32_t purple = 0xD893CE;
-    uint32_t yellow = 0x28CAFF;
+    uint32_t yellow = 0x45BFCA;
     uint32_t blue = 0xF39621;
+    uint32_t white = 0xFFFFFF;
     //text coloring
     ChatMessage chat;
     // fill chat info;
@@ -181,7 +198,7 @@ void ChatMessages::Add(const std::string &text, const std::string &name, const s
     chat.namecolor = namecolor;
     chat.room = room;
     chat.roomcolor = blue;
-    chat.textcolor = green;
+    chat.textcolor = white;
     chat.text = text;
     chat.type = type;
     if (name == g_Config.sNickName.c_str())
@@ -197,7 +214,7 @@ void ChatMessages::Add(const std::string &text, const std::string &name, const s
             chat.roomcolor = yellow;
             if (type == "TEXT")
             {
-                chat.textcolor = green;
+                chat.textcolor = white;
             }
             else if (type == "HEADER")
             {

@@ -115,7 +115,7 @@ private:
 
 	UI::EventReturn OnSavedataManager(UI::EventParams &e);
 	UI::EventReturn OnSysInfo(UI::EventParams &e);
-
+	UI::EventReturn OnChangeAmultiosPin(UI::EventParams &e);
 	// Temporaries to convert setting types.
 	int iAlternateSpeedPercent1_;
 	int iAlternateSpeedPercent2_;
