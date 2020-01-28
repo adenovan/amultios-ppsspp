@@ -776,7 +776,7 @@ void MainScreen::CreateViews() {
 	Margins actionMenuMargins(0, 10, 10, 0);
 
 	tabHolder_ = new TabHolder(ORIENT_HORIZONTAL, 64, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, 1.0f));
-	ViewGroup *leftColumn = tabHolder_;
+	ViewGroup * leftColumn = tabHolder_;
 	tabHolder_->SetTag("MainScreenGames");
 	gameBrowsers_.clear();
 

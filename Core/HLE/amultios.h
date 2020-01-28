@@ -1,47 +1,70 @@
 #include "Core/HLE/proAdhoc.h"
-
 extern "C"
 {
 #include <mosquitto.h>
 }
 
+#define PIN_LENGTH 6
+
+typedef struct
+{
+	SceNetAdhocctlPacketBase base;
+	SceNetEtherAddr mac;
+	SceNetAdhocctlNickname name;
+	char pin[PIN_LENGTH];
+	char revision[20];
+} PACK AmultiosLoginPacket;
+
 // Packet
 typedef struct AmultiosMqtt
 {
-  std::string mqtt_id;
-  struct mosquitto *mclient;
-  std::string pub_topic;
-  std::string sub_topic;
-  std::string pub_topic_latest;
-  size_t pub_payload_len_latest;
-  std::string sub_topic_latest;
-  int qos_latest;
-  bool connected;
-  bool ownThread;
-  int subscribed;
-  bool reconnectInProgress;
-  bool disconnectComplete;
+	std::string mqtt_id;
+	struct mosquitto *mclient;
+	std::string pub_topic;
+	std::string sub_topic;
+	std::string pub_topic_latest;
+	size_t pub_payload_len_latest;
+	std::string sub_topic_latest;
+	int qos_latest;
+	bool connected;
+	bool ownThread;
+	int subscribed;
+	bool reconnectInProgress;
+	bool disconnectComplete;
 } AmultiosMqtt;
 
 typedef struct PDPMessage
 {
-  std::string payload;
-  int payloadlen;
-  int sport;
-  int dport;
-  SceNetEtherAddr sourceMac;
-  SceNetEtherAddr destinationMac;
+	std::string payload;
+	int payloadlen;
+	int sport;
+	int dport;
+	SceNetEtherAddr sourceMac;
+	SceNetEtherAddr destinationMac;
 } PDPMessage;
 
 typedef struct PTPMessage
 {
-  std::string payload;
-  int payloadlen;
-  int sport;
-  int dport;
-  SceNetEtherAddr sourceMac;
-  SceNetEtherAddr destinationMac;
+	std::string payload;
+	int payloadlen;
+	int sport;
+	int dport;
+	SceNetEtherAddr sourceMac;
+	SceNetEtherAddr destinationMac;
 } PTPMessage;
+
+typedef struct LoginInfo
+{
+	std::string token;
+	std::string mac;
+	std::string nickname;
+	std::string party;
+	bool logedIn;
+	bool authServer;
+	bool pdpServer;
+	bool ptpServer;
+	bool ctlServer;
+} LoginInfo;
 
 #define PTP_AMULTIOS_CLOSED 0
 #define PTP_AMULTIOS_OPEN 1
@@ -52,51 +75,53 @@ typedef struct PTPMessage
 
 typedef struct PTPConnection
 {
-  s32_le id;
-  uint8_t states;
-  SceNetEtherAddr sourceMac;
-  int sport;
-  SceNetEtherAddr destinationMac;
-  int dport;
+	s32_le id;
+	uint8_t states;
+	SceNetEtherAddr sourceMac;
+	int sport;
+	SceNetEtherAddr destinationMac;
+	int dport;
 } PTPConnection;
 
 typedef struct
 {
-  SceNetAdhocctlPacketBase base;
-  SceNetEtherAddr mac;
-  SceNetAdhocctlGroupName group;
+	SceNetAdhocctlPacketBase base;
+	SceNetEtherAddr mac;
+	SceNetAdhocctlGroupName group;
 } PACK AmultiosNetAdhocctlConnectPacketC2S;
 
 typedef struct
 {
-  SceNetAdhocctlPacketBase base;
-  SceNetEtherAddr mac;
-  SceNetAdhocctlNickname name;
+	SceNetAdhocctlPacketBase base;
+	SceNetEtherAddr mac;
+	SceNetAdhocctlNickname name;
 } PACK AmultiosNetAdhocctlConnectPacketS2C;
 
 typedef struct
 {
-  SceNetAdhocctlPacketBase base;
-  SceNetEtherAddr mac;
-  SceNetAdhocctlNickname name;
-  SceNetAdhocctlProductCode game;
+	SceNetAdhocctlPacketBase base;
+	SceNetEtherAddr mac;
+	SceNetAdhocctlNickname name;
+	SceNetAdhocctlProductCode game;
 } PACK AmultiosNetAdhocctlLoginPacketS2C;
 
 typedef struct
 {
-  SceNetAdhocctlPacketBase base;
-  SceNetEtherAddr mac;
+	SceNetAdhocctlPacketBase base;
+	SceNetEtherAddr mac;
 } PACK AmultiosNetAdhocctlScanPacketC2S;
 
 typedef struct
 {
-  SceNetAdhocctlPacketBase base;
-  SceNetEtherAddr mac;
+	SceNetAdhocctlPacketBase base;
+	SceNetEtherAddr mac;
 } PACK AmultiosNetAdhocctlDisconnectPacketS2C;
 
 //util
+std::string getCurrentGroup();
+
 void MqttTrace(void *level, char *message);
-void explode(std::vector<std::string> &result,std::string const &s, char delim);
+std::vector<std::string> explode(std::string const &s, char delim);
 void getMac(SceNetEtherAddr *addr, std::string const &s);
 std::string getMacString(const SceNetEtherAddr *addr);
 bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2);
@@ -107,6 +132,8 @@ void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet);
 void deleteAmultiosPeer(SceNetEtherAddr *mac);
 bool macInNetwork(const SceNetEtherAddr *mac);
 
+void amultios_login();
+void amultios_sync();
 int amultios_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
 int amultios_subscribe(const char *topic, int qos);
 int amultios_unsubscribe(const char *topic);
@@ -193,3 +220,201 @@ extern bool pdpRunning;
 
 extern bool ptpInited;
 extern bool ptpRunning;
+extern bool trusted;
+
+class ChatMessages
+{
+public:
+	typedef struct ChatMessage
+	{
+		std::string name;
+		std::string room;
+		std::string text;
+		uint32_t namecolor;
+		uint32_t roomcolor;
+		uint32_t textcolor;
+		std::string type;
+	} ChatMessage;
+
+	void Lock()
+	{
+		chatMutex_.lock();
+	}
+
+	void Unlock()
+	{
+		chatMutex_.unlock();
+	}
+
+	void setStatus(const std::string &status)
+	{
+		std::lock_guard<std::mutex> lk(playerStatusMutex);
+		this->PlayerStatus = status;
+		lastPlayerStatusUpdate = time_now();
+		updatePlayerStatusFlag = true;
+	};
+
+	void listenPlayerStatus();
+	void shutdownPlayerStatus();
+
+	std::string getPlayerStatus()
+	{
+		std::lock_guard<std::mutex> lk(playerStatusMutex);
+		return this->PlayerStatus;
+	};
+	void doPlayerStatusUpdate();
+	bool getPlayerStatusUpdate() { return updatePlayerStatusFlag; };
+	float getLastPlayerStatusUpdate(){ return lastPlayerStatusUpdate;};
+
+	void doChatUpdate();
+	bool getChatUpdate() { return updateChatFlag; }
+	void Update();
+	float getLastUpdate();
+	bool isChatScreenVisible();
+	bool isAdmin(const std::string &text);
+	bool isMuted(const std::string &text);
+
+	void ParseCommand(const std::string &command);
+	void SendChat(const std::string &text);
+	void Add(const std::string &text, const std::string &name = "Amultios", const std::string &room = "SYSTEM", const std::string &type = "TEXT", uint32_t namecolor = 0xF39621);
+
+	std::list<ChatMessage> GetMessages()
+	{
+		std::lock_guard<std::mutex> lk(chatMutex_);
+		std::list<ChatMessage> messages;
+		auto room = this->SubcriptionList;
+		std::copy_if(AllChatDb.begin(), AllChatDb.end(), std::back_inserter(messages), [&room](ChatMessage const &chat) { return std::find(room.begin(), room.end(), chat.room) != room.end(); });
+		return messages;
+	}
+
+	void Clear()
+	{
+		std::lock_guard<std::mutex> lk(chatMutex_);
+		this->AllChatDb.clear();
+	}
+
+private:
+	std::string PlayerStatus;
+	std::list<ChatMessage> AllChatDb;
+	std::vector<std::string> MuteList;
+	std::vector<std::string> displayMuteList;
+	std::vector<std::string> ChannelList = {
+		//National Official Languange based
+		"WORLD",
+		"INDONESIAN",
+		"FILIPINO",
+		"ENGLISH",
+		"FRENCH",
+		"ARABIC",
+		"SPANISH",
+		"PORTUGUESE",
+		"GERMAN",
+		"ITALIAN",
+		"MALAY",
+		"RUSSIAN",
+		"JAPANESE",
+		"KOREAN",
+		"CHINESE",
+		"DUTCH",
+		"SWAHILI",
+		"PERSIAN",
+		"TAMIL",
+		"QUECHUA",
+		"IRISH",
+		"ABKHAS"
+		"KHMER",
+		"MANDARIN",
+		"CROATIAN",
+		"CZECH",
+		"SLOVAK",
+		"DANISH",
+		"TIGRINYA",
+		"ESTONIAN",
+		"FINNISH",
+		"SWEDISH",
+		"GREEK",
+		"ICELANDIC",
+		"HINDUSTANI",
+		"PERSIAN",
+		"HEBREW",
+		"ROMANIAN",
+
+		//country based
+		"ALBANIA",
+		"ALGERIA",
+		"ANDORA",
+		"ARMENIA",
+		"AUSTRALIA",
+		"AZERBAIJAN",
+		"BANGLADESH",
+		"BULGARIA",
+		"BOSNIA",
+		"CANADA",
+		"CHINA",
+		"CROATIA",
+		"ETHIOPIA",
+		"FINLAND",
+		"FRANCE",
+		"GERMANY",
+		"HAITI",
+		"ICELAND",
+		"INDIA",
+		"INDONESIA",
+		"IRAN",
+		"IRELAND",
+		"ISRAEL",
+		"ITALY",
+		"JAPAN",
+		"NORTHKOREA",
+		"SOUTHKOREA",
+		"KENYA",
+		"LEBANON",
+		"LUXEMBOURG",
+		"MALTA",
+		"MALAYSIA",
+		"NAMIBIA",
+		"NEPAL",
+		"NIGERIA",
+		"PAKISTAN",
+		"POLAND",
+		"PHILIPPINES",
+		"ROMANIA",
+		"RUSSIA",
+		"SINGAPORE",
+		"SERBIA",
+		"SLOVENIA",
+		"SOUTHAFRICA",
+		"SPAIN",
+		"SWITZERLAND",
+		"TAIWAN",
+		"THAILAND",
+		"TUNISIA",
+		"TURKEY",
+		"UNITEDKINGDOM",
+		"UGANDA",
+		"UKRAINE",
+		"UNITEDSTATES",
+		"VIETNAM",
+
+		//regional languange
+		"JAWA",
+		"TAGALOG",
+	};
+	std::vector<std::string> SubcriptionList = {"SYSTEM", "PRIVATE", "PARTY"};
+	std::mutex chatMutex_;
+	std::mutex playerStatusMutex;
+	float lastUpdate;
+	float lastPlayerStatusUpdate;
+	bool chatScreenVisible;
+	bool updateChatFlag;
+	bool updatePlayerStatusFlag;
+	std::string selectedRoom = "WORLD";
+	std::string selectedTopic = "WORLD";
+	std::string preferedRoom = "PARTY";
+	std::string privateMessageRoom = "";
+	std::string privateMessageDisplay = "";
+	std::vector<std::string> Admin = {"LUCIS", "AMULTIOS", "TINTIN", "ADENOVAN", "B412ONE", "GATOT", "RADIS3D"};
+};
+
+extern ChatMessages cmList;
+extern LoginInfo loginInfo;

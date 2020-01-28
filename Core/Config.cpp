@@ -899,7 +899,7 @@ static ConfigSetting networkSettings[] = {
 	ConfigSetting("PTPQos",&g_Config.iPtpQos,QOS_0,true,false),
 	ConfigSetting("EnableWlan", &g_Config.bEnableWlan, false, true, true),
 	ConfigSetting("EnableAdhocServer", &g_Config.bEnableAdhocServer, false, true, true),
-
+	ConfigSetting("AmultiosPin",&g_Config.sAmultiosPin,"012345",true,true),
 	ConfigSetting(false),
 };
 

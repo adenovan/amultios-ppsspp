@@ -364,6 +364,7 @@ public:
 	bool bEnableAdhocServer;
 	int iWlanAdhocChannel;
 	bool bWlanPowerSave;
+	std::string sAmultiosPin;
 
 	int iPSPModel;
 	int iFirmwareVersion;

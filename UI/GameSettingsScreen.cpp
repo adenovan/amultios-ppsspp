@@ -620,13 +620,28 @@ void GameSettingsScreen::CreateViews() {
 	tabHolder->AddTab(ms->T("Networking"), networkingSettingsScroll);
 
 	networkingSettings->Add(new ItemHeader(ms->T("Networking")));
-	networkingSettings->Add(new CheckBox(&g_Config.bEnableWlan, n->T("Enable networking", "Enable networking/wlan (beta)")));
+	networkingSettings->Add(new CheckBox(&g_Config.bEnableWlan, n->T("Enable networking", "Enable networking")));
 	static const char *adhocOpts[] = { "Amultios Mode", "Pro Adhoc Mode","Dev Mode" };
 	networkingSettings->Add(new PopupMultiChoice(&g_Config.iAdhocMode, sy->T("Adhoc Mode"), adhocOpts, 0, ARRAY_SIZE(adhocOpts), sy->GetName(), screenManager()));
 
 	networkingSettings->Add(new ItemHeader(ms->T("Amultios Mode")));
 	static const char *ptpOpts[] = { "Lazy (Fast)","Once (Medium)", "Exact (Slow)" };
 	networkingSettings->Add(new PopupMultiChoice(&g_Config.iPtpQos, sy->T("QOS"), ptpOpts, 0, ARRAY_SIZE(ptpOpts), sy->GetName(), screenManager()));
+	networkingSettings->Add(new ItemHeader(n->T("Credential Settings (Register from amultios.net)")));
+#if !defined(MOBILE_DEVICE) && !defined(USING_QT_UI)  // TODO: Add all platforms where KEY_CHAR support is added
+	networkingSettings->Add(new PopupTextInputChoice(&g_Config.sNickName, sy->T("Amultios Nickname"), "", 32, screenManager()));
+#elif defined(USING_QT_UI)
+	networkingSettings->Add(new Choice(sy->T("Amultios Nickname")))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
+#elif defined(__ANDROID__)
+	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sNickName, sy->T("Amultios Nickname"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
+#endif
+#if !defined(MOBILE_DEVICE) && !defined(USING_QT_UI)  // TODO: Add all platforms where KEY_CHAR support is added
+	networkingSettings->Add(new PopupTextInputChoice(&g_Config.sAmultiosPin, n->T("Amultios Pin"), "", 7, screenManager()));
+#elif defined(USING_QT_UI)
+	networkingSettings->Add(new Choice(sy->T("Amultios Pin")))->OnClick.Handle(this, &GameSettingsScreen::OnChangeAmultiosPin);
+#elif defined(__ANDROID__)
+	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeAmultiosPin);
+#endif
 
 	networkingSettings->Add(new ItemHeader(ms->T("Pro Adhoc Mode")));
 	networkingSettings->Add(new CheckBox(&g_Config.bDiscordPresence, n->T("Send Discord Presence information")));
@@ -786,11 +801,11 @@ void GameSettingsScreen::CreateViews() {
 	systemSettings->Add(new PopupMultiChoice(&g_Config.iPSPModel, sy->T("PSP Model"), models, 0, ARRAY_SIZE(models), sy->GetName(), screenManager()))->SetEnabled(!PSP_IsInited());
 	// TODO: Come up with a way to display a keyboard for mobile users,
 	// so until then, this is Windows/Desktop only.
-#if !defined(MOBILE_DEVICE)  // TODO: Add all platforms where KEY_CHAR support is added
-	systemSettings->Add(new PopupTextInputChoice(&g_Config.sNickName, sy->T("Change Nickname"), "", 32, screenManager()));
-#elif defined(__ANDROID__)
-	systemSettings->Add(new ChoiceWithValueDisplay(&g_Config.sNickName, sy->T("Change Nickname"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
-#endif
+// #if !defined(MOBILE_DEVICE)  // TODO: Add all platforms where KEY_CHAR support is added
+// 	systemSettings->Add(new PopupTextInputChoice(&g_Config.sNickName, sy->T("Change Nickname"), "", 32, screenManager()));
+// #elif defined(__ANDROID__)
+// 	systemSettings->Add(new ChoiceWithValueDisplay(&g_Config.sNickName, sy->T("Change Nickname"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
+// #endif
 
 	systemSettings->Add(new CheckBox(&g_Config.bScreenshotsAsPNG, sy->T("Screenshots as PNG")));
 

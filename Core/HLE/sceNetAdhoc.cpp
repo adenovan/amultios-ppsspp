@@ -101,6 +101,11 @@ void __NetAdhocShutdown()
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
+		if (amultiosInited)
+		{
+			__AMULTIOS_SHUTDOWN();
+		}
+
 		if (pdpInited)
 		{
 			__AMULTIOS_PDP_SHUTDOWN();
@@ -109,11 +114,6 @@ void __NetAdhocShutdown()
 		if (ptpInited)
 		{
 			__AMULTIOS_PTP_SHUTDOWN();
-		}
-
-		if (amultiosInited)
-		{
-			__AMULTIOS_SHUTDOWN();
 		}
 
 		if (ctlInited)
@@ -207,10 +207,10 @@ void __NetAdhocInit()
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		mosquitto_lib_init();
+		__AMULTIOS_INIT();
 		__AMULTIOS_CTL_INIT();
 		__AMULTIOS_PDP_INIT();
 		__AMULTIOS_PTP_INIT();
-		__AMULTIOS_INIT();
 	}
 }
 
@@ -1567,16 +1567,16 @@ int sceNetAdhocctlGetPeerInfo(const char *mac, int size, u32 peerInfoAddr)
 int sceNetAdhocctlCreate(const char *groupName)
 {
 	INFO_LOG(SCENET, "sceNetAdhocctlCreate(%s) at %08x", groupName, currentMIPS->pc);
-	if (!g_Config.bEnableWlan)
-	{
-		return -1;
-	}
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocctlCreate(groupName);
 	}
 
+	if (!g_Config.bEnableWlan)
+	{
+		return -1;
+	}
 	const SceNetAdhocctlGroupName *groupNameStruct = (const SceNetAdhocctlGroupName *)groupName;
 	// Library initialized
 	if (netAdhocctlInited)

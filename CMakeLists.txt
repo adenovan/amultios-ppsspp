@@ -838,6 +838,7 @@ endif()
 
 list(APPEND NativeAppSource
 	android/jni/TestRunner.cpp
+	UI/AmultiosOverlayScreen.cpp
 	UI/DiscordIntegration.cpp
 	UI/NativeApp.cpp
 	UI/BackgroundAudio.cpp

@@ -78,6 +78,7 @@
 #include "UI/InstallZipScreen.h"
 #include "UI/ProfilerDraw.h"
 #include "UI/DiscordIntegration.h"
+#include "UI/AmultiosOverlayScreen.h"
 
 #if defined(_WIN32) && !PPSSPP_PLATFORM(UWP)
 #include "Windows/MainWindow.h"
@@ -384,7 +385,9 @@ static void AfterStateBoot(SaveState::Status status, const std::string &message,
 void EmuScreen::sendMessage(const char *message, const char *value) {
 	// External commands, like from the Windows UI.
 	if (!strcmp(message, "pause") && screenManager()->topScreen() == this) {
-		screenManager()->push(new GamePauseScreen(gamePath_));
+		//AmultiosOverlayScreen * amulScreen = ;
+		screenManager()->push(new AmultiosOverlayScreen(gamePath_));
+		//screenManager()->push(new GamePauseScreen(gamePath_));
 	} else if (!strcmp(message, "stop")) {
 		// We will push MainScreen in update().
 		PSP_Shutdown();
@@ -596,16 +599,16 @@ void EmuScreen::onVKeyDown(int virtualKeyCode) {
 			osm.Show(sc->T("norewind", "No rewind save states available"), 2.0);
 		}
 		break;
-	case VIRTKEY_SAVE_STATE:
-		SaveState::SaveSlot(gamePath_, g_Config.iCurrentStateSlot, &AfterSaveStateAction);
-		break;
-	case VIRTKEY_LOAD_STATE:
-		SaveState::LoadSlot(gamePath_, g_Config.iCurrentStateSlot, &AfterSaveStateAction);
-		break;
-	case VIRTKEY_NEXT_SLOT:
-		SaveState::NextSlot();
-		NativeMessageReceived("savestate_displayslot", "");
-		break;
+	// case VIRTKEY_SAVE_STATE:
+	// 	SaveState::SaveSlot(gamePath_, g_Config.iCurrentStateSlot, &AfterSaveStateAction);
+	// 	break;
+	// case VIRTKEY_LOAD_STATE:
+	// 	SaveState::LoadSlot(gamePath_, g_Config.iCurrentStateSlot, &AfterSaveStateAction);
+	// 	break;
+	// case VIRTKEY_NEXT_SLOT:
+	// 	SaveState::NextSlot();
+	// 	NativeMessageReceived("savestate_displayslot", "");
+	// 	break;
 	case VIRTKEY_TOGGLE_FULLSCREEN:
 		System_SendMessage("toggle_fullscreen", "");
 		break;
@@ -1026,6 +1029,8 @@ UI::EventReturn EmuScreen::OnDevTools(UI::EventParams &params) {
 	if (params.v)
 		devMenu->SetPopupOrigin(params.v);
 	screenManager()->push(devMenu);
+
+
 	return UI::EVENT_DONE;
 }
 
@@ -1079,7 +1084,8 @@ void EmuScreen::update() {
 	// This is here to support the iOS on screen back button.
 	if (pauseTrigger_) {
 		pauseTrigger_ = false;
-		screenManager()->push(new GamePauseScreen(gamePath_));
+		screenManager()->push(new AmultiosOverlayScreen(gamePath_));
+		//screenManager()->push(new GamePauseScreen(gamePath_));
 	}
 
 	if (saveStatePreview_ && !bootPending_) {

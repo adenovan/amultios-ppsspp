@@ -5,6 +5,7 @@
 #include "amultios.h"
 #include "util/text/parsers.h"
 #include "snappy.h"
+
 bool amultiosInited = false;
 bool amultiosRunning = false;
 std::thread amultiosThread;
@@ -45,8 +46,477 @@ std::vector<std::string> ptp_relay_topic(255, "");
 
 std::mutex ptp_peer_mutex;
 std::vector<PTPConnection> ptp_peer_connection;
-
 int bindOffset = 0;
+
+ChatMessages cmList;
+LoginInfo loginInfo;
+std::string g_token;
+bool trusted = false;
+
+void amultios_login()
+{
+    int rc = MOSQ_ERR_CONN_PENDING;
+    auto amultios_mqtt = g_amultios_mqtt;
+    if (amultios_mqtt != nullptr && amultios_mqtt->connected && amultiosInited)
+    {
+
+        AmultiosLoginPacket packet;
+        memset(&packet, 0, sizeof(AmultiosLoginPacket));
+        packet.base.opcode = OPCODE_AMULTIOS_LOGIN_PASS;
+        SceNetEtherAddr addres;
+        getLocalMac(&addres);
+        packet.mac = addres;
+        strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
+        strcpy((char *)packet.pin, g_Config.sAmultiosPin.c_str());
+        strcpy((char *)packet.revision, PPSSPP_GIT_VERSION);
+
+        rc = amultios_subscribe(("AUTH/" + g_Config.sNickName).c_str(), 2);
+        rc = amultios_subscribe(("TOKEN/" + g_Config.sNickName).c_str(), 2);
+        rc = mosquitto_publish(amultios_mqtt->mclient, NULL, "AUTH", sizeof(packet), &packet, 2, false);
+        if (rc != MOSQ_ERR_SUCCESS)
+        {
+            ERROR_LOG(MQTT, "[%s] Login Error : %s", amultios_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
+            cmList.Add("Cannot Contact Authorization Server", "Amultios", "SYSTEM", "HEADER");
+        }
+    }
+}
+
+void amultios_sync()
+{
+    loginInfo.logedIn = trusted;
+    loginInfo.token = g_token;
+    loginInfo.mac = g_Config.sMACAddress;
+    loginInfo.nickname = g_Config.sNickName;
+    loginInfo.authServer = g_amultios_mqtt->connected;
+    loginInfo.ctlServer = g_ctl_mqtt->connected;
+    loginInfo.pdpServer = g_pdp_mqtt->connected;
+    loginInfo.ptpServer = g_ptp_mqtt->connected;
+    loginInfo.party = getCurrentGroup();
+    amultios_publish("TOKEN", (void *)g_token.data(), g_token.length(), 2, 0);
+}
+
+void ChatMessages::doPlayerStatusUpdate()
+{
+    std::lock_guard<std::mutex> locker(playerStatusMutex);
+    updatePlayerStatusFlag = false;
+}
+
+void ChatMessages::listenPlayerStatus()
+{
+    int rc = amultios_subscribe("STATUS", 2);
+    if (rc != MOSQ_ERR_SUCCESS)
+    {
+        ERROR_LOG(AMULTIOS, "Cannot listen into status error %s", mosquitto_strerror(rc));
+    }
+}
+
+void ChatMessages::shutdownPlayerStatus()
+{
+    int rc = amultios_unsubscribe("STATUS");
+    if (rc != MOSQ_ERR_SUCCESS)
+    {
+        ERROR_LOG(AMULTIOS, "Shutdown listen into status error %s", mosquitto_strerror(rc));
+    }
+}
+
+bool ChatMessages::isMuted(const std::string &text)
+{
+    std::string upper = text;
+    std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+    auto isMuted = std::find(MuteList.begin(), MuteList.end(), upper);
+    if (isMuted != MuteList.end())
+    {
+        return true;
+    }
+    return false;
+}
+
+bool ChatMessages::isAdmin(const std::string &text)
+{
+    std::string upper = text;
+    std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+    auto isAdmin = std::find(Admin.begin(), Admin.end(), upper);
+    if (isAdmin != Admin.end())
+    {
+        return true;
+    }
+    return false;
+}
+
+bool ChatMessages::isChatScreenVisible()
+{
+    return chatScreenVisible;
+}
+
+void ChatMessages::doChatUpdate()
+{
+    std::lock_guard<std::mutex> locker(chatMutex_);
+    updateChatFlag = false;
+}
+
+float ChatMessages::getLastUpdate()
+{
+    return lastUpdate;
+}
+
+void ChatMessages::Update()
+{
+    std::lock_guard<std::mutex> locker(chatMutex_);
+    lastUpdate = time_now();
+    updateChatFlag = true;
+}
+
+void ChatMessages::Add(const std::string &text, const std::string &name, const std::string &room, const std::string &type, uint32_t namecolor)
+{
+    std::lock_guard<std::mutex> lk(chatMutex_);
+    uint32_t green = 0x53C800;
+    uint32_t red = 0x3643F4;
+    uint32_t purple = 0xD893CE;
+    uint32_t yellow = 0x28CAFF;
+    uint32_t blue = 0xF39621;
+    //text coloring
+    ChatMessage chat;
+    // fill chat info;
+    chat.name = name;
+    chat.namecolor = namecolor;
+    chat.room = room;
+    chat.roomcolor = blue;
+    chat.textcolor = green;
+    chat.text = text;
+    chat.type = type;
+    if (name == g_Config.sNickName.c_str())
+    {
+        chat.namecolor = red;
+    }
+
+    if (isAdmin(name))
+    {
+        chat.namecolor = purple;
+        if (name == "Amultios")
+        {
+            chat.roomcolor = yellow;
+            if (type == "TEXT")
+            {
+                chat.textcolor = green;
+            }
+            else if (type == "HEADER")
+            {
+                chat.textcolor = yellow;
+            }
+        }
+    }
+    AllChatDb.push_back(chat);
+}
+
+void ChatMessages::ParseCommand(const std::string &text)
+{
+    std::vector<std::string> command(explode(text, ' '));
+    if (command.size() == 0)
+    {
+        command.at(0) = text;
+    }
+    try
+    {
+        if (trusted)
+        {
+            if (command.at(0).at(0) == '!')
+            {
+                if (command.at(0) == "!help")
+                {
+                    cmList.Add("Command List", "Amultios", "SYSTEM", "HEADER");
+                    cmList.Add("!help (display available command)", "Amultios", "SYSTEM");
+                    cmList.Add("!tos (display Terms Of Service)");
+                    cmList.Add("!list channel/sub/mute/party (display current list asked)", "Amultios", "SYSTEM");
+                    cmList.Add("!mute nickname (mute someone)", "Amultios", "SYSTEM");
+                    cmList.Add("!unmute nickname (unmute someone)", "Amultios", "SYSTEM");
+                    cmList.Add("!sub channelname (listen chat on channel)", "Amultios", "SYSTEM");
+                    cmList.Add("!unsub channelname (leave chat on channel)", "Amultios", "SYSTEM");
+                    cmList.Add("!where (display your current chatroom)", "Amultios", "SYSTEM");
+                    cmList.Add("!channel channelname (set chatroom into channel)", "Amultios", "SYSTEM");
+                    cmList.Add("!pm nickname (set chatroom into private message with someone)", "Amultios", "SYSTEM");
+                    cmList.Add("!report nickname reason (report user for violation of TOS)", "Amultios", "SYSTEM");
+                    cmList.Add("!clear sub/mute/message (clear the list of)");
+                    cmList.Add("@charactername/channel text (directly send your chat into channel)", "Amultios", "SYSTEM");
+                }
+                else if (command.at(0) == "!tos")
+                {
+                    cmList.Add("Amultios Terms Of Service", "Amultios", "SYSTEM", "HEADER");
+                    cmList.Add("Use International English languange on WORLD chatroom");
+                    cmList.Add("Speak your languange in their respective channel!");
+                    cmList.Add("Respect each other");
+                    cmList.Add("Do not ask for or link to pirated copyright content on community");
+                    cmList.Add("Do not use downloaded save data from internet to play");
+                    cmList.Add("Do not use Cheat or Cheated Save Data (Passive Cheat)");
+                    cmList.Add("Use Official Amultios Emulator to play in our network");
+                    cmList.Add("Read Amultios Faqs in main website before asking how to in community");
+                    cmList.Add("Violation of TOS will cause your Amultios account banned and kicked!");
+                }
+                else if (command.at(0) == "!sub")
+                {
+                    std::string selected = command.at(1);
+                    std::transform(selected.begin(), selected.end(), selected.begin(), ::toupper);
+                    auto it = std::find(ChannelList.begin(), ChannelList.end(), selected);
+                    if (it != ChannelList.end())
+                    {
+                        auto subit = std::find(SubcriptionList.begin(), SubcriptionList.end(), selected);
+                        if (subit == SubcriptionList.end())
+                        {
+                            int rc = amultios_subscribe(("CHAT/" + selected + "/#").c_str(), 2);
+                            if (rc == MOSQ_ERR_SUCCESS)
+                            {
+                                SubcriptionList.push_back(selected);
+                                cmList.Add("Subscribe to channel " + selected + " success", "Amultios", "SYSTEM", "HEADER");
+                            }
+                            else
+                            {
+                                cmList.Add("Failed subscribe to channel " + selected, "Amultios", "SYSTEM", "HEADER");
+                            }
+                        }
+                        else
+                        {
+                            cmList.Add("Already subscribed into channel " + selected, "Amultios", "SYSTEM", "HEADER");
+                        }
+                    }
+                }
+                else if (command.at(0) == "!unsub")
+                {
+                    std::string selected = command.at(1);
+                    std::transform(selected.begin(), selected.end(), selected.begin(), ::toupper);
+                    auto subit = std::find(SubcriptionList.begin(), SubcriptionList.end(), selected);
+                    if (subit != SubcriptionList.end() && selected != "SYSTEM")
+                    {
+                        int rc = amultios_unsubscribe(("CHAT/" + selected + "/#").c_str());
+                        if (rc == MOSQ_ERR_SUCCESS)
+                        {
+                            SubcriptionList.erase(subit);
+                            cmList.Add("Unsubscribe to channel " + selected + " success", "Amultios", "SYSTEM", "HEADER");
+                        }
+                        else
+                        {
+                            cmList.Add("Failed unsubscribe to channel " + selected, "Amultios", "SYSTEM", "HEADER");
+                        }
+                    }
+                    else
+                    {
+                        cmList.Add("Already not subscribed into channel " + selected, "Amultios", "SYSTEM", "HEADER");
+                    }
+                }
+                else if (command.at(0) == "!mute")
+                {
+                    std::string original = command.at(1);
+
+                    if (isAdmin(original))
+                    {
+                        cmList.Add("Sorry as bot i don't want to mute my boss");
+                    }
+                    else
+                    {
+                        std::string upper = command.at(1);
+                        std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+                        auto muteit = std::find(MuteList.begin(), MuteList.end(), upper);
+                        if (muteit == MuteList.end())
+                        {
+                            MuteList.push_back(upper);
+                            displayMuteList.push_back(original);
+                            cmList.Add("Muting " + original, "Amultios", "SYSTEM", "HEADER");
+                        }
+                        else
+                        {
+                            cmList.Add(original + " Already in mutelist", "Amultios", "SYSTEM", "HEADER");
+                        }
+                    }
+                }
+                else if (command.at(0) == "!unmute")
+                {
+                    std::string original = command.at(1);
+                    std::string upper = command.at(1);
+                    std::transform(upper.begin(), upper.end(), upper.begin(), ::toupper);
+                    auto muteit = std::find(MuteList.begin(), MuteList.end(), upper);
+                    if (muteit != MuteList.end())
+                    {
+                        int index = std::distance(MuteList.begin(), muteit);
+                        MuteList.erase(MuteList.begin() + index);
+                        displayMuteList.erase(displayMuteList.begin() + index);
+                        cmList.Add("Unmuting " + original, "Amultios", "SYSTEM", "HEADER");
+                    }
+                    else
+                    {
+                        cmList.Add(original + " Not in mutelist", "Amultios", "SYSTEM", "HEADER");
+                    }
+                }
+                else if (command.at(0) == "!list")
+                {
+                    std::string selected = command.at(1);
+                    std::transform(selected.begin(), selected.end(), selected.begin(), ::toupper);
+
+                    if (selected == "CHANNEL")
+                    {
+                        std::string sublist;
+                        for (const auto &piece : this->ChannelList)
+                        {
+                            sublist += piece;
+                            sublist += ",";
+                        }
+                        sublist = sublist.substr(0, sublist.size() - 1);
+                        cmList.Add("Available Channel", "Amultios", "SYSTEM", "HEADER");
+                        cmList.Add(sublist);
+                    }
+                    else if (selected == "SUB")
+                    {
+                        std::string sublist;
+                        int i = 0;
+                        for (const auto &piece : this->SubcriptionList)
+                        {
+                            if (i > 2)
+                            {
+                                sublist += piece;
+                                sublist += ",";
+                            }
+                            i++;
+                        }
+                        sublist = sublist.substr(0, sublist.size() - 1);
+                        cmList.Add("Current Subscription List ", "Amultios", "SYSTEM", "HEADER");
+                        cmList.Add(sublist);
+                    }
+                    else if (selected == "PARTY")
+                    {
+                    }
+                    else if (selected == "MUTE")
+                    {
+                        std::string sublist;
+                        for (const auto &piece : this->displayMuteList)
+                        {
+                            sublist += piece;
+                            sublist += ",";
+                        }
+                        sublist = sublist.substr(0, sublist.size() - 1);
+                        cmList.Add("Current Mute List ", "Amultios", "SYSTEM", "HEADER");
+                        cmList.Add(sublist);
+                    }
+                    else
+                    {
+                        cmList.Add("Cannot list what you want options is channel,sub,party,mute");
+                    }
+                }
+                else if (command.at(0) == "!where")
+                {
+                    cmList.Add(this->selectedRoom + " is your current chatroom", "Amultios", "SYSTEM", "HEADER");
+                }
+                else if (command.at(0) == "!channel")
+                {
+                    std::string selected = command.at(1);
+                    std::transform(selected.begin(), selected.end(), selected.begin(), ::toupper);
+                    if (selectedRoom == "PARTY")
+                    {
+                        this->selectedRoom = selected;
+                        cmList.Add("Set Channel Into Party");
+                    }
+                    else
+                    {
+                        auto subit = std::find(SubcriptionList.begin(), SubcriptionList.end(), selected);
+                        if (subit != SubcriptionList.end() && selected != "SYSTEM")
+                        {
+                            this->selectedRoom = selected;
+                            cmList.Add("Set channel into " + this->selectedRoom + " success", "Amultios", "SYSTEM", "HEADER");
+                        }
+                        else
+                        {
+                            cmList.Add("Channel " + selected + " is not in your subscription list", "Amultios", "SYSTEM", "HEADER");
+                        }
+                    }
+                }
+                else if (command.at(0) == "!pm")
+                {
+                    this->privateMessageDisplay = command.at(1);
+                    std::string nickname = command.at(1);
+                    std::transform(nickname.begin(), nickname.end(), nickname.begin(), ::toupper);
+                    this->selectedRoom = "PRIVATE";
+                    this->privateMessageRoom = nickname;
+                    cmList.Add("Set Room into private with " + this->privateMessageDisplay);
+                }
+                else if (command.at(0) == "!clear")
+                {
+                    std::string selected = command.at(1);
+                    std::transform(selected.begin(), selected.end(), selected.begin(), ::toupper);
+                    if (selected == "SUB")
+                    {
+                        this->SubcriptionList.resize(3);
+                        cmList.Add("Subscription Cleared Success");
+                    }
+                    else if (selected == "MUTE")
+                    {
+                        this->MuteList.clear();
+                    }
+                    else if (selected == "MESSAGE")
+                    {
+                        this->AllChatDb.clear();
+                    }
+                }
+                else
+                {
+                    cmList.Add("Unrecognized command type !help for valid command", "Amultios", "SYSTEM");
+                    cmList.Add("If this command is available please report to admin for the bugs", "Amultios", "SYSTEM");
+                }
+            }
+            else
+            {
+                cmList.SendChat(text);
+            }
+            cmList.Update();
+        }
+    }
+    catch (const std::out_of_range &ex)
+    {
+        ERROR_LOG(AMULTIOS, "Failed to parse command [%s]", text.c_str());
+        cmList.Add("Invalid command pattern type !help for valid commandlist", "Amultios", "SYSTEM");
+        cmList.Update();
+    }
+}
+
+void ChatMessages::SendChat(const std::string &text)
+{
+    auto amultios_mqtt = g_amultios_mqtt;
+    if (amultios_mqtt->connected)
+    {
+        if (this->selectedRoom == "PRIVATE")
+        {
+            std::string pubtopic = "CHAT/" + this->selectedRoom + this->privateMessageRoom + "/" + g_Config.sNickName;
+            int rc = amultios_publish(pubtopic.c_str(), (void *)text.c_str(), text.size(), 2, 0);
+            if (rc == MOSQ_ERR_SUCCESS)
+            {
+                cmList.Add(text, g_Config.sNickName, "PRIVATE");
+            }
+        }
+        else if (this->selectedRoom == "PARTY")
+        {
+            std::string room = this->selectedRoom + getCurrentGroup();
+            if (room == "PARTY")
+            {
+                cmList.Add("Party is Unavailable");
+                cmList.Update();
+            }
+            else
+            {
+                std::string pubtopic = "CHAT/" + room + "/" + g_Config.sNickName;
+                amultios_publish(pubtopic.c_str(), (void *)text.c_str(), text.size(), 2, 0);
+            }
+        }
+        else
+        {
+            auto subit = std::find(SubcriptionList.begin(), SubcriptionList.end(), this->selectedRoom);
+            if (subit != SubcriptionList.end())
+            {
+                std::string topic = "CHAT/" + this->selectedRoom + "/" + g_Config.sNickName;
+                amultios_publish(topic.c_str(), (void *)text.c_str(), text.size(), 2, 0);
+            }
+            else
+            {
+                cmList.Add("Channel " + this->selectedRoom + " is not in your subscription list !sub channelname to subscribe");
+                cmList.Update();
+            }
+        }
+    }
+}
 
 void MqttTrace(void *level, char *message)
 {
@@ -257,18 +727,19 @@ int amultios_publish(const char *topic, void *payload, size_t size, int qos, uns
     auto amultios_mqtt = g_amultios_mqtt;
     if (amultios_mqtt != nullptr && amultios_mqtt->connected && amultiosInited)
     {
-        {
-            std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
-            amultios_mqtt->pub_topic_latest = topic;
-            amultios_mqtt->pub_payload_len_latest = size;
-            amultios_mqtt->qos_latest = qos;
-        }
 
         rc = mosquitto_publish(amultios_mqtt->mclient, NULL, topic, size, payload, qos, false);
 
         if (rc != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(MQTT, "[%s] Publish Error : %s", amultios_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
+        }
+
+        {
+            std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
+            amultios_mqtt->pub_topic_latest = topic;
+            amultios_mqtt->pub_payload_len_latest = size;
+            amultios_mqtt->qos_latest = qos;
         }
     }
     return rc;
@@ -357,12 +828,14 @@ void amultios_connect_callback(struct mosquitto *mosq, void *obj, int rc)
     auto amultios_mqtt = g_amultios_mqtt;
     if (amultios_mqtt != nullptr)
     {
+        cmList.Add("Connected into Amultios Network", "Amultios", "SYSTEM", "HEADER");
         NOTICE_LOG(AMULTIOS, "[%s] Connect Success", amultios_mqtt->mqtt_id.c_str());
         {
             std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
             amultios_mqtt->connected = true;
             amultios_mqtt->reconnectInProgress = false;
         }
+        amultios_login();
     }
 };
 
@@ -382,6 +855,83 @@ void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct m
 {
     if (message && amultiosInited)
     {
+        std::string topic = message->topic;
+        try
+        {
+            if (topic == "STATUS")
+            {
+                char *data = (char *)message->payload;
+                std::string playerStatus(data, data + message->payloadlen);
+                cmList.setStatus(playerStatus);
+            }
+            else
+            {
+                std::vector<std::string> topic_explode(explode(topic, '/'));
+                if (topic_explode.at(0) == "CHAT")
+                {
+                    char *data = (char *)message->payload;
+                    std::string chatMessage(data, data + message->payloadlen);
+
+                    if (!cmList.isMuted(topic_explode.at(2)))
+                    {
+
+                        INFO_LOG(AMULTIOS, "Chat Topic %s", topic_explode.at(1).c_str());
+                        if (topic_explode.at(1).find("PARTY") != std::string::npos)
+                        {
+                            cmList.Add(chatMessage, topic_explode.at(2), "PARTY");
+                            cmList.Update();
+                        }
+                        else if (topic_explode.at(1).find("PRIVATE") != std::string::npos)
+                        {
+                            cmList.Add(chatMessage, topic_explode.at(2), "PRIVATE");
+                            cmList.Update();
+                        }
+                        else
+                        {
+                            cmList.Add(chatMessage, topic_explode.at(2), topic_explode.at(1));
+                            cmList.Update();
+                        }
+                    }
+                }
+                else if (topic_explode.at(0) == "AUTH")
+                {
+                    char *data = (char *)message->payload;
+                    std::string token(data, data + message->payloadlen);
+                    if (token.at(0) == OPCODE_AMULTIOS_LOGIN_PASS)
+                    {
+                        trusted = true;
+                        cmList.Add(token.substr(1, 64), "Amultios", "SYSTEM", "HEADER");
+                        cmList.Add("Type !help for list of command", "Amultios", "SYSTEM", "TEXT");
+                        cmList.ParseCommand("!tos");
+                        cmList.ParseCommand("!sub world");
+                        std::string up = g_Config.sNickName;
+                        std::transform(up.begin(), up.end(), up.begin(), ::toupper);
+                        int rc = amultios_subscribe(("CHAT/PRIVATE" + up + "/#").c_str(), 2);
+                        if (rc == MOSQ_ERR_SUCCESS)
+                        {
+                            cmList.Add("Private chatroom is " + g_Config.sNickName);
+                        }
+                    }
+                    else
+                    {
+                        trusted = false;
+                        cmList.Add("Disconnected From Network", "Amultios", "SYSTEM", "HEADER");
+                        cmList.Add(token.substr(1, 64), "Amultios", "SYSTEM", "HEADER");
+                    }
+                }
+                else if (topic_explode.at(0) == "TOKEN")
+                {
+                    char *data = (char *)message->payload;
+                    std::string token(data, data + message->payloadlen);
+                    g_token = token;
+                    amultios_sync();
+                }
+            }
+        }
+        catch (const std::out_of_range &ex)
+        {
+            ERROR_LOG(AMULTIOS, "Failed To Parse chat Message Topic[%s]", message->topic);
+        }
     }
 };
 
@@ -606,7 +1156,7 @@ void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
             AmultiosNetAdhocctlLoginPacketS2C *packet = (AmultiosNetAdhocctlLoginPacketS2C *)payload_ptr;
             ctlStatusTopic = "AmultiosSynchronize/";
             ctlStatusTopic.append(packet->game.data);
-            amultios_subscribe(ctlStatusTopic.c_str(), 2);
+            //amultios_subscribe(ctlStatusTopic.c_str(), 2);
         }
     }
 };
@@ -1056,7 +1606,7 @@ int __AMULTIOS_CTL_START()
     if (ctlInited)
     {
         auto ctl_mqtt = g_ctl_mqtt;
-        rc = mosquitto_loop_forever(ctl_mqtt->mclient, 1000, 1);
+        rc = mosquitto_loop_forever(ctl_mqtt->mclient, 100, 1);
     }
     return rc;
 }
@@ -1103,7 +1653,7 @@ int __AMULTIOS_INIT()
         mosquitto_subscribe_callback_set(g_amultios_mqtt->mclient, amultios_subscribe_callback);
         mosquitto_unsubscribe_callback_set(g_amultios_mqtt->mclient, amultios_unsubscribe_callback);
         mosquitto_message_callback_set(g_amultios_mqtt->mclient, amultios_message_callback);
-        mosquitto_threaded_set(g_amultios_mqtt->mclient,true);
+        mosquitto_threaded_set(g_amultios_mqtt->mclient, true);
 
         // initialize will message
         AmultiosNetAdhocctlDisconnectPacketS2C packet;
@@ -1126,7 +1676,7 @@ int __AMULTIOS_INIT()
 
         //if (rc == MOSQ_ERR_SUCCESS)
         //{
-            //g_amultios_mqtt->ownThread = false;
+        //g_amultios_mqtt->ownThread = false;
         //}
 
         if (rc != MOSQ_ERR_SUCCESS)
@@ -1136,9 +1686,9 @@ int __AMULTIOS_INIT()
 
         //if (rc == MOSQ_ERR_NOT_SUPPORTED)
         //{
-            WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_amultios_mqtt->mqtt_id.c_str());
-            g_amultios_mqtt->ownThread = true;
-            amultiosThread = std::thread(__AMULTIOS_START);
+        WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_amultios_mqtt->mqtt_id.c_str());
+        g_amultios_mqtt->ownThread = true;
+        amultiosThread = std::thread(__AMULTIOS_START);
         //}
     }
     return rc;
@@ -1150,6 +1700,7 @@ int __AMULTIOS_SHUTDOWN()
     auto amultios_mqtt = g_amultios_mqtt;
     if (amultiosInited)
     {
+        cmList.ParseCommand("!clear sub");
         rc = mosquitto_disconnect(amultios_mqtt->mclient);
         //mosquitto_loop_stop(amultios_mqtt->mclient, false);
 
@@ -1186,7 +1737,7 @@ int __AMULTIOS_CTL_INIT()
         mosquitto_subscribe_callback_set(g_ctl_mqtt->mclient, ctl_subscribe_callback);
         mosquitto_unsubscribe_callback_set(g_ctl_mqtt->mclient, ctl_unsubscribe_callback);
         mosquitto_message_callback_set(g_ctl_mqtt->mclient, ctl_message_callback);
-        mosquitto_threaded_set(g_ctl_mqtt->mclient,true);
+        mosquitto_threaded_set(g_ctl_mqtt->mclient, true);
 
         // initialize will message
         AmultiosNetAdhocctlDisconnectPacketS2C packet;
@@ -1218,9 +1769,9 @@ int __AMULTIOS_CTL_INIT()
 
         //if (rc == MOSQ_ERR_NOT_SUPPORTED)
         //{
-            WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_ctl_mqtt->mqtt_id.c_str());
-            g_ctl_mqtt->ownThread = true;
-            ctlThread = std::thread(__AMULTIOS_CTL_START);
+        WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_ctl_mqtt->mqtt_id.c_str());
+        g_ctl_mqtt->ownThread = true;
+        ctlThread = std::thread(__AMULTIOS_CTL_START);
         //}
     }
     return rc;
@@ -1342,7 +1893,7 @@ int __AMULTIOS_PTP_INIT()
         mosquitto_subscribe_callback_set(g_ptp_mqtt->mclient, ptp_subscribe_callback);
         mosquitto_unsubscribe_callback_set(g_ptp_mqtt->mclient, ptp_unsubscribe_callback);
         mosquitto_message_callback_set(g_ptp_mqtt->mclient, ptp_message_callback);
-        mosquitto_threaded_set(g_ptp_mqtt->mclient,true);
+        mosquitto_threaded_set(g_ptp_mqtt->mclient, true);
         if ((rc = mosquitto_connect(g_ptp_mqtt->mclient, getModeAddress().c_str(), 1883, 60)) != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to connect, return code %s\n", g_ptp_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
@@ -1361,9 +1912,9 @@ int __AMULTIOS_PTP_INIT()
 
         //if (rc == MOSQ_ERR_NOT_SUPPORTED)
         //{
-            WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_ptp_mqtt->mqtt_id.c_str());
-            g_ptp_mqtt->ownThread = true;
-            ptpThread = std::thread(__AMULTIOS_PTP_START);
+        WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_ptp_mqtt->mqtt_id.c_str());
+        g_ptp_mqtt->ownThread = true;
+        ptpThread = std::thread(__AMULTIOS_PTP_START);
         //}
     }
     return rc;
@@ -1426,6 +1977,11 @@ int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
 
 int AmultiosNetAdhocctlCreate(const char *groupName)
 {
+    if (!trusted)
+    {
+        return -1;
+    }
+
     const SceNetAdhocctlGroupName *groupNameStruct = (const SceNetAdhocctlGroupName *)groupName;
     // Library initialized
     if (netAdhocctlInited)
@@ -1445,6 +2001,7 @@ int AmultiosNetAdhocctlCreate(const char *groupName)
                     memset(&parameter.group_name, 0, sizeof(parameter.group_name));
 
                 // Prepare Connect Packet
+
                 AmultiosNetAdhocctlConnectPacketC2S packet;
 
                 // Clear Packet Memory
@@ -1474,6 +2031,17 @@ int AmultiosNetAdhocctlCreate(const char *groupName)
                     //threadStatus = ADHOCCTL_STATE_DISCONNECTED;
                 }
 
+                std::string room = "PARTY" + getCurrentGroup();
+                if (room != "PARTY")
+                {
+                    std::string topic = "CHAT/PARTY" + getCurrentGroup() + "/#";
+                    int rc = amultios_subscribe(topic.c_str(), 2);
+                    if (rc == MOSQ_ERR_SUCCESS)
+                    {
+                        cmList.Add("Party Chat is now available");
+                    }
+                    amultios_sync();
+                }
                 return 0;
             }
 
@@ -1544,6 +2112,17 @@ int AmultiosNetAdhocctlDisconnect()
     if (threadStatus != ADHOCCTL_STATE_DISCONNECTED)
     { // (threadStatus == ADHOCCTL_STATE_CONNECTED)
         // Clear Network Name
+        std::string room = "PARTY" + getCurrentGroup();
+        if (room != "PARTY")
+        {
+            std::string topic = "CHAT/PARTY" + getCurrentGroup() + "/#";
+            int rc = amultios_unsubscribe(topic.c_str());
+            if (rc == MOSQ_ERR_SUCCESS)
+            {
+                cmList.Add("Party Chat is now unavailable");
+            }
+        }
+
         auto ctl_mqtt = g_ctl_mqtt;
         memset(&parameter.group_name, 0, sizeof(parameter.group_name));
 
@@ -1595,6 +2174,13 @@ int AmultiosNetAdhocctlTerm()
         rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 0, 5000L);
     }
     threadStatus = ADHOCCTL_STATE_DISCONNECTED;
+    std::string room = "PARTY" + getCurrentGroup();
+    if (room != "PARTY")
+    {
+        std::string topic = "CHAT/PARTY" + getCurrentGroup() + "/#";
+        amultios_unsubscribe(topic.c_str());
+        amultios_sync();
+    }
     return 0;
 }
 
