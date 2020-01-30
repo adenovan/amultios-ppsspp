@@ -897,7 +897,7 @@ static ConfigSetting controlSettings[] = {
 static ConfigSetting networkSettings[] = {
 	ConfigSetting("AdhocMode", &g_Config.iAdhocMode,AMULTIOS_MODE, true, false),
 	ConfigSetting("PTPQos",&g_Config.iPtpQos,QOS_0,true,false),
-	ConfigSetting("EnableWlan", &g_Config.bEnableWlan, false, true, true),
+	ConfigSetting("EnableWlan", &g_Config.bEnableWlan, true, true, true),
 	ConfigSetting("EnableAdhocServer", &g_Config.bEnableAdhocServer, false, true, true),
 	ConfigSetting("AmultiosPin",&g_Config.sAmultiosPin,"012345",true,true),
 	ConfigSetting(false),

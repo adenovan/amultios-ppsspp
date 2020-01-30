@@ -413,7 +413,7 @@ private:
 	std::string preferedRoom = "PARTY";
 	std::string privateMessageRoom = "";
 	std::string privateMessageDisplay = "";
-	std::vector<std::string> Admin = {"LUCIS", "AMULTIOS", "TINTIN", "ADENOVAN", "B412ONE", "GATOT", "RADIS3D"};
+	std::vector<std::string> Admin = {"LUCIS", "AMULTIOS", "TINTIN", "ADENOVAN", "B4120NE", "GATOT", "RADIS3D"};
 };
 
 extern ChatMessages cmList;
