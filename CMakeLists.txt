@@ -1804,7 +1804,7 @@ if(USE_DISCORD AND NOT IOS)
 endif()
 
 include_directories(ext/mosquitto/lib)
-target_link_libraries(${CoreLibName} libmosquitto)
+target_link_libraries(${CoreLibName} libmosquitto_static)
 
 setup_target_project(${CoreLibName} Core)
 
