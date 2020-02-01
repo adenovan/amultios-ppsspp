@@ -252,9 +252,9 @@ void ChatMessages::ParseCommand(const std::string &text)
                     cmList.Add("!where (display your current chatroom)", "Amultios", "SYSTEM");
                     cmList.Add("!channel channelname (set chatroom into channel)", "Amultios", "SYSTEM");
                     cmList.Add("!pm nickname (set chatroom into private message with someone)", "Amultios", "SYSTEM");
-                    cmList.Add("!report nickname reason (report user for violation of TOS)", "Amultios", "SYSTEM");
+                    //cmList.Add("!report nickname reason (report user for violation of TOS)", "Amultios", "SYSTEM");
                     cmList.Add("!clear sub/mute/message (clear the list of)");
-                    cmList.Add("@charactername/channel text (directly send your chat into channel)", "Amultios", "SYSTEM");
+                    //cmList.Add("@charactername/channel text (directly send your chat into channel)", "Amultios", "SYSTEM");
                 }
                 else if (command.at(0) == "!tos")
                 {
@@ -428,6 +428,9 @@ void ChatMessages::ParseCommand(const std::string &text)
                     {
                         this->selectedRoom = selected;
                         cmList.Add("Set Channel Into Party");
+                    }
+                    else if(selectedRoom == "PRIVATE"){
+                        cmList.Add("use !pm command to set room into private");
                     }
                     else
                     {
