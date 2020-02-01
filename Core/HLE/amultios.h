@@ -264,13 +264,33 @@ public:
 	};
 	void doPlayerStatusUpdate();
 	bool getPlayerStatusUpdate() { return updatePlayerStatusFlag; };
-	float getLastPlayerStatusUpdate(){ return lastPlayerStatusUpdate;};
+	float getLastPlayerStatusUpdate() { return lastPlayerStatusUpdate; };
 
 	void doChatUpdate();
 	bool getChatUpdate() { return updateChatFlag; }
 	void Update();
 	float getLastUpdate();
+
+	void doOSMUpdate()
+	{
+		std::lock_guard<std::mutex> locker(chatMutex_);
+		updateOsmFlag = false;
+	};
+
+	bool getOSMUpdate() { return updateOsmFlag; }
+
 	bool isChatScreenVisible();
+	void toogleChatScreen(bool flag)
+	{
+		std::lock_guard<std::mutex> locker(chatMutex_);
+		chatScreenVisible = flag;
+		if (flag)
+		{
+			updateChatFlag = true;
+			lastUpdate = time_now();
+		}
+	};
+
 	bool isAdmin(const std::string &text);
 	bool isMuted(const std::string &text);
 
@@ -301,7 +321,7 @@ private:
 	std::vector<std::string> ChannelList = {
 		//National Official Languange based
 		"WORLD",
-		"INDONESIAN",
+		"BAHASA",
 		"FILIPINO",
 		"ENGLISH",
 		"FRENCH",
@@ -408,6 +428,7 @@ private:
 	bool chatScreenVisible;
 	bool updateChatFlag;
 	bool updatePlayerStatusFlag;
+	bool updateOsmFlag;
 	std::string selectedRoom = "WORLD";
 	std::string selectedTopic = "WORLD";
 	std::string preferedRoom = "PARTY";

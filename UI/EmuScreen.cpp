@@ -79,6 +79,7 @@
 #include "UI/ProfilerDraw.h"
 #include "UI/DiscordIntegration.h"
 #include "UI/AmultiosOverlayScreen.h"
+#include "Core/HLE/amultios.h"
 #include "Core/HLE/sceNetAdhoc.h"
 
 #if defined(_WIN32) && !PPSSPP_PLATFORM(UWP)
@@ -129,7 +130,7 @@ EmuScreen::EmuScreen(const std::string &filename)
 	: bootPending_(true), gamePath_(filename), invalid_(true), quit_(false), pauseTrigger_(false), saveStatePreviewShownTime_(0.0), saveStatePreview_(nullptr)
 {
 	memset(axisState_, 0, sizeof(axisState_));
-	saveStateSlot_ = SaveState::GetCurrentSlot();
+	//saveStateSlot_ = SaveState::GetCurrentSlot();
 	__DisplayListenVblank(__EmuScreenVblank);
 	frameStep_ = false;
 	lastNumFlips = gpuStats.numFlips;
@@ -423,6 +424,10 @@ void EmuScreen::sendMessage(const char *message, const char *value)
 	if (!strcmp(message, "pause") && screenManager()->topScreen() == this)
 	{
 		//AmultiosOverlayScreen * amulScreen = ;
+		if (chatWindow_ && chatWindow_->GetVisibility() == UI::V_VISIBLE)
+		{
+			chatWindow_->SetVisibility(UI::V_INVISIBLE);
+		}
 		screenManager()->push(new AmultiosOverlayScreen(gamePath_));
 		//screenManager()->push(new GamePauseScreen(gamePath_));
 	}
@@ -1148,12 +1153,37 @@ void EmuScreen::CreateViews()
 	{
 		root_->Add(new Button(dev->T("DevMenu")))->OnClick.Handle(this, &EmuScreen::OnDevTools);
 	}
-	saveStatePreview_ = new AsyncImageFileView("", IS_FIXED, nullptr, new AnchorLayoutParams(bounds.centerX(), 100, NONE, NONE, true));
-	saveStatePreview_->SetFixedSize(160, 90);
-	saveStatePreview_->SetColor(0x90FFFFFF);
-	saveStatePreview_->SetVisibility(V_GONE);
-	saveStatePreview_->SetCanBeFocused(false);
-	root_->Add(saveStatePreview_);
+	// saveStatePreview_ = new AsyncImageFileView("", IS_FIXED, nullptr, new AnchorLayoutParams(bounds.centerX(), 100, NONE, NONE, true));
+	// saveStatePreview_->SetFixedSize(160, 90);
+	// saveStatePreview_->SetColor(0x90FFFFFF);
+	// saveStatePreview_->SetVisibility(V_GONE);
+	// saveStatePreview_->SetCanBeFocused(false);
+	// root_->Add(saveStatePreview_);
+
+	const int cy = 290;
+	const int cx = 150;
+	const int ChatWindowScreenWidth = 550;
+	const int ChatWindowScreenHeight = 200;
+	chatWindow_ = new LinearLayout(ORIENT_VERTICAL, new AnchorLayoutParams(ChatWindowScreenWidth, ChatWindowScreenHeight, cy, NONE, NONE, cx, true));
+
+	switch(g_Config.iChatWindowTransparency){
+		case CHATLOG_TRANSPARENT:
+		chatWindow_->SetBG(UI::Drawable(0x00000000));
+		break;
+		case CHATLOG_SEMI:
+		chatWindow_->SetBG(UI::Drawable(0x88000000));
+		break;
+		case CHATLOG_SOLID:
+		chatWindow_->SetBG(UI::Drawable(0xFF121212));
+		break;
+		default:
+		chatWindow_->SetBG(UI::Drawable(0x88000000));
+	}
+	chatWindow_->SetHasDropShadow(false);
+	chatOsm = chatWindow_->Add(new LinearLayout(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
+	chatWindow_->SetVisibility(UI::V_INVISIBLE);
+	root_->Add(chatWindow_);
+
 	root_->Add(new OnScreenMessagesView(new AnchorLayoutParams((Size)bounds.w, (Size)bounds.h)));
 
 	GameInfoBGView *loadingBG = root_->Add(new GameInfoBGView(gamePath_, new AnchorLayoutParams(FILL_PARENT, FILL_PARENT)));
@@ -1270,19 +1300,98 @@ void EmuScreen::update()
 	if (pauseTrigger_)
 	{
 		pauseTrigger_ = false;
+		if (chatWindow_ && chatWindow_->GetVisibility() == UI::V_VISIBLE)
+		{
+			chatWindow_->SetVisibility(UI::V_INVISIBLE);
+		}
 		screenManager()->push(new AmultiosOverlayScreen(gamePath_));
 		//screenManager()->push(new GamePauseScreen(gamePath_));
 	}
 
-	if(netAdhocInited){
-		if(PSP_CoreParameter().unthrottle == true){
+	if (netAdhocInited)
+	{
+		if (PSP_CoreParameter().unthrottle == true)
+		{
 			PSP_CoreParameter().unthrottle = false;
 		}
 
-		if(PSP_CoreParameter().fpsLimit != FPSLimit::NORMAL){
+		if (PSP_CoreParameter().fpsLimit != FPSLimit::NORMAL)
+		{
 			PSP_CoreParameter().fpsLimit = FPSLimit::NORMAL;
 		}
 	}
+
+	const float now = time_now();
+	if (!cmList.isChatScreenVisible() && now > cmList.getLastUpdate() && cmList.getOSMUpdate())
+	{
+		if (chatWindow_->GetVisibility() == UI::V_INVISIBLE)
+		{
+			chatWindow_->SetVisibility(UI::V_VISIBLE);
+		}
+		chatOsm->Clear();
+		UI::Margins lineMargins(0, 1, 0, 1);
+		std::list<ChatMessages::ChatMessage> messages = cmList.GetMessages();
+
+		int maxLength = 60;
+		int currentTextLength = 0;
+		auto iter = messages.end();
+
+		if (messages.size() > 5)
+		{
+			iter--;
+			iter--;
+			iter--;
+			iter--;
+			iter--;
+		}
+		else
+		{
+			iter = messages.begin();
+		}
+
+		for (; iter != messages.end(); ++iter)
+		{
+
+			currentTextLength = iter->text.length() + iter->room.length() + iter->name.length();
+			UI::LinearLayout *line = chatOsm->Add(new UI::LinearLayout(UI::ORIENT_HORIZONTAL, new UI::LinearLayoutParams(UI::FILL_PARENT, UI::WRAP_CONTENT, lineMargins)));
+			UI::TextView *GroupView = line->Add(new UI::TextView(" [" + iter->room + "]", FLAG_DYNAMIC_ASCII, true));
+			GroupView->SetTextColor(0xFF000000 | iter->roomcolor);
+			UI::TextView *nameView = line->Add(new UI::TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
+			nameView->SetTextColor(0xFF000000 | iter->namecolor);
+
+			if (currentTextLength > maxLength)
+			{
+				int pos = maxLength - (iter->room.length() + iter->name.length());
+
+				if (iter->text.length() > pos)
+				{
+					UI::TextView *chatView = line->Add(new UI::TextView(iter->text.substr(0, pos) + "...", FLAG_DYNAMIC_ASCII, true));
+					chatView->SetTextColor(0xFF000000 | iter->textcolor);
+				}
+				else
+				{
+					UI::TextView *chatView = line->Add(new UI::TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
+					chatView->SetTextColor(0xFF000000 | iter->textcolor);
+				}
+			}
+			else
+			{
+				UI::TextView *chatView = line->Add(new UI::TextView(iter->text, FLAG_DYNAMIC_ASCII, true));
+				chatView->SetTextColor(0xFF000000 | iter->textcolor);
+			}
+		}
+
+		cmList.doOSMUpdate();
+	}
+	else
+	{
+		const float hidden = cmList.getLastUpdate() + 8;
+		if (hidden < now && chatWindow_->GetVisibility() == UI::V_VISIBLE)
+		{
+			chatWindow_->SetVisibility(UI::V_INVISIBLE);
+		}
+	}
+
 	// if (saveStatePreview_ && !bootPending_)
 	// {
 	// 	int currentSlot = SaveState::GetCurrentSlot();
@@ -1545,7 +1654,7 @@ void EmuScreen::render()
 bool EmuScreen::hasVisibleUI()
 {
 	// Regular but uncommon UI.
-	if (saveStatePreview_->GetVisibility() != UI::V_GONE || loadingSpinner_->GetVisibility() == UI::V_VISIBLE)
+	if (loadingSpinner_->GetVisibility() == UI::V_VISIBLE)
 		return true;
 	if (!osm.IsEmpty() || g_Config.bShowTouchControls || g_Config.iShowFPSCounter != 0)
 		return true;

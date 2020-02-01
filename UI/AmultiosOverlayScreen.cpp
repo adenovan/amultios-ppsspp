@@ -104,7 +104,7 @@ void AmultiosOverlayScreen::CreateViews()
 	root_->SetFocus();
 #endif
 	cmList.listenPlayerStatus();
-	cmList.Update();
+	cmList.toogleChatScreen(true);
 }
 
 void AmultiosOverlayScreen::dialogFinished(const Screen *dialog, DialogResult result)
@@ -390,4 +390,5 @@ UI::EventReturn AmultiosOverlayScreen::OnGameSettings(UI::EventParams &e)
 AmultiosOverlayScreen::~AmultiosOverlayScreen()
 {
 	cmList.shutdownPlayerStatus();
+	cmList.toogleChatScreen(false);
 }

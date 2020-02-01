@@ -102,4 +102,6 @@ private:
 	UI::VisibilityTween *loadingViewVisible_ = nullptr;
 	UI::Spinner *loadingSpinner_ = nullptr;
 	UI::TextView *loadingTextView_ = nullptr;
+	UI::LinearLayout *chatWindow_ = nullptr;
+	UI::LinearLayout *chatOsm = nullptr;
 };

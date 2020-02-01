@@ -180,6 +180,7 @@ void ChatMessages::Update()
     std::lock_guard<std::mutex> locker(chatMutex_);
     lastUpdate = time_now();
     updateChatFlag = true;
+    updateOsmFlag = true;
 }
 
 void ChatMessages::Add(const std::string &text, const std::string &name, const std::string &room, const std::string &type, uint32_t namecolor)

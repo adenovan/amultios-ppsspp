@@ -110,6 +110,12 @@ enum AdhocMode{
 	DEV_MODE = 2,
 };
 
+enum ChatLogTransparency {
+	CHATLOG_TRANSPARENT = 0,
+	CHATLOG_SEMI = 1,
+	CHATLOG_SOLID = 2
+};
+
 enum class SmallDisplayZoom {
 	STRETCH = 0,
 	PARTIAL_STRETCH = 1,

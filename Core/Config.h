@@ -360,6 +360,7 @@ public:
 	// Networking
 	int iAdhocMode;
 	int iPtpQos;
+	int iChatWindowTransparency;
 	bool bEnableWlan;
 	bool bEnableAdhocServer;
 	int iWlanAdhocChannel;

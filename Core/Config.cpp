@@ -496,7 +496,7 @@ static ConfigSetting cpuSettings[] = {
 	ReportedConfigSetting("SeparateSASThread", &g_Config.bSeparateSASThread, &DefaultSasThread, true, true),
 	ReportedConfigSetting("SeparateIOThread", &g_Config.bSeparateIOThread, true, true, true),
 	ReportedConfigSetting("IOTimingMethod", &g_Config.iIOTimingMethod, IOTIMING_FAST, true, true),
-	ConfigSetting("FastMemoryAccess", &g_Config.bFastMemory, true, true, true),
+	ConfigSetting("FastMemoryAccess", &g_Config.bFastMemory, false, false, true),
 	ReportedConfigSetting("FuncReplacements", &g_Config.bFuncReplacements, true, true, true),
 	ConfigSetting("HideSlowWarnings", &g_Config.bHideSlowWarnings, false, true, false),
 	ConfigSetting("HideStateWarnings", &g_Config.bHideStateWarnings, false, true, false),
@@ -896,6 +896,7 @@ static ConfigSetting controlSettings[] = {
 
 static ConfigSetting networkSettings[] = {
 	ConfigSetting("AdhocMode", &g_Config.iAdhocMode,AMULTIOS_MODE, true, false),
+	ConfigSetting("ChatWindowTransparency", &g_Config.iChatWindowTransparency, CHATLOG_SEMI, true,false),
 	ConfigSetting("PTPQos",&g_Config.iPtpQos,QOS_0,true,false),
 	ConfigSetting("EnableWlan", &g_Config.bEnableWlan, true, true, true),
 	ConfigSetting("EnableAdhocServer", &g_Config.bEnableAdhocServer, false, true, true),
@@ -927,8 +928,8 @@ static int DefaultSystemParamLanguage() {
 static ConfigSetting systemParamSettings[] = {
 	ReportedConfigSetting("PSPModel", &g_Config.iPSPModel, &DefaultPSPModel, true, true),
 	ReportedConfigSetting("PSPFirmwareVersion", &g_Config.iFirmwareVersion, PSP_DEFAULT_FIRMWARE, true, true),
-	ConfigSetting("NickName", &g_Config.sNickName, "PPSSPP", true, true),
-	ConfigSetting("proAdhocServer", &g_Config.proAdhocServer, "myneighborsushicat.com", true, true),
+	ConfigSetting("NickName", &g_Config.sNickName, "Amultios", true, true),
+	ConfigSetting("proAdhocServer", &g_Config.proAdhocServer, "amultios.net", true, true),
 	ConfigSetting("MacAddress", &g_Config.sMACAddress, "", true, true),
 	ConfigSetting("PortOffset", &g_Config.iPortOffset, 0, true, true),
 	ReportedConfigSetting("Language", &g_Config.iLanguage, &DefaultSystemParamLanguage, true, true),
