@@ -206,6 +206,10 @@ void __NetAdhocInit()
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
+
+		if(g_Config.iAdhocMode == AMULTIOS_MODE){
+			g_Config.iPtpQos = PTPQos::QOS_0;
+		}
 		mosquitto_lib_init();
 		__AMULTIOS_INIT();
 		__AMULTIOS_CTL_INIT();

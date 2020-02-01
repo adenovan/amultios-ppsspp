@@ -307,7 +307,7 @@ int NativeMix(short *audio, int num_samples)
 void NativeGetAppInfo(std::string *app_dir_name, std::string *app_nice_name, bool *landscape, std::string *version)
 {
 	*app_nice_name = "Amultios";
-	*app_dir_name = "ppsspp";
+	*app_dir_name = "amultios";
 	*landscape = true;
 	*version = PPSSPP_GIT_VERSION;
 
@@ -503,7 +503,7 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 #if !defined(MOBILE_DEVICE) && !defined(_WIN32) && !PPSSPP_PLATFORM(SWITCH)
 	VFSRegister("", new DirectoryAssetReader((File::GetExeDirectory() + "assets/").c_str()));
 	VFSRegister("", new DirectoryAssetReader((File::GetExeDirectory()).c_str()));
-	VFSRegister("", new DirectoryAssetReader("/usr/share/ppsspp/assets/"));
+	VFSRegister("", new DirectoryAssetReader("/usr/share/amultios/assets/"));
 #endif
 #if PPSSPP_PLATFORM(SWITCH)
 	std::string assetPath = savegame_dir + "assets/";
@@ -544,7 +544,7 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 	g_Config.memStickDirectory = user_data_path;
 	g_Config.flash0Directory = std::string(external_dir) + "/flash0/";
 #elif PPSSPP_PLATFORM(SWITCH)
-	g_Config.memStickDirectory = g_Config.internalDataDirectory + "config/ppsspp/";
+	g_Config.memStickDirectory = g_Config.internalDataDirectory + "config/amultios/";
 	g_Config.flash0Directory = g_Config.internalDataDirectory + "assets/flash0/";
 #elif !defined(_WIN32)
 	std::string config;
@@ -555,7 +555,7 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 	else // Just in case
 		config = "./config";
 
-	g_Config.memStickDirectory = config + "/ppsspp/";
+	g_Config.memStickDirectory = config + "/amultios/";
 	g_Config.flash0Directory = File::GetExeDirectory() + "/assets/flash0/";
 #endif
 

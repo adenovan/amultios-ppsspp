@@ -79,6 +79,7 @@
 #include "UI/ProfilerDraw.h"
 #include "UI/DiscordIntegration.h"
 #include "UI/AmultiosOverlayScreen.h"
+#include "Core/HLE/sceNetAdhoc.h"
 
 #if defined(_WIN32) && !PPSSPP_PLATFORM(UWP)
 #include "Windows/MainWindow.h"
@@ -563,44 +564,56 @@ void EmuScreen::onVKeyDown(int virtualKeyCode)
 	switch (virtualKeyCode)
 	{
 	case VIRTKEY_UNTHROTTLE:
-		if (coreState == CORE_STEPPING)
+		if (!netAdhocInited)
 		{
-			Core_EnableStepping(false);
+			if (coreState == CORE_STEPPING)
+			{
+				Core_EnableStepping(false);
+			}
+			PSP_CoreParameter().unthrottle = true;
 		}
-		PSP_CoreParameter().unthrottle = true;
 		break;
 
 	case VIRTKEY_SPEED_TOGGLE:
 		// Cycle through enabled speeds.
-		if (PSP_CoreParameter().fpsLimit == FPSLimit::NORMAL && g_Config.iFpsLimit1 >= 0)
+		if (!netAdhocInited)
 		{
-			PSP_CoreParameter().fpsLimit = FPSLimit::CUSTOM1;
-			osm.Show(sc->T("fixed", "Speed: alternate"), 1.0);
-		}
-		else if (PSP_CoreParameter().fpsLimit != FPSLimit::CUSTOM2 && g_Config.iFpsLimit2 >= 0)
-		{
-			PSP_CoreParameter().fpsLimit = FPSLimit::CUSTOM2;
-			osm.Show(sc->T("SpeedCustom2", "Speed: alternate 2"), 1.0);
-		}
-		else if (PSP_CoreParameter().fpsLimit != FPSLimit::NORMAL)
-		{
-			PSP_CoreParameter().fpsLimit = FPSLimit::NORMAL;
-			osm.Show(sc->T("standard", "Speed: standard"), 1.0);
+			if (PSP_CoreParameter().fpsLimit == FPSLimit::NORMAL && g_Config.iFpsLimit1 >= 0)
+			{
+				PSP_CoreParameter().fpsLimit = FPSLimit::CUSTOM1;
+				osm.Show(sc->T("fixed", "Speed: alternate"), 1.0);
+			}
+			else if (PSP_CoreParameter().fpsLimit != FPSLimit::CUSTOM2 && g_Config.iFpsLimit2 >= 0)
+			{
+				PSP_CoreParameter().fpsLimit = FPSLimit::CUSTOM2;
+				osm.Show(sc->T("SpeedCustom2", "Speed: alternate 2"), 1.0);
+			}
+			else if (PSP_CoreParameter().fpsLimit != FPSLimit::NORMAL)
+			{
+				PSP_CoreParameter().fpsLimit = FPSLimit::NORMAL;
+				osm.Show(sc->T("standard", "Speed: standard"), 1.0);
+			}
 		}
 		break;
 
 	case VIRTKEY_SPEED_CUSTOM1:
-		if (PSP_CoreParameter().fpsLimit == FPSLimit::NORMAL)
+		if (!netAdhocInited)
 		{
-			PSP_CoreParameter().fpsLimit = FPSLimit::CUSTOM1;
-			osm.Show(sc->T("fixed", "Speed: alternate"), 1.0);
+			if (PSP_CoreParameter().fpsLimit == FPSLimit::NORMAL)
+			{
+				PSP_CoreParameter().fpsLimit = FPSLimit::CUSTOM1;
+				osm.Show(sc->T("fixed", "Speed: alternate"), 1.0);
+			}
 		}
 		break;
 	case VIRTKEY_SPEED_CUSTOM2:
-		if (PSP_CoreParameter().fpsLimit == FPSLimit::NORMAL)
+		if (!netAdhocInited)
 		{
-			PSP_CoreParameter().fpsLimit = FPSLimit::CUSTOM2;
-			osm.Show(sc->T("SpeedCustom2", "Speed: alternate 2"), 1.0);
+			if (PSP_CoreParameter().fpsLimit == FPSLimit::NORMAL)
+			{
+				PSP_CoreParameter().fpsLimit = FPSLimit::CUSTOM2;
+				osm.Show(sc->T("SpeedCustom2", "Speed: alternate 2"), 1.0);
+			}
 		}
 		break;
 
@@ -743,21 +756,30 @@ void EmuScreen::onVKeyUp(int virtualKeyCode)
 	switch (virtualKeyCode)
 	{
 	case VIRTKEY_UNTHROTTLE:
-		PSP_CoreParameter().unthrottle = false;
+		if (!netAdhocInited)
+		{
+			PSP_CoreParameter().unthrottle = false;
+		}
 		break;
 
 	case VIRTKEY_SPEED_CUSTOM1:
-		if (PSP_CoreParameter().fpsLimit == FPSLimit::CUSTOM1)
+		if (!netAdhocctlInited)
 		{
-			PSP_CoreParameter().fpsLimit = FPSLimit::NORMAL;
-			osm.Show(sc->T("standard", "Speed: standard"), 1.0);
+			if (PSP_CoreParameter().fpsLimit == FPSLimit::CUSTOM1)
+			{
+				PSP_CoreParameter().fpsLimit = FPSLimit::NORMAL;
+				osm.Show(sc->T("standard", "Speed: standard"), 1.0);
+			}
 		}
 		break;
 	case VIRTKEY_SPEED_CUSTOM2:
-		if (PSP_CoreParameter().fpsLimit == FPSLimit::CUSTOM2)
+		if (!netAdhocInited)
 		{
-			PSP_CoreParameter().fpsLimit = FPSLimit::NORMAL;
-			osm.Show(sc->T("standard", "Speed: standard"), 1.0);
+			if (PSP_CoreParameter().fpsLimit == FPSLimit::CUSTOM2)
+			{
+				PSP_CoreParameter().fpsLimit = FPSLimit::NORMAL;
+				osm.Show(sc->T("standard", "Speed: standard"), 1.0);
+			}
 		}
 		break;
 
@@ -1252,43 +1274,52 @@ void EmuScreen::update()
 		//screenManager()->push(new GamePauseScreen(gamePath_));
 	}
 
-	if (saveStatePreview_ && !bootPending_)
-	{
-		int currentSlot = SaveState::GetCurrentSlot();
-		if (saveStateSlot_ != currentSlot)
-		{
-			saveStateSlot_ = currentSlot;
-
-			std::string fn;
-			if (SaveState::HasSaveInSlot(gamePath_, currentSlot))
-			{
-				fn = SaveState::GenerateSaveSlotFilename(gamePath_, currentSlot, SaveState::SCREENSHOT_EXTENSION);
-			}
-
-			saveStatePreview_->SetFilename(fn);
-			if (!fn.empty())
-			{
-				saveStatePreview_->SetVisibility(UI::V_VISIBLE);
-				saveStatePreviewShownTime_ = time_now_d();
-			}
-			else
-			{
-				saveStatePreview_->SetVisibility(UI::V_GONE);
-			}
+	if(netAdhocInited){
+		if(PSP_CoreParameter().unthrottle == true){
+			PSP_CoreParameter().unthrottle = false;
 		}
 
-		if (saveStatePreview_->GetVisibility() == UI::V_VISIBLE)
-		{
-			double endTime = saveStatePreviewShownTime_ + 2.0;
-			float alpha = clamp_value((endTime - time_now_d()) * 4.0, 0.0, 1.0);
-			saveStatePreview_->SetColor(colorAlpha(0x00FFFFFF, alpha));
-
-			if (time_now_d() - saveStatePreviewShownTime_ > 2)
-			{
-				saveStatePreview_->SetVisibility(UI::V_GONE);
-			}
+		if(PSP_CoreParameter().fpsLimit != FPSLimit::NORMAL){
+			PSP_CoreParameter().fpsLimit = FPSLimit::NORMAL;
 		}
 	}
+	// if (saveStatePreview_ && !bootPending_)
+	// {
+	// 	int currentSlot = SaveState::GetCurrentSlot();
+	// 	if (saveStateSlot_ != currentSlot)
+	// 	{
+	// 		saveStateSlot_ = currentSlot;
+
+	// 		std::string fn;
+	// 		if (SaveState::HasSaveInSlot(gamePath_, currentSlot))
+	// 		{
+	// 			fn = SaveState::GenerateSaveSlotFilename(gamePath_, currentSlot, SaveState::SCREENSHOT_EXTENSION);
+	// 		}
+
+	// 		saveStatePreview_->SetFilename(fn);
+	// 		if (!fn.empty())
+	// 		{
+	// 			saveStatePreview_->SetVisibility(UI::V_VISIBLE);
+	// 			saveStatePreviewShownTime_ = time_now_d();
+	// 		}
+	// 		else
+	// 		{
+	// 			saveStatePreview_->SetVisibility(UI::V_GONE);
+	// 		}
+	// 	}
+
+	// 	if (saveStatePreview_->GetVisibility() == UI::V_VISIBLE)
+	// 	{
+	// 		double endTime = saveStatePreviewShownTime_ + 2.0;
+	// 		float alpha = clamp_value((endTime - time_now_d()) * 4.0, 0.0, 1.0);
+	// 		saveStatePreview_->SetColor(colorAlpha(0x00FFFFFF, alpha));
+
+	// 		if (time_now_d() - saveStatePreviewShownTime_ > 2)
+	// 		{
+	// 			saveStatePreview_->SetVisibility(UI::V_GONE);
+	// 		}
+	// 	}
+	// }
 }
 
 void EmuScreen::checkPowerDown()
