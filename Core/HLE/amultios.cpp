@@ -938,6 +938,7 @@ void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct m
                         trusted = false;
                         cmList.Add("Disconnected From Network", "Amultios", "SYSTEM", "HEADER");
                         cmList.Add(token.substr(1, 64), "Amultios", "SYSTEM", "HEADER");
+                        cmList.Update();
                     }
                 }
                 else if (topic_explode.at(0) == "TOKEN")

@@ -529,20 +529,20 @@ void CreditsScreen::CreateViews() {
 	// Really need to redo this whole layout with some linear layouts...
 
 	int rightYOffset = 0;
-	if (!System_GetPropertyBool(SYSPROP_APP_GOLD)) {
-		root_->Add(new Button(cr->T("Buy Gold"), new AnchorLayoutParams(260, 64, NONE, NONE, 10, 84, false)))->OnClick.Handle(this, &CreditsScreen::OnSupport);
-		rightYOffset = 74;
-	}
-	root_->Add(new Button(cr->T("PPSSPP Forums"), new AnchorLayoutParams(260, 64, 10, NONE, NONE, 158, false)))->OnClick.Handle(this, &CreditsScreen::OnForums);
-#if (PPSSPP_PLATFORM(WINDOWS) || PPSSPP_PLATFORM(MAC) || PPSSPP_PLATFORM(LINUX)) && !PPSSPP_PLATFORM(ANDROID)
-	root_->Add(new Button(cr->T("Discord"), new AnchorLayoutParams(260, 64, 10, NONE, NONE, 232, false)))->OnClick.Handle(this, &CreditsScreen::OnDiscord);
-#endif
-	root_->Add(new Button("www.ppsspp.org", new AnchorLayoutParams(260, 64, 10, NONE, NONE, 10, false)))->OnClick.Handle(this, &CreditsScreen::OnPPSSPPOrg);
-	root_->Add(new Button(cr->T("Privacy Policy"), new AnchorLayoutParams(260, 64, 10, NONE, NONE, 84, false)))->OnClick.Handle(this, &CreditsScreen::OnPrivacy);
-#ifdef __ANDROID__
-	root_->Add(new Button(cr->T("Share PPSSPP"), new AnchorLayoutParams(260, 64, NONE, NONE, 10, rightYOffset + 84, false)))->OnClick.Handle(this, &CreditsScreen::OnShare);
-	root_->Add(new Button(cr->T("Twitter @PPSSPP_emu"), new AnchorLayoutParams(260, 64, NONE, NONE, 10, rightYOffset + 158, false)))->OnClick.Handle(this, &CreditsScreen::OnTwitter);
-#endif
+// 	if (!System_GetPropertyBool(SYSPROP_APP_GOLD)) {
+// 		root_->Add(new Button(cr->T("Buy Gold"), new AnchorLayoutParams(260, 64, NONE, NONE, 10, 84, false)))->OnClick.Handle(this, &CreditsScreen::OnSupport);
+// 		rightYOffset = 74;
+// 	}
+// 	root_->Add(new Button(cr->T("PPSSPP Forums"), new AnchorLayoutParams(260, 64, 10, NONE, NONE, 158, false)))->OnClick.Handle(this, &CreditsScreen::OnForums);
+// #if (PPSSPP_PLATFORM(WINDOWS) || PPSSPP_PLATFORM(MAC) || PPSSPP_PLATFORM(LINUX)) && !PPSSPP_PLATFORM(ANDROID)
+// 	root_->Add(new Button(cr->T("Discord"), new AnchorLayoutParams(260, 64, 10, NONE, NONE, 232, false)))->OnClick.Handle(this, &CreditsScreen::OnDiscord);
+// #endif
+// 	root_->Add(new Button("www.ppsspp.org", new AnchorLayoutParams(260, 64, 10, NONE, NONE, 10, false)))->OnClick.Handle(this, &CreditsScreen::OnPPSSPPOrg);
+// 	root_->Add(new Button(cr->T("Privacy Policy"), new AnchorLayoutParams(260, 64, 10, NONE, NONE, 84, false)))->OnClick.Handle(this, &CreditsScreen::OnPrivacy);
+// #ifdef __ANDROID__
+// 	root_->Add(new Button(cr->T("Share PPSSPP"), new AnchorLayoutParams(260, 64, NONE, NONE, 10, rightYOffset + 84, false)))->OnClick.Handle(this, &CreditsScreen::OnShare);
+// 	root_->Add(new Button(cr->T("Twitter @PPSSPP_emu"), new AnchorLayoutParams(260, 64, NONE, NONE, 10, rightYOffset + 158, false)))->OnClick.Handle(this, &CreditsScreen::OnTwitter);
+// #endif
 	if (System_GetPropertyBool(SYSPROP_APP_GOLD)) {
 		root_->Add(new ImageView(I_ICONGOLD, IS_DEFAULT, new AnchorLayoutParams(100, 64, 10, 10, NONE, NONE, false)));
 	} else {
@@ -633,8 +633,16 @@ void CreditsScreen::render() {
 	specialthankssolarmystic += ')';
 
 	const char * credits[] = {
-		"Amultios",
 		"",
+		"",
+		"Network and Protocol provided by",
+		"",
+		"Niskala Creative Studio",
+		"",
+		"",
+		"",
+		"",
+		"Based On PPSSPP",
 		cr->T("title", "A fast and portable PSP emulator"),
 		"",
 		"",
@@ -719,7 +727,7 @@ void CreditsScreen::render() {
 		"PSP SDK",
 		"",
 		"",
-		cr->T("website", "Check out the website:"),
+		cr->T("website", "Check out the ppsspp website:"),
 		"www.ppsspp.org",
 		cr->T("list", "compatibility lists, forums, and development info"),
 		"",
@@ -728,7 +736,7 @@ void CreditsScreen::render() {
 		"https://www.dolphin-emu.org",
 		"",
 		"",
-		cr->T("info1", "PPSSPP is only intended to play games you own."),
+		cr->T("info1", "Amultios is only intended to play games you own."),
 		cr->T("info2", "Please make sure that you own the rights to any games"),
 		cr->T("info3", "you play by owning the UMD or by buying the digital"),
 		cr->T("info4", "download from the PSN store on your real PSP."),
@@ -743,7 +751,7 @@ void CreditsScreen::render() {
 	if (System_GetPropertyBool(SYSPROP_APP_GOLD)) {
 		snprintf(temp, sizeof(temp), "PPSSPP Gold %s", PPSSPP_GIT_VERSION);
 	} else {
-		snprintf(temp, sizeof(temp), "PPSSPP %s", PPSSPP_GIT_VERSION);
+		snprintf(temp, sizeof(temp), "Amultios %s", PPSSPP_GIT_VERSION);
 	}
 	credits[0] = (const char *)temp;
 
