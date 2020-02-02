@@ -527,8 +527,8 @@ void NativeInit(int argc, const char *argv[], const char *savegame_dir, const ch
 	// Maybe there should be an option to use internal memory instead, but I think
 	// that for most people, using external memory (SDCard/USB Storage) makes the
 	// most sense.
-	g_Config.memStickDirectory = std::string(external_dir) + "/";
-	g_Config.flash0Directory = std::string(external_dir) + "/flash0/";
+	g_Config.memStickDirectory = std::string(external_dir) + "/amultios/";
+	g_Config.flash0Directory = std::string(external_dir) + "/amultios/flash0/";
 
 	std::string memstickDirFile = g_Config.internalDataDirectory + "/memstick_dir.txt";
 	if (File::Exists(memstickDirFile))

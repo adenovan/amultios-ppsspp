@@ -398,7 +398,7 @@ public:
 
 	std::string currentDirectory;
 	std::string externalDirectory;
-	std::string memStickDirectory = "amultios";
+	std::string memStickDirectory;
 	std::string flash0Directory;
 	std::string internalDataDirectory;
 	std::string appCacheDirectory;

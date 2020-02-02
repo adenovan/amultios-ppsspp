@@ -67,7 +67,10 @@ void amultios_login()
         getLocalMac(&addres);
         packet.mac = addres;
         strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
-        strcpy((char *)packet.pin, g_Config.sAmultiosPin.c_str());
+
+        std::string pin = g_Config.sAmultiosPin.substr(0, 6);
+        //INFO_LOG(AMULTIOS,"PIN length %s",pin.c_str() );
+        strncpy((char *)packet.pin, pin.data(), pin.size());
         strcpy((char *)packet.revision, PPSSPP_GIT_VERSION);
 
         rc = amultios_subscribe(("AUTH/" + g_Config.sNickName).c_str(), 2);
@@ -424,25 +427,29 @@ void ChatMessages::ParseCommand(const std::string &text)
                 {
                     std::string selected = command.at(1);
                     std::transform(selected.begin(), selected.end(), selected.begin(), ::toupper);
-                    if (selectedRoom == "PARTY")
+                    if (selected == "PARTY")
                     {
                         this->selectedRoom = selected;
                         cmList.Add("Set Channel Into Party");
                     }
-                    else if(selectedRoom == "PRIVATE"){
-                        cmList.Add("use !pm command to set room into private");
-                    }
                     else
                     {
-                        auto subit = std::find(SubcriptionList.begin(), SubcriptionList.end(), selected);
-                        if (subit != SubcriptionList.end() && selected != "SYSTEM")
+                        if (selected == "PRIVATE")
                         {
-                            this->selectedRoom = selected;
-                            cmList.Add("Set channel into " + this->selectedRoom + " success", "Amultios", "SYSTEM", "HEADER");
+                            cmList.Add("use !pm nickname to switch into private room");
                         }
                         else
                         {
-                            cmList.Add("Channel " + selected + " is not in your subscription list", "Amultios", "SYSTEM", "HEADER");
+                            auto subit = std::find(SubcriptionList.begin(), SubcriptionList.end(), selected);
+                            if (subit != SubcriptionList.end() && selected != "SYSTEM")
+                            {
+                                this->selectedRoom = selected;
+                                cmList.Add("Set channel into " + this->selectedRoom + " success", "Amultios", "SYSTEM", "HEADER");
+                            }
+                            else
+                            {
+                                cmList.Add("Channel " + selected + " is not in your subscription list", "Amultios", "SYSTEM", "HEADER");
+                            }
                         }
                     }
                 }

@@ -1357,12 +1357,10 @@ UI::EventReturn GameSettingsScreen::OnChangeNickname(UI::EventParams &e)
 UI::EventReturn GameSettingsScreen::OnChangeAmultiosPin(UI::EventParams &e)
 {
 #if PPSSPP_PLATFORM(WINDOWS) || defined(USING_QT_UI)
-	const size_t pin_len = 6;
+	char pin[6];
+	memset(pin, 0, sizeof(pin));
 
-	char pin[pin_len];
-	memset(pin, 0, sizeof(pin_len));
-
-	if (System_InputBoxGetString("Enter 6 digit number pin", g_Config.sAmultiosPin.c_str(), pin, pin_len))
+	if (System_InputBoxGetString("Enter 6 digit number pin", g_Config.sAmultiosPin.c_str(), pin, sizeof(pin)))
 	{
 		g_Config.sAmultiosPin = pin;
 	}
