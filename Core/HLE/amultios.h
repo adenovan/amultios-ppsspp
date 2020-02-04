@@ -154,7 +154,7 @@ void ctl_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void ctl_disconnect_callback(struct mosquitto *mosq, void *obj);
 void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
-int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
+int pdp_publish(const char *topic, const void *payload, int size, int qos, unsigned long timeout);
 int pdp_subscribe(const char *topic, int qos);
 int pdp_unsubscribe(const char *topic);
 void pdp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
@@ -164,7 +164,7 @@ void pdp_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void pdp_disconnect_callback(struct mosquitto *mosq, void *obj);
 void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
-int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
+int ptp_publish(const char *topic, const void *payload, int size, int qos, unsigned long timeout);
 int ptp_subscribe(const char *topic, int qos);
 int ptp_unsubscribe(const char *topic);
 void ptp_publish_callback(struct mosquitto *mosq, void *obj, int mid);

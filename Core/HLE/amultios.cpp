@@ -474,10 +474,12 @@ void ChatMessages::ParseCommand(const std::string &text)
                     else if (selected == "MUTE")
                     {
                         this->MuteList.clear();
+                        cmList.Add("Mute list Cleared Success");
                     }
                     else if (selected == "MESSAGE")
                     {
                         this->AllChatDb.clear();
+                        cmList.Add("Clearing Message Success");
                     }
                 }
                 else
@@ -1191,25 +1193,20 @@ void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 };
 
 //start of pdp relay
-int pdp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
+int pdp_publish(const char *topic, const void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
-        char *data = (char *)payload;
+        const char *data = (const char *)payload;
         std::string input(data, data + (int)size);
         std::string output;
-        size_t success = snappy::Compress(input.data(), input.size(), &output);
+        output.reserve(size);
+        size_t success = snappy::Compress(&input[0], (int)size, &output);
         if (success > 0)
         {
-            rc = mosquitto_publish(pdp_mqtt->mclient, NULL, topic, success, output.data(), qos, false);
-            {
-                std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-                pdp_mqtt->pub_topic_latest = topic;
-                pdp_mqtt->pub_payload_len_latest = size;
-                pdp_mqtt->qos_latest = qos;
-            }
+            return mosquitto_publish(pdp_mqtt->mclient, NULL, topic, (int)success, &output[0], qos, false);
         }
     }
     return rc;
@@ -1349,7 +1346,7 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 };
 
 // start of ptp relay
-int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
+int ptp_publish(const char *topic,const void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     auto ptp_mqtt = g_ptp_mqtt;
@@ -1363,15 +1360,16 @@ int ptp_publish(const char *topic, void *payload, size_t size, int qos, unsigned
                 char *data = (char *)payload;
                 std::string input(data, data + (int)size);
                 std::string output;
-                size_t success = snappy::Compress(input.data(), input.size(), &output);
+                output.reserve(size);
+                size_t success = snappy::Compress(&input[0], (int)size, &output);
                 if (success > 0)
                 {
-                    rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, success, output.data(), qos, false);
+                    return mosquitto_publish(ptp_mqtt->mclient, NULL, topic, (int)success, &output[0], qos, false);
                 }
             }
             else
             {
-                rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
+                return mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
             }
         }
         catch (const std::out_of_range &ex)
@@ -2434,8 +2432,8 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                             else
                             {
 
-                                /*Group Broadcast overflow the socket
-                                SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
+                                //Group Broadcast overflow the socket
+                                /*SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
                                 int rc;
                                 std::string pdp_single_topic;
                                 std::string group_s = getCurrentGroup();
@@ -2457,6 +2455,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                 {
                                     rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
                                 }*/
+
 
                                 peerlock.lock();
 
@@ -2481,11 +2480,6 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                 // Free Peer Lock
                                 peerlock.unlock();
 
-                                // auto pdp_mqtt = g_pdp_mqtt;
-                                // if (pdp_mqtt->connected)
-                                // {
-                                //     mosquitto_loop(pdp_mqtt->mclient, timeout, 1);
-                                // }
                                 return 0;
                             }
                         }
