@@ -120,7 +120,6 @@ void __NetAdhocShutdown()
 		{
 			__AMULTIOS_CTL_SHUTDOWN();
 		}
-
 		mosquitto_lib_cleanup();
 	}
 }

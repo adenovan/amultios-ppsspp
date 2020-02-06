@@ -182,14 +182,14 @@ void AmultiosOverlayScreen::UpdateChat()
 #else
 		maxLength = 60;
 #endif
-		int currentTextLength = 0;
+		size_t currentTextLength = 0;
 		for (auto iter = messages.begin(); iter != messages.end(); ++iter)
 		{
 			currentTextLength = iter->text.length() + iter->room.length() + iter->name.length();
 			if (currentTextLength > maxLength)
 			{
 				int start = 0;
-				int pos = maxLength - (iter->room.length() + iter->name.length());
+				size_t pos = maxLength - (iter->room.length() + iter->name.length());
 				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins)));
 				TextView *GroupView = line->Add(new TextView(" [" + iter->room + "]", FLAG_DYNAMIC_ASCII, true));
 				GroupView->SetTextColor(0xFF000000 | iter->roomcolor);

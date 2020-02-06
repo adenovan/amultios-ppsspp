@@ -1361,7 +1361,7 @@ void EmuScreen::update()
 
 			if (currentTextLength > maxLength)
 			{
-				int pos = maxLength - (iter->room.length() + iter->name.length());
+				size_t pos = maxLength - (iter->room.length() + iter->name.length());
 
 				if (iter->text.length() > pos)
 				{

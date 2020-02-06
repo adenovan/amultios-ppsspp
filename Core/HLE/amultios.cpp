@@ -111,7 +111,7 @@ void amultios_sync()
     }
 
     loginInfo.party = getCurrentGroup();
-    amultios_publish("TOKEN", (void *)g_token.data(), g_token.length(), 2, 0);
+    amultios_publish("TOKEN", (void *)g_token.data(), (int)g_token.length(), 2, 0);
 }
 
 void ChatMessages::doPlayerStatusUpdate()
@@ -508,7 +508,7 @@ void ChatMessages::ParseCommand(const std::string &text)
             cmList.Update();
         }
     }
-    catch (const std::out_of_range &ex)
+    catch (const std::out_of_range)
     {
         ERROR_LOG(AMULTIOS, "Failed to parse command [%s]", text.c_str());
         cmList.Add("Invalid command pattern type !help for valid commandlist", "Amultios", "SYSTEM");
@@ -524,7 +524,7 @@ void ChatMessages::SendChat(const std::string &text)
         if (this->selectedRoom == "PRIVATE")
         {
             std::string pubtopic = "CHAT/" + this->selectedRoom + this->privateMessageRoom + "/" + g_Config.sNickName;
-            int rc = amultios_publish(pubtopic.c_str(), (void *)text.c_str(), text.size(), 2, 0);
+            int rc = amultios_publish(pubtopic.c_str(), (void *)text.c_str(), (int)text.size(), 2, 0);
             if (rc == MOSQ_ERR_SUCCESS)
             {
                 cmList.Add(text, g_Config.sNickName, "PRIVATE");
@@ -541,7 +541,7 @@ void ChatMessages::SendChat(const std::string &text)
             else
             {
                 std::string pubtopic = "CHAT/" + room + "/" + g_Config.sNickName;
-                amultios_publish(pubtopic.c_str(), (void *)text.c_str(), text.size(), 2, 0);
+                amultios_publish(pubtopic.c_str(), (void *)text.c_str(), (int)text.size(), 2, 0);
             }
         }
         else
@@ -550,7 +550,7 @@ void ChatMessages::SendChat(const std::string &text)
             if (subit != SubcriptionList.end())
             {
                 std::string topic = "CHAT/" + this->selectedRoom + "/" + g_Config.sNickName;
-                amultios_publish(topic.c_str(), (void *)text.c_str(), text.size(), 2, 0);
+                amultios_publish(topic.c_str(), (void *)text.c_str(), (int)text.size(), 2, 0);
             }
             else
             {
@@ -764,7 +764,7 @@ bool macInNetwork(const SceNetEtherAddr *mac)
 
 //start of amultios socket
 
-int amultios_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
+int amultios_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     auto amultios_mqtt = g_amultios_mqtt;
@@ -972,7 +972,7 @@ void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct m
                 }
             }
         }
-        catch (const std::out_of_range &ex)
+        catch (const std::out_of_range)
         {
             ERROR_LOG(AMULTIOS, "Failed To Parse chat Message Topic[%s]", message->topic);
         }
@@ -980,7 +980,7 @@ void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct m
 };
 
 //start of ctl relay
-int ctl_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout)
+int ctl_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     auto ctl_mqtt = g_ctl_mqtt;
@@ -1206,20 +1206,22 @@ void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 };
 
 //start of pdp relay
-int pdp_publish(const char *topic, const void *payload, int size, int qos, unsigned long timeout)
+int pdp_publish(const char *topic,void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
-        const char *data = (const char *)payload;
-        std::string input(data, data + (int)size);
+		//std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+		std::string input;
+		input.reserve(size);
+		std::memcpy(&input[0], payload, size);
         std::string output;
-        output.reserve(size);
-        size_t success = snappy::Compress(&input[0], (int)size, &output);
+        size_t success = snappy::Compress(&input[0], size, &output);
         if (success > 0)
         {
-            return mosquitto_publish(pdp_mqtt->mclient, NULL, topic, (int)success, &output[0], qos, false);
+			std::vector<uint8_t> bytes(output.begin(), output.end());
+            return mosquitto_publish(pdp_mqtt->mclient, NULL, topic, (int)bytes.size(), bytes.data(), qos, false);
         }
     }
     return rc;
@@ -1342,7 +1344,7 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 
             if (success)
             {
-                msg.payloadlen = msg.payload.length();
+                msg.payloadlen = (int)msg.payload.length();
                 //msg.payload = std::vector<char>(data, data + msg.payloadlen);
                 //DEBUG_LOG(AMULTIOS, "PDP Message Received len:[%d]", msg.payloadlen);
                 {
@@ -1351,7 +1353,7 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                 }
             }
         }
-        catch (const std::out_of_range &ex)
+        catch (const std::out_of_range)
         {
             ERROR_LOG(AMULTIOS, "Failed To Parse PDP Message Topic[%s]", message->topic);
         }
@@ -1359,25 +1361,27 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 };
 
 // start of ptp relay
-int ptp_publish(const char *topic, const void *payload, int size, int qos, unsigned long timeout)
+int ptp_publish(const char *topic,void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr && ptp_mqtt->connected && ptpInited)
     {
+        //std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
         try
         {
             std::vector<std::string> topic_explode(explode(topic, '/'));
             if (std::strcmp(topic_explode.at(1).c_str(), "D\0") == 0)
             {
-                char *data = (char *)payload;
-                std::string input(data, data + (int)size);
+				std::string input;
+				input.reserve(size);
+				std::memcpy(&input[0], payload, size);
                 std::string output;
-                output.reserve(size);
                 size_t success = snappy::Compress(&input[0], (int)size, &output);
                 if (success > 0)
                 {
-                    return mosquitto_publish(ptp_mqtt->mclient, NULL, topic, (int)success, &output[0], qos, false);
+					std::vector<uint8_t> bytes(output.begin(), output.end());
+                    return mosquitto_publish(ptp_mqtt->mclient, NULL, topic, (int)bytes.size(), bytes.data(), qos, false);
                 }
             }
             else
@@ -1385,17 +1389,10 @@ int ptp_publish(const char *topic, const void *payload, int size, int qos, unsig
                 return mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
             }
         }
-        catch (const std::out_of_range &ex)
+        catch (const std::out_of_range)
         {
             ERROR_LOG(AMULTIOS, "PTP Failed to parse topic [%s]", topic);
         }
-
-        // {
-        //     std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
-        //     ptp_mqtt->pub_topic_latest = topic;
-        //     ptp_mqtt->pub_payload_len_latest = size;
-        //     ptp_mqtt->qos_latest = qos;
-        // }
     }
     return rc;
 }
@@ -1517,7 +1514,7 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 
                     if (success)
                     {
-                        msg.payloadlen = msg.payload.length();
+                        msg.payloadlen = (int)msg.payload.length();
                         {
                             DEBUG_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
                             std::lock_guard<std::mutex> lock(ptp_queue_mutex);
@@ -1621,7 +1618,7 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                     }
                 }
             }
-            catch (const std::out_of_range &ex)
+            catch (const std::out_of_range)
             {
                 ERROR_LOG(AMULTIOS, "Failed To Parse PTP Message Topic[%s]", message->topic);
             }

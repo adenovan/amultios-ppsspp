@@ -1,5 +1,6 @@
 #include "Core/HLE/proAdhoc.h"
 
+
 extern "C"
 {
 #include "mosquitto.h"
@@ -135,7 +136,7 @@ bool macInNetwork(const SceNetEtherAddr *mac);
 
 void amultios_login();
 void amultios_sync();
-int amultios_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
+int amultios_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout);
 int amultios_subscribe(const char *topic, int qos);
 int amultios_unsubscribe(const char *topic);
 void amultios_publish_callback(struct mosquitto *mosq, void *obj, int mid);
@@ -145,7 +146,7 @@ void amultios_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void amultios_disconnect_callback(struct mosquitto *mosq, void *obj);
 void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
-int ctl_publish(const char *topic, void *payload, size_t size, int qos, unsigned long timeout);
+int ctl_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout);
 int ctl_subscribe(const char *topic, int qos);
 int ctl_unsubscribe(const char *topic);
 void ctl_publish_callback(struct mosquitto *mosq, void *obj, int mid);
@@ -155,7 +156,7 @@ void ctl_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void ctl_disconnect_callback(struct mosquitto *mosq, void *obj);
 void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
-int pdp_publish(const char *topic, const void *payload, int size, int qos, unsigned long timeout);
+int pdp_publish(const char *topic,void *payload, int size, int qos, unsigned long timeout);
 int pdp_subscribe(const char *topic, int qos);
 int pdp_unsubscribe(const char *topic);
 void pdp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
@@ -165,7 +166,7 @@ void pdp_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void pdp_disconnect_callback(struct mosquitto *mosq, void *obj);
 void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
-int ptp_publish(const char *topic, const void *payload, int size, int qos, unsigned long timeout);
+int ptp_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout);
 int ptp_subscribe(const char *topic, int qos);
 int ptp_unsubscribe(const char *topic);
 void ptp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
