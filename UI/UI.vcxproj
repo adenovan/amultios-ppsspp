@@ -233,10 +233,12 @@
       <Command>../Windows/git-version-gen.cmd</Command>
     </PreBuildEvent>
     <Lib>
-      <AdditionalDependencies>mosquitto_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
     </Lib>
     <Lib>
-      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -344,10 +346,12 @@
       <Command>../Windows/git-version-gen.cmd</Command>
     </PreBuildEvent>
     <Lib>
-      <AdditionalDependencies>mosquitto_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
     </Lib>
     <Lib>
-      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
