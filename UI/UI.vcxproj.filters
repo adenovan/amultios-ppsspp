@@ -74,6 +74,7 @@
     <ClCompile Include="GPUDriverTestScreen.cpp">
       <Filter>Screens</Filter>
     </ClCompile>
+    <ClCompile Include="AmultiosOverlayScreen.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameInfoCache.h" />
@@ -149,6 +150,7 @@
     <ClInclude Include="GPUDriverTestScreen.h">
       <Filter>Screens</Filter>
     </ClInclude>
+    <ClInclude Include="AmultiosOverlayScreen.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Screens">

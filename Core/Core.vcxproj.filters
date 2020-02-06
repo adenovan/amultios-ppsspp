@@ -740,6 +740,9 @@
     <ClCompile Include="HLE\sceUsbMic.cpp">
       <Filter>HLE\Libraries</Filter>
     </ClCompile>
+    <ClCompile Include="HLE\amultios.cpp">
+      <Filter>HLE\Libraries</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ELF\ElfReader.h">
@@ -1371,6 +1374,9 @@
       <Filter>Debugger\WebSocket</Filter>
     </ClInclude>
     <ClInclude Include="HLE\sceUsbMic.h">
+      <Filter>HLE\Libraries</Filter>
+    </ClInclude>
+    <ClInclude Include="HLE\amultios.h">
       <Filter>HLE\Libraries</Filter>
     </ClInclude>
   </ItemGroup>

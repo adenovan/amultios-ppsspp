@@ -182,14 +182,14 @@
     <OutDir>..\</OutDir>
     <TargetName>PPSSPPDebug</TargetName>
     <EmbedManifest>false</EmbedManifest>
-    <IncludePath>..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath);</IncludePath>
-    <LibraryPath>..\dx9sdk\Lib\x86;$(VC_LibraryPath_x86);$(WindowsSdk_LibraryPath_x86);</LibraryPath>
+    <IncludePath>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;..\dx9sdk\Lib\x86;$(VC_LibraryPath_x86);$(WindowsSdk_LibraryPath_x86)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>PPSSPPDebug64</TargetName>
     <EmbedManifest>false</EmbedManifest>
-    <IncludePath>..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath);</IncludePath>
-    <LibraryPath>..\dx9sdk\Lib\x64;$(VC_LibraryPath_x64);$(WindowsSdk_LibraryPath_x64);</LibraryPath>
+    <IncludePath>..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto_build\x64\lib\Release;..\dx9sdk\Lib\x64;$(VC_LibraryPath_x64);$(WindowsSdk_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <TargetName>PPSSPPDebugARM64</TargetName>
@@ -208,8 +208,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>PPSSPPWindows64</TargetName>
     <EmbedManifest>false</EmbedManifest>
-    <IncludePath>..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath);</IncludePath>
-    <LibraryPath>..\dx9sdk\Lib\x64;$(VC_LibraryPath_x64);$(WindowsSdk_LibraryPath_x64);</LibraryPath>
+    <IncludePath>..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto_build\x64\lib\Release;..\dx9sdk\Lib\x64;$(VC_LibraryPath_x64);$(WindowsSdk_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <TargetName>PPSSPPWindowsARM64</TargetName>
@@ -227,8 +227,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <EmbedManifest>false</EmbedManifest>
-    <IncludePath>..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath);</IncludePath>
-    <LibraryPath>..\dx9sdk\Lib\x86;$(VC_LibraryPath_x86);$(WindowsSdk_LibraryPath_x86);</LibraryPath>
+    <IncludePath>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;..\dx9sdk\Lib\x86;$(VC_LibraryPath_x86);$(WindowsSdk_LibraryPath_x86)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -238,7 +238,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h;Common/DbgNew.h</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
@@ -258,6 +258,7 @@
       <BaseAddress>
       </BaseAddress>
       <AdditionalOptions>/ignore:4049 /ignore:4217 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
       <Command>../Windows/git-version-gen.cmd</Command>
@@ -275,7 +276,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h;Common/DbgNew.h</ForcedIncludeFiles>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <OmitFramePointers>false</OmitFramePointers>
@@ -287,13 +288,14 @@
       <AdditionalOptions>$(EXTERNAL_COMPILE_OPTIONS)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>Winmm.lib;Ws2_32.lib;opengl32.lib;dsound.lib;glu32.lib;comctl32.lib;d3d9.lib;dxguid.lib;..\ffmpeg\Windows\x86_64\lib\avcodec.lib;..\ffmpeg\Windows\x86_64\lib\avformat.lib;..\ffmpeg\Windows\x86_64\lib\avutil.lib;..\ffmpeg\Windows\x86_64\lib\swresample.lib;..\ffmpeg\Windows\x86_64\lib\swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>mosquitto.lib;Winmm.lib;Ws2_32.lib;opengl32.lib;dsound.lib;glu32.lib;comctl32.lib;d3d9.lib;dxguid.lib;..\ffmpeg\Windows\x86_64\lib\avcodec.lib;..\ffmpeg\Windows\x86_64\lib\avformat.lib;..\ffmpeg\Windows\x86_64\lib\avutil.lib;..\ffmpeg\Windows\x86_64\lib\swresample.lib;..\ffmpeg\Windows\x86_64\lib\swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)$(ProjectName).pdb</ProgramDatabaseFile>
       <LargeAddressAware>true</LargeAddressAware>
       <ShowProgress>NotSet</ShowProgress>
       <AdditionalOptions>/ignore:4049 /ignore:4217 %(AdditionalOptions)</AdditionalOptions>
       <SubSystem>Windows</SubSystem>
+      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto_build\x64\lib\libmosquitto_static.dir\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto_build\x64\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
       <Command>../Windows/git-version-gen.cmd</Command>
@@ -382,7 +384,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
       <PrecompiledHeaderFile>stdafx.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -392,7 +394,7 @@
     <Link>
       <AdditionalDependencies>Winmm.lib;Ws2_32.lib;opengl32.lib;dsound.lib;glu32.lib;comctl32.lib;d3d9.lib;dxguid.lib;..\ffmpeg\Windows\x86\lib\avcodec.lib;..\ffmpeg\Windows\x86\lib\avformat.lib;..\ffmpeg\Windows\x86\lib\avutil.lib;..\ffmpeg\Windows\x86\lib\swresample.lib;..\ffmpeg\Windows\x86\lib\swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -431,15 +433,15 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <AdditionalOptions>$(EXTERNAL_COMPILE_OPTIONS)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>Winmm.lib;Ws2_32.lib;opengl32.lib;dsound.lib;glu32.lib;comctl32.lib;d3d9.lib;dxguid.lib;..\ffmpeg\Windows\x86_64\lib\avcodec.lib;..\ffmpeg\Windows\x86_64\lib\avformat.lib;..\ffmpeg\Windows\x86_64\lib\avutil.lib;..\ffmpeg\Windows\x86_64\lib\swresample.lib;..\ffmpeg\Windows\x86_64\lib\swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>mosquitto.lib;Winmm.lib;Ws2_32.lib;opengl32.lib;dsound.lib;glu32.lib;comctl32.lib;d3d9.lib;dxguid.lib;..\ffmpeg\Windows\x86_64\lib\avcodec.lib;..\ffmpeg\Windows\x86_64\lib\avformat.lib;..\ffmpeg\Windows\x86_64\lib\avutil.lib;..\ffmpeg\Windows\x86_64\lib\swresample.lib;..\ffmpeg\Windows\x86_64\lib\swscale.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto_build\x64\lib\libmosquitto_static.dir\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto_build\x64\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>

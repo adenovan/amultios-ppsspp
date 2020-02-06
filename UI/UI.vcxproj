@@ -35,6 +35,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AmultiosOverlayScreen.cpp" />
     <ClCompile Include="BackgroundAudio.cpp" />
     <ClCompile Include="ComboKeyMappingScreen.cpp" />
     <ClCompile Include="ControlMappingScreen.cpp" />
@@ -68,6 +69,7 @@
     <ClCompile Include="ui_atlas.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AmultiosOverlayScreen.h" />
     <ClInclude Include="BackgroundAudio.h" />
     <ClInclude Include="ComboKeyMappingScreen.h" />
     <ClInclude Include="ControlMappingScreen.h" />
@@ -201,13 +203,19 @@
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>_CRTDBG_MAP_ALLOC;USING_WIN_UI;_CRT_SECURE_NO_WARNINGS;_ARCH_32=1;WIN32;_DEBUG;_LIB;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
@@ -224,6 +232,12 @@
       <Message>Updating git-version.cpp</Message>
       <Command>../Windows/git-version-gen.cmd</Command>
     </PreBuildEvent>
+    <Lib>
+      <AdditionalDependencies>mosquitto_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
+    <Lib>
+      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -231,7 +245,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>_CRTDBG_MAP_ALLOC;USING_WIN_UI;_CRT_SECURE_NO_WARNINGS;_ARCH_64=1;WIN32;_DEBUG;_LIB;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
@@ -310,7 +324,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>USING_WIN_UI;_CRT_SECURE_NO_WARNINGS;_ARCH_32=1;WIN32;NDEBUG;_LIB;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -329,6 +343,12 @@
       <Message>Updating git-version.cpp</Message>
       <Command>../Windows/git-version-gen.cmd</Command>
     </PreBuildEvent>
+    <Lib>
+      <AdditionalDependencies>mosquitto_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
+    <Lib>
+      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -339,7 +359,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>USING_WIN_UI;_CRT_SECURE_NO_WARNINGS;_ARCH_64=1;WIN32;NDEBUG;_LIB;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>

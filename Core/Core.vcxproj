@@ -71,7 +71,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\Windows\fix_2017.props" />
   </ImportGroup>
-
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -130,11 +129,18 @@
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(IncludePath)</IncludePath>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(IncludePath)</IncludePath>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>..\ffmpeg\WindowsInclude;..\ffmpeg\Windows\x86\include;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;..\ffmpeg\WindowsInclude;..\ffmpeg\Windows\x86\include;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRTDBG_MAP_ALLOC;USING_WIN_UI;_CRT_SECURE_NO_WARNINGS;USE_FFMPEG;WIN32;_ARCH_32=1;_M_IX86=1;_DEBUG;_LIB;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Precise</FloatingPointModel>
@@ -152,11 +158,15 @@
       <Command>../Windows/git-version-gen.cmd</Command>
       <Message>Updating git-version.cpp</Message>
     </PreBuildEvent>
+    <Lib>
+      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>mosquitto_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>..\ffmpeg\WindowsInclude;..\ffmpeg\Windows\x86_64\include;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;..\ffmpeg\WindowsInclude;..\ffmpeg\Windows\x86_64\include;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRTDBG_MAP_ALLOC;USING_WIN_UI;_CRT_SECURE_NO_WARNINGS;USE_FFMPEG;WIN32;_ARCH_64=1;_M_X64=1;_DEBUG;_LIB;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
       <FloatingPointModel>Precise</FloatingPointModel>
@@ -175,6 +185,10 @@
       <Command>../Windows/git-version-gen.cmd</Command>
       <Message>Updating git-version.cpp</Message>
     </PreBuildEvent>
+    <Lib>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <ClCompile>
@@ -229,7 +243,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\ffmpeg\WindowsInclude;..\ffmpeg\Windows\x86\include;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;..\ffmpeg\WindowsInclude;..\ffmpeg\Windows\x86\include;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Precise</FloatingPointModel>
@@ -251,7 +265,8 @@
       <Message>Updating git-version.cpp</Message>
     </PreBuildEvent>
     <Lib>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>mosquitto_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\libmosquitto_static.dir\Release;C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\build32\lib\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -260,7 +275,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\ffmpeg\WindowsInclude;..\ffmpeg\Windows\x86_64\include;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;..\ffmpeg\WindowsInclude;..\ffmpeg\Windows\x86_64\include;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
       <FloatingPointModel>Precise</FloatingPointModel>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -283,6 +298,10 @@
       <Command>../Windows/git-version-gen.cmd</Command>
       <Message>Updating git-version.cpp</Message>
     </PreBuildEvent>
+    <Lib>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <ClCompile>
@@ -371,6 +390,7 @@
     <ClCompile Include="Debugger\WebSocket\SteppingSubscriber.cpp" />
     <ClCompile Include="Debugger\WebSocket\WebSocketUtils.cpp" />
     <ClCompile Include="FileSystems\BlobFileSystem.cpp" />
+    <ClCompile Include="HLE\amultios.cpp" />
     <ClCompile Include="HLE\KUBridge.cpp" />
     <ClCompile Include="HLE\sceUsbAcc.cpp" />
     <ClCompile Include="HLE\sceUsbCam.cpp" />
@@ -898,6 +918,7 @@
     <ClInclude Include="Debugger\WebSocket\LogBroadcaster.h" />
     <ClInclude Include="Debugger\WebSocket\SteppingBroadcaster.h" />
     <ClInclude Include="FileSystems\BlobFileSystem.h" />
+    <ClInclude Include="HLE\amultios.h" />
     <ClInclude Include="HLE\KernelThreadDebugInterface.h" />
     <ClInclude Include="HLE\KUBridge.h" />
     <ClInclude Include="HLE\sceUsbAcc.h" />

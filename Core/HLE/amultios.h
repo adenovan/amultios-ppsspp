@@ -1,7 +1,8 @@
 #include "Core/HLE/proAdhoc.h"
+
 extern "C"
 {
-#include <mosquitto.h>
+#include "mosquitto.h"
 }
 
 #define PIN_LENGTH 6
