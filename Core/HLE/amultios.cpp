@@ -206,18 +206,21 @@ void ChatMessages::Add(const std::string &text, const std::string &name, const s
     chat.text = text;
     chat.type = type;
 
-    if(room == "PARTY"){
+    if (room == "PARTY")
+    {
         chat.roomcolor = green;
     }
 
-    if(room == "PRIVATE"){
+    if (room == "PRIVATE")
+    {
         chat.roomcolor = red;
     }
 
-    if(room == "WORLD"){
+    if (room == "WORLD")
+    {
         chat.roomcolor = purple;
     }
-    
+
     if (name == g_Config.sNickName.c_str())
     {
         chat.namecolor = red;
@@ -771,6 +774,7 @@ int amultios_publish(const char *topic, void *payload, int size, int qos, unsign
     if (amultios_mqtt != nullptr && amultios_mqtt->connected && amultiosInited)
     {
 
+        std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
         rc = mosquitto_publish(amultios_mqtt->mclient, NULL, topic, size, payload, qos, false);
 
         if (rc != MOSQ_ERR_SUCCESS)
@@ -778,12 +782,9 @@ int amultios_publish(const char *topic, void *payload, int size, int qos, unsign
             ERROR_LOG(MQTT, "[%s] Publish Error : %s", amultios_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
         }
 
-        {
-            std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
-            amultios_mqtt->pub_topic_latest = topic;
-            amultios_mqtt->pub_payload_len_latest = size;
-            amultios_mqtt->qos_latest = qos;
-        }
+        amultios_mqtt->pub_topic_latest = topic;
+        amultios_mqtt->pub_payload_len_latest = size;
+        amultios_mqtt->qos_latest = qos;
     }
     return rc;
 }
@@ -1206,22 +1207,26 @@ void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 };
 
 //start of pdp relay
-int pdp_publish(const char *topic,void *payload, int size, int qos, unsigned long timeout)
+int pdp_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
-		//std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-		std::string input;
-		input.reserve(size);
-		std::memcpy(&input[0], payload, size);
+        std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+        // std::string input;
+        // input.reserve(size);
+        // std::memcpy(&input[0], payload, size);
+        // std::string output;
+        // size_t success = snappy::Compress(&input[0], size, &output);
+        Memory::Lock();
+        const char *data = reinterpret_cast<const char *>(payload);
         std::string output;
-        size_t success = snappy::Compress(&input[0], size, &output);
+        size_t success = snappy::Compress(data, size, &output);
         if (success > 0)
         {
-			std::vector<uint8_t> bytes(output.begin(), output.end());
-            return mosquitto_publish(pdp_mqtt->mclient, NULL, topic, (int)bytes.size(), bytes.data(), qos, false);
+            int length = static_cast<int>(success);
+            rc = mosquitto_publish(pdp_mqtt->mclient, NULL, topic, length, output.data(), qos, false);
         }
     }
     return rc;
@@ -1361,32 +1366,34 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 };
 
 // start of ptp relay
-int ptp_publish(const char *topic,void *payload, int size, int qos, unsigned long timeout)
+int ptp_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     auto ptp_mqtt = g_ptp_mqtt;
     if (ptp_mqtt != nullptr && ptp_mqtt->connected && ptpInited)
     {
-        //std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
+        std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
         try
         {
             std::vector<std::string> topic_explode(explode(topic, '/'));
             if (std::strcmp(topic_explode.at(1).c_str(), "D\0") == 0)
             {
-				std::string input;
-				input.reserve(size);
-				std::memcpy(&input[0], payload, size);
+                //std::string input;
+                //input.reserve(size);
+                //std::memcpy(&input[0], payload, size);
+                Memory::Lock();
+                const char *data = reinterpret_cast<const char *>(payload);
                 std::string output;
-                size_t success = snappy::Compress(&input[0], (int)size, &output);
+                size_t success = snappy::Compress(data, size, &output);
                 if (success > 0)
                 {
-					std::vector<uint8_t> bytes(output.begin(), output.end());
-                    return mosquitto_publish(ptp_mqtt->mclient, NULL, topic, (int)bytes.size(), bytes.data(), qos, false);
+                    int length = static_cast<int>(success);
+                    rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, length, output.data(), qos, false);
                 }
             }
             else
             {
-                return mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
+                rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
             }
         }
         catch (const std::out_of_range)
@@ -1403,13 +1410,11 @@ int ptp_subscribe(const char *topic, int qos)
     int rc = MOSQ_ERR_CONN_PENDING;
     if (ptp_mqtt != nullptr && ptp_mqtt->connected && ptpInited)
     {
+        std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
         rc = mosquitto_subscribe(ptp_mqtt->mclient, NULL, topic, qos);
         INFO_LOG(AMULTIOS, "ptp_mqtt subscribe to topic:[%s] qos:[%d]", topic, qos);
-        {
-            std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
-            ptp_mqtt->sub_topic_latest = topic;
-            ptp_mqtt->qos_latest = qos;
-        }
+        ptp_mqtt->sub_topic_latest = topic;
+        ptp_mqtt->qos_latest = qos;
     }
     return rc;
 }
@@ -1863,7 +1868,7 @@ int __AMULTIOS_PDP_INIT()
         mosquitto_threaded_set(g_pdp_mqtt->mclient, true);
         mosquitto_int_option(g_pdp_mqtt->mclient, MOSQ_OPT_SEND_MAXIMUM, 0);
         mosquitto_int_option(g_pdp_mqtt->mclient, MOSQ_OPT_RECEIVE_MAXIMUM, 0);
-        mosquitto_int_option(g_pdp_mqtt->mclient, MOSQ_OPT_TCP_NODELAY,true);
+        mosquitto_int_option(g_pdp_mqtt->mclient, MOSQ_OPT_TCP_NODELAY, true);
         if ((rc = mosquitto_connect(g_pdp_mqtt->mclient, getModeAddress().c_str(), 1883, 300)) != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to connect, return code %s\n", g_pdp_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
@@ -1935,7 +1940,7 @@ int __AMULTIOS_PTP_INIT()
         mosquitto_threaded_set(g_ptp_mqtt->mclient, true);
         mosquitto_int_option(g_ptp_mqtt->mclient, MOSQ_OPT_SEND_MAXIMUM, 0);
         mosquitto_int_option(g_ptp_mqtt->mclient, MOSQ_OPT_RECEIVE_MAXIMUM, 0);
-        mosquitto_int_option(g_ptp_mqtt->mclient, MOSQ_OPT_TCP_NODELAY,true);
+        mosquitto_int_option(g_ptp_mqtt->mclient, MOSQ_OPT_TCP_NODELAY, true);
         if ((rc = mosquitto_connect(g_ptp_mqtt->mclient, getModeAddress().c_str(), 1883, 60)) != MOSQ_ERR_SUCCESS)
         {
             ERROR_LOG(AMULTIOS, "[%s] Failed to connect, return code %s\n", g_ptp_mqtt->mqtt_id.c_str(), mosquitto_strerror(rc));
