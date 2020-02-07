@@ -1207,27 +1207,15 @@ void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 };
 
 //start of pdp relay
-int pdp_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout)
+int pdp_publish(const char *topic, const void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     auto pdp_mqtt = g_pdp_mqtt;
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
-        std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-        // std::string input;
-        // input.reserve(size);
-        // std::memcpy(&input[0], payload, size);
-        // std::string output;
-        // size_t success = snappy::Compress(&input[0], size, &output);
-        Memory::Lock();
-        const char *data = reinterpret_cast<const char *>(payload);
-        std::string output;
-        size_t success = snappy::Compress(data, size, &output);
-        if (success > 0)
-        {
-            int length = static_cast<int>(success);
-            rc = mosquitto_publish(pdp_mqtt->mclient, NULL, topic, length, output.data(), qos, false);
-        }
+        //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+		Memory::Lock();
+        rc = mosquitto_publish(pdp_mqtt.get()->mclient, NULL, topic, size, payload, qos, false);
     }
     return rc;
 }
@@ -1240,7 +1228,7 @@ int pdp_subscribe(const char *topic, int qos)
     {
         NOTICE_LOG(AMULTIOS, "[%s] subscribe to topic:[%s] qos:[%d]", pdp_mqtt->mqtt_id.c_str(), topic, qos);
         {
-            std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+            //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             pdp_mqtt->sub_topic_latest = topic;
             pdp_mqtt->qos_latest = qos;
         }
@@ -1256,10 +1244,10 @@ int pdp_unsubscribe(const char *topic)
     if (pdp_mqtt != nullptr && pdp_mqtt->connected && pdpInited)
     {
         rc = mosquitto_unsubscribe(pdp_mqtt->mclient, NULL, topic);
-        {
-            std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-            pdp_mqtt->sub_topic_latest = topic;
-        }
+        //{
+            //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+            //pdp_mqtt->sub_topic_latest = topic;
+        //}
     }
     return rc;
 }
@@ -1279,10 +1267,10 @@ void pdp_subscribe_callback(struct mosquitto *mosq, void *obj, int mid, int qos_
     if (pdp_mqtt != nullptr && pdpInited)
     {
         INFO_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->sub_topic_latest.c_str(), pdp_mqtt->qos_latest);
-        {
-            std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-            pdp_mqtt->subscribed += 1;
-        }
+        //{
+            //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+            //pdp_mqtt->subscribed += 1;
+        //}
     }
 };
 
@@ -1293,8 +1281,8 @@ void pdp_unsubscribe_callback(struct mosquitto *mosq, void *obj, int mid)
     {
         INFO_LOG(AMULTIOS, "[%s] Unsubscribe Success on topic [%s]", pdp_mqtt->mqtt_id.c_str(), pdp_mqtt->sub_topic_latest.c_str());
         {
-            std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
-            pdp_mqtt->subscribed -= 1;
+           // std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+            //pdp_mqtt->subscribed -= 1;
         }
     }
 };
@@ -1306,7 +1294,7 @@ void pdp_connect_callback(struct mosquitto *mosq, void *obj, int rc)
     {
         NOTICE_LOG(AMULTIOS, "[%s] Connect Success", pdp_mqtt->mqtt_id.c_str());
         {
-            std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+            //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             pdp_mqtt->connected = true;
             pdp_mqtt->reconnectInProgress = false;
         }
@@ -1320,7 +1308,7 @@ void pdp_disconnect_callback(struct mosquitto *mosq, void *obj)
     {
         NOTICE_LOG(AMULTIOS, "[%s] Disconnect Success", pdp_mqtt->mqtt_id.c_str());
         {
-            std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+            //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             pdp_mqtt->connected = false;
             pdp_mqtt->disconnectComplete = true;
         }
@@ -1366,34 +1354,22 @@ void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 };
 
 // start of ptp relay
-int ptp_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout)
+int ptp_publish(const char *topic,const void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
-    auto ptp_mqtt = g_ptp_mqtt;
-    if (ptp_mqtt != nullptr && ptp_mqtt->connected && ptpInited)
+    if (g_ptp_mqtt != nullptr && g_ptp_mqtt->connected && ptpInited)
     {
-        std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
+        //std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
         try
         {
             std::vector<std::string> topic_explode(explode(topic, '/'));
             if (std::strcmp(topic_explode.at(1).c_str(), "D\0") == 0)
             {
-                //std::string input;
-                //input.reserve(size);
-                //std::memcpy(&input[0], payload, size);
-                Memory::Lock();
-                const char *data = reinterpret_cast<const char *>(payload);
-                std::string output;
-                size_t success = snappy::Compress(data, size, &output);
-                if (success > 0)
-                {
-                    int length = static_cast<int>(success);
-                    rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, length, output.data(), qos, false);
-                }
+                rc = mosquitto_publish(g_ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
             }
             else
             {
-                rc = mosquitto_publish(ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
+                rc = mosquitto_publish(g_ptp_mqtt->mclient, NULL, topic, size, payload, qos, false);
             }
         }
         catch (const std::out_of_range)
@@ -1852,7 +1828,7 @@ int __AMULTIOS_PDP_INIT()
     {
         pdpInited = true;
         {
-            std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
+            //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             g_pdp_mqtt = std::make_shared<AmultiosMqtt>();
             g_pdp_mqtt->subscribed = 0;
             g_pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
@@ -2396,6 +2372,9 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                         if (daddr != NULL)
                         {
 
+                            const char * payload = reinterpret_cast<const char *>(data);
+                            std::string payout;
+                            size_t payoutlen = snappy::Compress(payload, len, &payout);
                             // Single Target
                             if (!isBroadcastMAC(daddr))
                             {
@@ -2414,7 +2393,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
                                     if (flag)
                                     {
-                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), payout.c_str(), payoutlen, g_Config.iPtpQos, 0);
                                         if (rc == MOSQ_ERR_SUCCESS)
                                         {
                                             // auto pdp_mqtt = g_pdp_mqtt;
@@ -2427,7 +2406,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                         return ERROR_NET_ADHOC_WOULD_BLOCK;
                                     }
 
-                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
+                                    rc = pdp_publish(pdp_single_topic.c_str(), payout.c_str(), payoutlen, g_Config.iPtpQos, timeout);
 
                                     // auto pdp_mqtt = g_pdp_mqtt;
                                     // if (pdp_mqtt->connected)
@@ -2488,11 +2467,11 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
 
                                     if (flag)
                                     {
-                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), payout.c_str(), payoutlen, g_Config.iPtpQos, 0);
                                     }
                                     else
                                     {
-                                        rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
+                                        rc = pdp_publish(pdp_single_topic.c_str(), payout.c_str(), payoutlen, g_Config.iPtpQos, timeout);
                                     }
                                 }
 
@@ -3273,11 +3252,13 @@ int AmultiosNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                 if (data != NULL && len != NULL && *len > 0)
                 {
 
+                    std::string payout;
+                    size_t payoutlen = snappy::Compress(data, *len, &payout);
                     // Schedule Timeout Removal
                     if (flag)
                         timeout = 0;
 
-                    int rc = ptp_publish(ptp_pub_topic.at(id - 1).c_str(), (void *)data, *len, g_Config.iPtpQos, timeout);
+                    int rc = ptp_publish(ptp_pub_topic.at(id - 1).c_str(), payout.c_str(), payoutlen, g_Config.iPtpQos, timeout);
 
                     // Success
                     if (rc == MOSQ_ERR_SUCCESS)
