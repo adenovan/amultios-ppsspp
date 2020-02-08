@@ -21,7 +21,6 @@ typedef struct
 typedef struct AmultiosMqtt
 {
 	std::string mqtt_id;
-	struct mosquitto *mclient;
 	std::string pub_topic;
 	std::string sub_topic;
 	std::string pub_topic_latest;
@@ -156,7 +155,7 @@ void ctl_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void ctl_disconnect_callback(struct mosquitto *mosq, void *obj);
 void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
-int pdp_publish(const char *topic,const void *payload, int size, int qos, unsigned long timeout);
+int pdp_publish(std::string topic,std::string payload, int size, int qos, unsigned long timeout);
 int pdp_subscribe(const char *topic, int qos);
 int pdp_unsubscribe(const char *topic);
 void pdp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
