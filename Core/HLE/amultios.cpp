@@ -1847,7 +1847,7 @@ int __AMULTIOS_PDP_INIT()
         mosquitto_unsubscribe_callback_set(pdp_client, pdp_unsubscribe_callback);
         mosquitto_message_callback_set(pdp_client, pdp_message_callback);
         mosquitto_threaded_set(pdp_client, true);
-        mosquitto_int_option(pdp_client, MOSQ_OPT_SEND_MAXIMUM, 1);
+        mosquitto_int_option(pdp_client, MOSQ_OPT_SEND_MAXIMUM, 0);
         mosquitto_int_option(pdp_client, MOSQ_OPT_RECEIVE_MAXIMUM, 0);
         mosquitto_int_option(pdp_client, MOSQ_OPT_TCP_NODELAY, true);
         if ((rc = mosquitto_connect(pdp_client, getModeAddress().c_str(), 1883, 300)) != MOSQ_ERR_SUCCESS)
