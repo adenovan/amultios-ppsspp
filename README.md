@@ -1,4 +1,23 @@
-﻿PPSSPP - a fast and portable PSP emulator
+﻿Amultios
+Created By Niskala Creative Studio and team
+Gaming Network and Networking Software Library
+
+Note For Amultios PPSSPP fork
+Make Sure use Dynamic Lingking Library (dll) supplied in zip dont move executable anywhere!
+
+Terms of Service
+Chat on the respective channel , to see the channel type !list channel on amultios console!
+Do not ask for or link to pirated copyright content on community
+Do not use downloaded save data from internet to play
+Do not use Cheated Save Data (Passive Cheat)
+Respect each other
+Use International English languange on official group international Channel and Emulator World Chat
+Use Official Amultios Emulator to play in our service
+Violation of TOS will cause your Amultios account banned and kicked from the community!
+
+
+
+PPSSPP - a fast and portable PSP emulator
 =========================================
 
 Created by Henrik Rydgård
