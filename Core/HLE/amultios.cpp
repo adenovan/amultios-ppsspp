@@ -2760,7 +2760,7 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
     return 0;
 }
 
-int AmultiosNetAdhoc (int id, u32 peerMacAddrPtr, u32 peerPortPtr, int timeout, int flag)
+int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int timeout, int flag)
 {
 
     SceNetEtherAddr *addr = NULL;
