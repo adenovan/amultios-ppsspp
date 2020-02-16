@@ -2344,6 +2344,7 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                         }
 
                         // Free Memory for Internal Data
+                        ERROR_LOG(AMULTIOS,"PDP ADHOC PORT IN USE");
                         free(internal);
                         return retval;
                     }
