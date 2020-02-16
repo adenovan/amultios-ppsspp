@@ -363,7 +363,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>USING_WIN_UI;_CRT_SECURE_NO_WARNINGS;_ARCH_64=1;WIN32;NDEBUG;_LIB;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto_build\include\lib;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../ext/mosquitto/lib;../common;..;../ext/native;../ext/glew;../ext/snappy;../ext/zlib;../ext/native/ext</AdditionalIncludeDirectories>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>

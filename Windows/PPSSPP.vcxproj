@@ -208,8 +208,8 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>PPSSPPWindows64</TargetName>
     <EmbedManifest>false</EmbedManifest>
-    <IncludePath>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto_build\x64\lib\Release;..\dx9sdk\Lib\x64;$(VC_LibraryPath_x64);$(WindowsSdk_LibraryPath_x64)</LibraryPath>
+    <IncludePath>..\ext\mosquitto\lib;..\dx9sdk\Include;$(VC_IncludePath);$(WindowsSdk_IncludePath)</IncludePath>
+    <LibraryPath>..\ext\mosquitto_build\x64\lib\Release;..\dx9sdk\Lib\x64;$(VC_LibraryPath_x64);$(WindowsSdk_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <TargetName>PPSSPPWindowsARM64</TargetName>
@@ -433,7 +433,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>C:\Users\Adenovan\amultios-ppsspp\ext\mosquitto\lib;../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../ext/mosquitto/lib;../dx9sdk/Include/DX11;../ext;../common;..;../ext/native;../ext/glew;../ext/zlib</AdditionalIncludeDirectories>
       <ForcedIncludeFiles>stdafx.h</ForcedIncludeFiles>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
