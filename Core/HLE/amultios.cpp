@@ -1492,18 +1492,18 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                     getMac(&msg.sourceMac, topic_explode.at(4));
                     msg.dport = std::stoi(topic_explode.at(3));
                     getMac(&msg.destinationMac, topic_explode.at(2));
-                    msg.payloadlen = message->payloadlen;
+                    //msg.payloadlen = message->payloadlen;
 
                     char *data = (char *)message->payload;
-                    std::string input(data, data + (int)msg.payloadlen);
+                    std::string input(data, data + (int)message->payloadlen);
 
                     bool success = snappy::Uncompress(input.data(), input.size(), &msg.payload);
 
                     if (success)
                     {
-                        msg.payloadlen = (int)msg.payload.length();
+                        msg.payloadlen = static_cast<int>(msg.payload.length());
                         {
-                            DEBUG_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", g_ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
+                            INFO_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", g_ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
                             std::lock_guard<std::mutex> lock(ptp_queue_mutex);
                             ptp_queue.push_back(msg);
                         }
@@ -2620,7 +2620,7 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
                 // free(sock);
 
                 // Free Translation Slot
-
+                
                 if (!pdp_topic.at(id - 1).empty())
                 {
                     int rc = pdp_unsubscribe(("PDP/S/" + getMacString(&sock->laddr) + pdp_topic.at(id - 1)).c_str());
@@ -2641,6 +2641,7 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
                                        [sock](const PDPMessage &o) { return o.dport == sock->lport; }),
                         pdp_queue.end());
                 }
+                
 
                 pdp[id - 1] = NULL;
                 // Success
@@ -3286,6 +3287,7 @@ int AmultiosNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                     if (rc == MOSQ_ERR_SUCCESS)
                     {
                         // Save Length
+                        INFO_LOG(AMULTIOS,"[%s] send message len [%d]",ptp_pub_topic.at(id-1).c_str(),*len);
                         *len = *len;
                         // Return Success
                         return 0;
