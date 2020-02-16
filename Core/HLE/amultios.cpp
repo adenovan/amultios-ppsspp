@@ -2739,6 +2739,8 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                                 free(internal);
                             }
                         }
+
+                        ERROR_LOG(SCENET,"OPEN BIND FAILED port %d",sport);
                         closesocket(tcpsocket);
                     }
                 }

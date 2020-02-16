@@ -413,7 +413,7 @@ static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 u
 
 								// Forward Port on Router
 								//sceNetPortOpen("UDP", sport); // I need to figure out how to use this in windows/linux
-
+								NOTICE_LOG(SCENET, "PDP_CREATE_INTERNAL [%i] [%s]:[%d]", internal->id, getMacString(&internal->laddr).c_str(), internal->lport);
 								// Success
 								return i + 1;
 							}
@@ -996,6 +996,7 @@ static int sceNetAdhocPdpDelete(int id, int unknown)
 			// Valid Socket
 			if (sock != NULL)
 			{
+				NOTICE_LOG(SCENET, "PDP_DELETE_INTERNAL [%i] [%s]:[%d]", sock->id, getMacString(&sock->laddr).c_str(), sock->lport);
 				// Close Connection
 				closesocket(sock->id);
 
@@ -1007,7 +1008,6 @@ static int sceNetAdhocPdpDelete(int id, int unknown)
 
 				// Free Translation Slot
 				pdp[id - 1] = NULL;
-
 				// Success
 				return 0;
 			}
