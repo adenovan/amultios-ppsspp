@@ -1494,7 +1494,7 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                     getMac(&msg.destinationMac, topic_explode.at(2));
                     //msg.payloadlen = message->payloadlen;
 
-                    char *data = (char *)message->payload;
+                    const char *data = (const char *)message->payload;
                     std::string input(data, data + (int)message->payloadlen);
 
                     bool success = snappy::Uncompress(input.data(), input.size(), &msg.payload);
@@ -1503,7 +1503,7 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                     {
                         msg.payloadlen = static_cast<int>(msg.payload.length());
                         {
-                            INFO_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", g_ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), message->payloadlen, (int)topic.length());
+                            INFO_LOG(AMULTIOS, "[%s] PTP DATA message src [%s]:[%s] dst [%s]:[%s] messagelen[%d] topiclen [%d] ", g_ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str(), msg.payloadlen, (int)topic.length());
                             std::lock_guard<std::mutex> lock(ptp_queue_mutex);
                             ptp_queue.push_back(msg);
                         }
