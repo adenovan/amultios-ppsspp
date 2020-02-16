@@ -2994,6 +2994,7 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                         // Set Connected State
                         {
                             std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                            it->id = id;
                             it->states = PTP_AMULTIOS_ESTABLISHED;
                         }
 
