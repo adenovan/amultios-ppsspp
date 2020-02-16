@@ -1532,8 +1532,15 @@ void ptp_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
                     }
                     else
                     {
-                        VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", g_ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
-                        cit->states = PTP_AMULTIOS_OPEN;
+                        if (cit->states != PTP_AMULTIOS_ESTABLISHED)
+                        {
+                            VERBOSE_LOG(AMULTIOS, "[%s] PTP OPEN STATES src [%s]:[%s] dst [%s]:[%s] ", g_ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                            cit->states = PTP_AMULTIOS_OPEN;
+                        }
+                        else
+                        {
+                            WARN_LOG(AMULTIOS, "[%s] PTP OPEN STATES already ESTABLISHED src [%s]:[%s] dst [%s]:[%s] ", g_ptp_mqtt->mqtt_id.c_str(), topic_explode.at(4).c_str(), topic_explode.at(5).c_str(), topic_explode.at(2).c_str(), topic_explode.at(3).c_str());
+                        }
                     }
                 }
 
@@ -2740,7 +2747,7 @@ int AmultiosNetAdhocPtpOpen(const char *srcmac, int sport, const char *dstmac, i
                             }
                         }
 
-                        ERROR_LOG(SCENET,"OPEN BIND FAILED port %d",sport);
+                        ERROR_LOG(SCENET, "OPEN BIND FAILED port %d", sport);
                         closesocket(tcpsocket);
                     }
                 }
