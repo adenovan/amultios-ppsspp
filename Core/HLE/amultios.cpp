@@ -1211,14 +1211,15 @@ void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosqui
 };
 
 //start of pdp relay
-int pdp_publish(std::string topic, std::string payload,int size, int qos, unsigned long timeout)
+int pdp_publish(std::string topic, std::string payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
     if (g_pdp_mqtt != nullptr && g_pdp_mqtt->connected && pdpInited)
     {
-		if (!topic.empty() && !payload.empty()) {
-			rc = mosquitto_publish(pdp_client, NULL, topic.c_str(), size, payload.data(), qos, false);
-		}
+        if (!topic.empty() && !payload.empty())
+        {
+            rc = mosquitto_publish(pdp_client, NULL, topic.c_str(), size, payload.data(), qos, false);
+        }
     }
     return rc;
 }
@@ -1260,7 +1261,7 @@ void pdp_publish_callback(struct mosquitto *mosq, void *obj, int mid)
     //auto pdp_mqtt = g_pdp_mqtt;
     if (g_pdp_mqtt != nullptr && pdpInited)
     {
-		/*auto it = pdp_oque.begin();
+        /*auto it = pdp_oque.begin();
 
         while(it != pdp_oque.end()){
 
@@ -1373,9 +1374,10 @@ int ptp_publish(std::string topic, std::string payload, int size, int qos, unsig
     int rc = MOSQ_ERR_CONN_PENDING;
     if (g_ptp_mqtt != nullptr && g_ptp_mqtt->connected && ptpInited)
     {
-		if (!topic.empty() && !payload.empty()) {
-			rc = mosquitto_publish(ptp_client, NULL, topic.c_str(), size, payload.data(), qos, false);
-		}
+        if (!topic.empty() && !payload.empty())
+        {
+            rc = mosquitto_publish(ptp_client, NULL, topic.c_str(), size, payload.data(), qos, false);
+        }
     }
     return rc;
 }
@@ -1414,7 +1416,7 @@ void ptp_publish_callback(struct mosquitto *mosq, void *obj, int mid)
     {
         //auto it = std::find_if(ptp_oque.begin(),ptp_oque.end(),[&mid](const OutQueue &q){ return q.mid == mid;});
         //if(it != ptp_oque.end()){
-            //ptp_oque.erase(it);
+        //ptp_oque.erase(it);
         //}
         VERBOSE_LOG(AMULTIOS, "[%s] Publish Success on topic [%s] payload_len [%u] qos [%d] ", g_ptp_mqtt->mqtt_id.c_str(), g_ptp_mqtt->pub_topic_latest.c_str(), (uint32_t)g_ptp_mqtt->pub_payload_len_latest, g_ptp_mqtt->qos_latest);
     }
@@ -2177,10 +2179,6 @@ int AmultiosNetAdhocctlDisconnect()
         // Clear Peer List
         freeFriendsRecursive(friends);
         INFO_LOG(AMULTIOS, "Cleared Peer List.");
-        {
-            std::lock_guard<std::mutex> lk(ptp_peer_mutex);
-            ptp_peer_connection.clear();
-        }
 
         // Delete Peer Reference
         friends = NULL;
@@ -2208,6 +2206,10 @@ int AmultiosNetAdhocctlTerm()
         std::string topic = "CHAT/PARTY" + getCurrentGroup() + "/#";
         amultios_unsubscribe(topic.c_str());
         amultios_sync();
+    }
+    {
+        std::lock_guard<std::mutex> lk(ptp_peer_mutex);
+        ptp_peer_connection.clear();
     }
     return 0;
 }
@@ -2377,7 +2379,6 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                         if (daddr != NULL)
                         {
 
-
                             // Single Target
                             if (!isBroadcastMAC(daddr))
                             {
@@ -2392,14 +2393,14 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                     int rc;
                                     SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
                                     std::string pdp_single_topic = "PDP/S/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
-									const char *payload = static_cast<const char *>(data);
-									std::string payout;
-									size_t payoutlen = snappy::Compress(payload, len, &payout);
-									//NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic.c_str());
+                                    const char *payload = static_cast<const char *>(data);
+                                    std::string payout;
+                                    size_t payoutlen = snappy::Compress(payload, len, &payout);
+                                    //NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic.c_str());
 
                                     if (flag)
                                     {
-										rc = pdp_publish(pdp_single_topic, payout, (int)payoutlen, g_Config.iPtpQos, 0);
+                                        rc = pdp_publish(pdp_single_topic, payout, (int)payoutlen, g_Config.iPtpQos, 0);
                                         if (rc == MOSQ_ERR_SUCCESS)
                                         {
                                             // auto pdp_mqtt = g_pdp_mqtt;
@@ -2460,26 +2461,26 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                 {
                                     rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
                                 }*/
-								// Iterate Peers
+                                // Iterate Peers
                                 peerlock.lock();
 
-								int rc;
-								const char *payload = static_cast<const char *>(data);
-								std::string payout;
-								size_t payoutlen = snappy::Compress(payload, len, &payout);
+                                int rc;
+                                const char *payload = static_cast<const char *>(data);
+                                std::string payout;
+                                size_t payoutlen = snappy::Compress(payload, len, &payout);
 
                                 SceNetAdhocctlPeerInfo *peer = friends;
                                 SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
                                 for (; peer != NULL; peer = peer->next)
                                 {
-   									if (flag)
-									{
-										rc = pdp_publish("PDP/S/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport), payout, (int)payoutlen, g_Config.iPtpQos, 0);
-									}
-									else
-									{
-										rc = pdp_publish("PDP/S/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport), payout, (int)payoutlen, g_Config.iPtpQos, timeout);
-									}
+                                    if (flag)
+                                    {
+                                        rc = pdp_publish("PDP/S/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport), payout, (int)payoutlen, g_Config.iPtpQos, 0);
+                                    }
+                                    else
+                                    {
+                                        rc = pdp_publish("PDP/S/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport), payout, (int)payoutlen, g_Config.iPtpQos, timeout);
+                                    }
                                 }
                                 // Free Peer Lock
                                 peerlock.unlock();
@@ -2842,7 +2843,7 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                         int rc = ptp_subscribe(sub_topic.c_str(), g_Config.iPtpQos);
 
                         //uint8_t send = PTP_AMULTIOS_ACCEPT;
-                        std::string send(1,PTP_AMULTIOS_ACCEPT);
+                        std::string send(1, PTP_AMULTIOS_ACCEPT);
                         rc = ptp_publish(accept_topic, send, (int)send.length(), 2, 0);
 
                         int iResult = 0;
@@ -2958,7 +2959,7 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
 
                     // Connect Socket to Peer (Nonblocking)
                     //uint8_t send = PTP_AMULTIOS_CONNECT;
-                    std::string send(1,PTP_AMULTIOS_CONNECT);
+                    std::string send(1, PTP_AMULTIOS_CONNECT);
                     int rc = ptp_publish(connect_topic, send, (int)send.length(), 2, 0);
 
                     bool found = false;
