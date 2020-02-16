@@ -3008,7 +3008,7 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                         // Nonblocking Mode
                         if (flag)
                         {
-                            //return ERROR_NET_ADHOC_WOULD_BLOCK;
+                            return ERROR_NET_ADHOC_WOULD_BLOCK;
                         }
                         else
                         {
