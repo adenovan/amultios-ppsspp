@@ -3000,54 +3000,56 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                         // Success
                         return 0;
                     }
-
-                    // Nonblocking Mode
-                    if (flag)
+                    else
                     {
-                        return ERROR_NET_ADHOC_WOULD_BLOCK;
-                    }
-
-                    if (!flag && !found)
-                    {
-                        // Get Start Time
-                        uint32_t starttime = (uint32_t)(real_time_now() * 1000000.0);
-
-                        bool hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
-                        // Retry until Timeout hits
-                        while (hasTime && !found)
+                        // Nonblocking Mode
+                        if (flag)
                         {
-                            hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
-                            std::lock_guard<std::mutex> lock(ptp_peer_mutex);
-                            it = ptp_peer_connection.begin();
-                            while (hasTime && it != ptp_peer_connection.end())
+                            return ERROR_NET_ADHOC_WOULD_BLOCK;
+                        }
+                        else
+                        {
+
+                            // Get Start Time
+                            uint32_t starttime = (uint32_t)(real_time_now() * 1000000.0);
+
+                            bool hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
+                            // Retry until Timeout hits
+                            while (hasTime && !found)
                             {
-                                if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_ACCEPT)
+                                hasTime = (timeout == 0 || ((uint32_t)(real_time_now() * 1000000.0) - starttime) < (uint32_t)timeout);
+                                std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                                it = ptp_peer_connection.begin();
+                                while (hasTime && it != ptp_peer_connection.end())
                                 {
-                                    found = true;
-                                    break;
+                                    if (isSameMAC(&it->destinationMac, &socket->laddr) && it->dport == socket->lport && it->states == PTP_AMULTIOS_ACCEPT)
+                                    {
+                                        found = true;
+                                        break;
+                                    }
+                                    it++;
                                 }
-                                it++;
+                                // Wait a bit...
+                                sleep_ms(1);
                             }
-                            // Wait a bit...
-                            sleep_ms(1);
+
+                            if (found)
+                            {
+                                // Set Connected State
+                                {
+                                    std::lock_guard<std::mutex> lock(ptp_peer_mutex);
+                                    it->id = id;
+                                    it->states = PTP_AMULTIOS_ESTABLISHED;
+                                }
+                                socket->state = ADHOC_PTP_STATE_ESTABLISHED;
+                                NOTICE_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Already Connected", id, socket->lport);
+                                // Success
+                                return 0;
+                            }
+
+                            return ERROR_NET_ADHOC_TIMEOUT;
                         }
                     }
-
-                    if (found)
-                    {
-                        // Set Connected State
-                        {
-                            std::lock_guard<std::mutex> lock(ptp_peer_mutex);
-                            it->id = id;
-                            it->states = PTP_AMULTIOS_ESTABLISHED;
-                        }
-                        socket->state = ADHOC_PTP_STATE_ESTABLISHED;
-                        NOTICE_LOG(SCENET, "sceNetAdhocPtpConnect[%i:%u]: Already Connected", id, socket->lport);
-                        // Success
-                        return 0;
-                    }
-
-                    return ERROR_NET_ADHOC_TIMEOUT;
                 }
                 // Peer not found
                 return ERROR_NET_ADHOC_CONNECTION_REFUSED;
