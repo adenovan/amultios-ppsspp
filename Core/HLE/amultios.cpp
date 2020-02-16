@@ -2841,7 +2841,7 @@ int AmultiosNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int t
                         }
                     }
 
-                    if (found && macInNetwork(&it->sourceMac))
+                    if (found /*&& macInNetwork(&it->sourceMac)*/)
                     {
 
                         std::string sub_topic = "PTP/D/" + getMacString(&it->destinationMac) + "/" + std::to_string(it->dport) + "/" + getMacString(&it->sourceMac) + "/" + std::to_string(it->sport);
@@ -3051,6 +3051,7 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                         }
                     }
                 }
+                NOTICE_LOG(SCENET,"CONNECT RETURN REFUSED");
                 // Peer not found
                 return ERROR_NET_ADHOC_CONNECTION_REFUSED;
             }
