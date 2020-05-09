@@ -680,17 +680,23 @@ void GameSettingsScreen::CreateViews()
 	networkingSettings->Add(new PopupMultiChoice(&g_Config.iPtpQos, sy->T("QOS"), ptpOpts, 0, ARRAY_SIZE(ptpOpts), sy->GetName(), screenManager()));
 	networkingSettings->Add(new ItemHeader(n->T("Credential Settings (Register from amultios.net)")));
 
+	View * nickname;
 #if !defined(MOBILE_DEVICE) // TODO: Add all platforms where KEY_CHAR support is added
-	networkingSettings->Add(new PopupTextInputChoice(&g_Config.sNickName, sy->T("Amultios Nickname"), "", 32, screenManager()));
+	nickname = networkingSettings->Add(new PopupTextInputChoice(&g_Config.sNickName, sy->T("Amultios Nickname"), "", 32, screenManager()));
 #elif defined(__ANDROID__)
-	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sNickName, sy->T("Amultios Nickname"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
+	nickname = networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sNickName, sy->T("Amultios Nickname"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
 #endif
+	nickname->SetEnabled(!PSP_IsInited());
+
+	View * pin;
 
 #if !defined(MOBILE_DEVICE) // TODO: Add all platforms where KEY_CHAR support is added
-	networkingSettings->Add(new PopupTextInputChoice(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), "", 32, screenManager()));
+	pin = networkingSettings->Add(new PopupTextInputChoice(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), "", 32, screenManager()));
 #elif defined(__ANDROID__)
-	networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeAmultiosPin);
+	pin = networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeAmultiosPin);
 #endif
+
+	pin->SetEnabled(!PSP_IsInited());
 
 	networkingSettings->Add(new ItemHeader(ms->T("Pro Adhoc Mode")));
 	networkingSettings->Add(new CheckBox(&g_Config.bDiscordPresence, n->T("Send Discord Presence information")));

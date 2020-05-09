@@ -1737,7 +1737,7 @@ int __AMULTIOS_INIT()
             //std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
             g_amultios_mqtt = std::make_shared<AmultiosMqtt>();
             g_amultios_mqtt->subscribed = 0;
-            g_amultios_mqtt->mqtt_id = "AMULTIOS/" + g_Config.sNickName;
+            g_amultios_mqtt->mqtt_id = "AMULTIOS/" + g_Config.sNickName  + "/" + g_Config.sMACAddress;
             amultios_client = mosquitto_new(g_amultios_mqtt->mqtt_id.c_str(), true, NULL);
         }
 
@@ -1823,7 +1823,7 @@ int __AMULTIOS_CTL_INIT()
             //std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
             g_ctl_mqtt = std::make_shared<AmultiosMqtt>();
             g_ctl_mqtt->subscribed = 0;
-            g_ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName;
+            g_ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName + "/" + g_Config.sMACAddress;;
             ctl_client = mosquitto_new(g_ctl_mqtt->mqtt_id.c_str(), true, NULL);
         }
 
@@ -1908,7 +1908,7 @@ int __AMULTIOS_PDP_INIT()
             //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             g_pdp_mqtt.reset(new AmultiosMqtt());
             g_pdp_mqtt->subscribed = 0;
-            g_pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName;
+            g_pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;;
             g_pdp_mqtt->reconnectInProgress = true;
             pdp_client = mosquitto_new(g_pdp_mqtt->mqtt_id.c_str(), true, NULL);
         }
@@ -1981,7 +1981,7 @@ int __AMULTIOS_PTP_INIT()
             //std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             g_ptp_mqtt.reset(new AmultiosMqtt());
             g_ptp_mqtt->subscribed = 0;
-            g_ptp_mqtt->mqtt_id = "PTP/" + g_Config.sNickName;
+            g_ptp_mqtt->mqtt_id = "PTP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;;
             ptp_client = mosquitto_new(g_ptp_mqtt->mqtt_id.c_str(), true, NULL);
         }
 
