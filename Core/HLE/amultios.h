@@ -60,6 +60,9 @@ typedef struct LoginInfo
 	std::string Status;
 	std::string AdhocSwitch;
 	std::string Issuer;
+	std::string Character;
+	std::string CrossRegion;
+	std::string GameId;
 	int Roles;
 	int Expired;
 	std::string Pin;
@@ -140,6 +143,7 @@ bool macInNetwork(const SceNetEtherAddr *mac);
 
 void amultios_login();
 void amultios_sync();
+void amultios_status();
 int amultios_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout);
 int amultios_subscribe(const char *topic, int qos);
 int amultios_unsubscribe(const char *topic);

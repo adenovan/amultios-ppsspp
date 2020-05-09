@@ -7,6 +7,7 @@
 #include "snappy.h"
 #include "json/json_reader.h"
 #include "json/json_writer.h"
+#include "Core/ELF/ParamSFO.h"
 
 bool amultiosInited = false;
 bool amultiosRunning = false;
@@ -103,6 +104,7 @@ void amultios_sync()
     j.writeString("Validate", loginInfo.Validate);
     j.writeInt("Roles", loginInfo.Roles);
     j.writeInt("Counter", loginInfo.counter);
+    j.writeString("ProductId", g_paramSFO.GetDiscID());
     j.end();
 
     std::string publish = j.str();
@@ -111,9 +113,30 @@ void amultios_sync()
 
     if (rc != MOSQ_ERR_SUCCESS)
     {
-        ERROR_LOG(AMULTIOS, "Failed to Contact chat server");
-        loginInfo.counter++;
+        ERROR_LOG(AMULTIOS, "Failed to Login");
     }
+
+    if (rc == MOSQ_ERR_SUCCESS)
+    {
+        loginInfo.counter += 1;
+    }
+}
+
+void amultios_status()
+{
+    json::JsonWriter j;
+    j.begin();
+    j.writeString("SceNetAdhocctlNickname", loginInfo.SceNetAdhocctlNickname);
+    j.writeString("SceNetEtherAddr", loginInfo.SceNetEtherAddr);
+    j.writeString("Character", loginInfo.Character);
+    j.writeString("CrossRegion", loginInfo.CrossRegion);
+    j.writeString("Issuer", loginInfo.Issuer);
+    j.writeString("Group", getCurrentGroup());
+    j.end();
+    
+    std::string publish = j.str();
+
+    int rc = amultios_publish("UPDATESTATUS", (void *)publish.c_str(), (int)publish.size(), 2, 0);
 }
 
 void ChatMessages::doPlayerStatusUpdate()
@@ -1001,11 +1024,12 @@ void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct m
                     int counter = root.getInt("Counter", -1);
                     std::string message = root.getString("Message", "");
                     Acl = root.getString("Acl", "CHAT");
-                    INFO_LOG(AMULTIOS, "counter %d",counter);
+                    INFO_LOG(AMULTIOS, "counter %d", counter);
                     if (state == OPCODE_AMULTIOS_LOGIN_PASS)
                     {
                         trusted = true;
                         loginInfo.AdhocSwitch = "ON (Loged In)";
+                        loginInfo.CrossRegion = root.getString("CrossRegion", "");
                         if (counter == 0)
                         {
                             cmList.ParseCommand("!tos");
@@ -1737,7 +1761,7 @@ int __AMULTIOS_INIT()
             //std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
             g_amultios_mqtt = std::make_shared<AmultiosMqtt>();
             g_amultios_mqtt->subscribed = 0;
-            g_amultios_mqtt->mqtt_id = "AMULTIOS/" + g_Config.sNickName  + "/" + g_Config.sMACAddress;
+            g_amultios_mqtt->mqtt_id = "AMULTIOS/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
             amultios_client = mosquitto_new(g_amultios_mqtt->mqtt_id.c_str(), true, NULL);
         }
 
@@ -1823,7 +1847,8 @@ int __AMULTIOS_CTL_INIT()
             //std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
             g_ctl_mqtt = std::make_shared<AmultiosMqtt>();
             g_ctl_mqtt->subscribed = 0;
-            g_ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName + "/" + g_Config.sMACAddress;;
+            g_ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
+            ;
             ctl_client = mosquitto_new(g_ctl_mqtt->mqtt_id.c_str(), true, NULL);
         }
 
@@ -1908,7 +1933,8 @@ int __AMULTIOS_PDP_INIT()
             //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             g_pdp_mqtt.reset(new AmultiosMqtt());
             g_pdp_mqtt->subscribed = 0;
-            g_pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;;
+            g_pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
+            ;
             g_pdp_mqtt->reconnectInProgress = true;
             pdp_client = mosquitto_new(g_pdp_mqtt->mqtt_id.c_str(), true, NULL);
         }
@@ -1981,7 +2007,8 @@ int __AMULTIOS_PTP_INIT()
             //std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             g_ptp_mqtt.reset(new AmultiosMqtt());
             g_ptp_mqtt->subscribed = 0;
-            g_ptp_mqtt->mqtt_id = "PTP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;;
+            g_ptp_mqtt->mqtt_id = "PTP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
+            ;
             ptp_client = mosquitto_new(g_ptp_mqtt->mqtt_id.c_str(), true, NULL);
         }
 
@@ -2059,6 +2086,9 @@ int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
+        loginInfo.CrossRegion.clear();
+        loginInfo.Character.clear();
+
         SceNetAdhocctlLoginPacketC2S packet;
         packet.base.opcode = OPCODE_LOGIN;
         SceNetEtherAddr addres;
@@ -2276,12 +2306,15 @@ int AmultiosNetAdhocctlTerm()
     {
         std::string topic = Acl + "/PARTY" + getCurrentGroup() + "/#";
         amultios_unsubscribe(topic.c_str());
-        amultios_sync();
+        //amultios_sync();
     }
     {
         std::lock_guard<std::mutex> lk(ptp_peer_mutex);
         ptp_peer_connection.clear();
     }
+
+    loginInfo.CrossRegion.clear();
+    loginInfo.Character.clear();
     return 0;
 }
 
@@ -2429,6 +2462,50 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
     //INFO_LOG(AMULTIOS, "AmultiosNetAdhocPdpSend(%i, %s, %i, %p, %i, %i, %i)", id, mac, port, data, len, timeout, flag);
     SceNetEtherAddr *daddr = (SceNetEtherAddr *)mac;
     uint16_t dport = (uint16_t)port;
+
+    if (loginInfo.Character.empty() && loginInfo.CrossRegion == "ULUS10391" && len == 74)
+    {
+        const char *un = static_cast<const char *>(data);
+
+        char charactername[9];
+
+        charactername[0] = un[26];
+        charactername[1] = un[28];
+        charactername[2] = un[30];
+        charactername[3] = un[32];
+        charactername[4] = un[34];
+        charactername[5] = un[36];
+        charactername[6] = un[38];
+        charactername[7] = un[40];
+        charactername[8] = 0;
+
+        loginInfo.Character = std::string(charactername);
+        amultios_status();
+    }
+
+    if (loginInfo.Character.empty() && loginInfo.CrossRegion == "ULJM05800" && len == 98)
+    {
+        const char *un = static_cast<const char *>(data);
+
+        char charactername[13];
+
+        charactername[0] = un[42];
+        charactername[1] = un[44];
+        charactername[2] = un[46];
+        charactername[3] = un[48];
+        charactername[4] = un[50];
+        charactername[5] = un[52];
+        charactername[6] = un[54];
+        charactername[7] = un[56];
+        charactername[8] = un[58];
+        charactername[9] = un[60];
+        charactername[10] = un[62];
+        charactername[11] = un[64];
+        charactername[12] = 0;
+
+        loginInfo.Character = std::string(charactername);
+        amultios_status();
+    }
 
     if (netAdhocInited)
     {
