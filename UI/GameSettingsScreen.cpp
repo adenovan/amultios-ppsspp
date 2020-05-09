@@ -680,23 +680,23 @@ void GameSettingsScreen::CreateViews()
 	networkingSettings->Add(new PopupMultiChoice(&g_Config.iPtpQos, sy->T("QOS"), ptpOpts, 0, ARRAY_SIZE(ptpOpts), sy->GetName(), screenManager()));
 	networkingSettings->Add(new ItemHeader(n->T("Credential Settings (Register from amultios.net)")));
 
-	View * nickname;
 #if !defined(MOBILE_DEVICE) // TODO: Add all platforms where KEY_CHAR support is added
-	nickname = networkingSettings->Add(new PopupTextInputChoice(&g_Config.sNickName, sy->T("Amultios Nickname"), "", 32, screenManager()));
-#elif defined(__ANDROID__)
-	nickname = networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sNickName, sy->T("Amultios Nickname"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
-#endif
+	PopupTextInputChoice *nickname = networkingSettings->Add(new PopupTextInputChoice(&g_Config.sNickName, sy->T("Amultios Nickname"), "", 32, screenManager()));
 	nickname->SetEnabled(!PSP_IsInited());
-
-	View * pin;
-
-#if !defined(MOBILE_DEVICE) // TODO: Add all platforms where KEY_CHAR support is added
-	pin = networkingSettings->Add(new PopupTextInputChoice(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), "", 32, screenManager()));
 #elif defined(__ANDROID__)
-	pin = networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), (const char *)nullptr))->OnClick.Handle(this, &GameSettingsScreen::OnChangeAmultiosPin);
+	ChoiceWithValueDisplay *nickname = networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sNickName, sy->T("Amultios Nickname"), (const char *)nullptr));
+	nickname->SetEnabled(!PSP_IsInited());
+	nickname->OnClick.Handle(this, &GameSettingsScreen::OnChangeNickname);
 #endif
 
+#if !defined(MOBILE_DEVICE) // TODO: Add all platforms where KEY_CHAR support is added
+	View *pin = networkingSettings->Add(new PopupTextInputChoice(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), "", 32, screenManager()));
 	pin->SetEnabled(!PSP_IsInited());
+#elif defined(__ANDROID__)
+	ChoiceWithValueDisplay * pin = networkingSettings->Add(new ChoiceWithValueDisplay(&g_Config.sAmultiosPin, sy->T("Amultios Pin"), (const char *)nullptr));
+	pin->OnClick.Handle(this, &GameSettingsScreen::OnChangeAmultiosPin);
+	pin->SetEnabled(!PSP_IsInited());
+#endif
 
 	networkingSettings->Add(new ItemHeader(ms->T("Pro Adhoc Mode")));
 	networkingSettings->Add(new CheckBox(&g_Config.bDiscordPresence, n->T("Send Discord Presence information")));
