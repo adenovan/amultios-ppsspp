@@ -16,6 +16,7 @@ public:
 	void update() override;
 	void UpdateChat();
 	void UpdateStatus();
+	void UpdateAccount();
 	bool toBottom_;
 protected:
 	void CallbackDeleteConfig(bool yes);
@@ -25,8 +26,10 @@ private:
 	UI::EventReturn OnSubmit(UI::EventParams &e);
 	UI::TextEdit *chatEdit_;
 	UI::ScrollView *scrollChat_;
+	UI::TextView *currentChannel_;
 	UI::LinearLayout *chatVert_ = nullptr;
 	UI::LinearLayout *statusVert_ = nullptr;
+	UI::LinearLayout *accountVert_ = nullptr;
 	std::string gamePath_;
 	UI::EventReturn OnCreateConfig(UI::EventParams &e);
 	UI::EventReturn OnDeleteConfig(UI::EventParams &e);

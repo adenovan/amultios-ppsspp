@@ -1,6 +1,5 @@
 #include "Core/HLE/proAdhoc.h"
 
-
 extern "C"
 {
 #include "mosquitto.h"
@@ -56,15 +55,21 @@ typedef struct PTPMessage
 
 typedef struct LoginInfo
 {
-	std::string token;
-	std::string mac;
-	std::string nickname;
-	std::string party;
+	std::string SceNetAdhocctlNickname;
+	std::string SceNetEtherAddr;
+	std::string Status;
+	std::string AdhocSwitch;
+	std::string Issuer;
+	int Roles;
+	int Expired;
+	std::string Pin;
+	std::string Validate;
 	bool logedIn;
 	bool authServer;
 	bool pdpServer;
 	bool ptpServer;
 	bool ctlServer;
+	int counter;
 } LoginInfo;
 
 #define PTP_AMULTIOS_CLOSED 0
@@ -155,7 +160,7 @@ void ctl_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void ctl_disconnect_callback(struct mosquitto *mosq, void *obj);
 void ctl_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
-int pdp_publish(std::string topic,std::string payload,int size, int qos, unsigned long timeout);
+int pdp_publish(std::string topic, std::string payload, int size, int qos, unsigned long timeout);
 int pdp_subscribe(const char *topic, int qos);
 int pdp_unsubscribe(const char *topic);
 void pdp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
@@ -165,7 +170,7 @@ void pdp_connect_callback(struct mosquitto *mosq, void *obj, int rc);
 void pdp_disconnect_callback(struct mosquitto *mosq, void *obj);
 void pdp_message_callback(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
-int ptp_publish(std::string topic,std::string payload, int size, int qos, unsigned long timeout);
+int ptp_publish(std::string topic, std::string payload, int size, int qos, unsigned long timeout);
 int ptp_subscribe(const char *topic, int qos);
 int ptp_unsubscribe(const char *topic);
 void ptp_publish_callback(struct mosquitto *mosq, void *obj, int mid);
@@ -263,6 +268,13 @@ public:
 		std::lock_guard<std::mutex> lk(playerStatusMutex);
 		return this->PlayerStatus;
 	};
+
+	std::string getCurrentChannel()
+	{
+		std::string rc = "Chat Channel : " + this->selectedRoom;
+		return rc;
+	};
+
 	void doPlayerStatusUpdate();
 	bool getPlayerStatusUpdate() { return updatePlayerStatusFlag; };
 	float getLastPlayerStatusUpdate() { return lastPlayerStatusUpdate; };

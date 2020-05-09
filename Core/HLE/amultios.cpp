@@ -5,6 +5,8 @@
 #include "amultios.h"
 #include "util/text/parsers.h"
 #include "snappy.h"
+#include "json/json_reader.h"
+#include "json/json_writer.h"
 
 bool amultiosInited = false;
 bool amultiosRunning = false;
@@ -56,6 +58,8 @@ ChatMessages cmList;
 LoginInfo loginInfo;
 std::string g_token;
 bool trusted = false;
+std::string stateTransfer;
+std::string Acl = "CHAT";
 
 void amultios_login()
 {
@@ -78,7 +82,6 @@ void amultios_login()
         strcpy((char *)packet.revision, PPSSPP_GIT_VERSION);
 
         rc = amultios_subscribe(("AUTH/" + g_Config.sNickName).c_str(), 2);
-        rc = amultios_subscribe(("TOKEN/" + g_Config.sNickName).c_str(), 2);
         rc = mosquitto_publish(amultios_client, NULL, "AUTH", sizeof(packet), &packet, 2, false);
         if (rc != MOSQ_ERR_SUCCESS)
         {
@@ -90,32 +93,27 @@ void amultios_login()
 
 void amultios_sync()
 {
-    loginInfo.logedIn = trusted;
-    loginInfo.token = g_token;
-    loginInfo.mac = g_Config.sMACAddress;
-    loginInfo.nickname = g_Config.sNickName;
-    if (g_amultios_mqtt != nullptr)
-    {
-        loginInfo.authServer = g_amultios_mqtt->connected;
-    }
+    json::JsonWriter j;
+    j.begin();
+    j.writeString("SceNetAdhocctlNickname", loginInfo.SceNetAdhocctlNickname);
+    j.writeString("SceNetEtherAddr", loginInfo.SceNetEtherAddr);
+    j.writeString("SessionNickname", g_Config.sNickName);
+    j.writeString("SessionMac", g_Config.sMACAddress);
+    j.writeString("Issuer", loginInfo.Issuer);
+    j.writeString("Validate", loginInfo.Validate);
+    j.writeInt("Roles", loginInfo.Roles);
+    j.writeInt("Counter", loginInfo.counter);
+    j.end();
 
-    if (g_ctl_mqtt != nullptr)
-    {
-        loginInfo.ctlServer = g_ctl_mqtt->connected;
-    }
+    std::string publish = j.str();
 
-    if (g_pdp_mqtt != nullptr)
-    {
-        loginInfo.pdpServer = g_pdp_mqtt->connected;
-    }
+    int rc = amultios_publish("TOKEN", (void *)publish.c_str(), (int)publish.size(), 2, 0);
 
-    if (g_ptp_mqtt != nullptr)
+    if (rc != MOSQ_ERR_SUCCESS)
     {
-        loginInfo.ptpServer = g_ptp_mqtt->connected;
+        ERROR_LOG(AMULTIOS, "Failed to Contact chat server");
+        loginInfo.counter++;
     }
-
-    loginInfo.party = getCurrentGroup();
-    amultios_publish("TOKEN", (void *)g_token.data(), (int)g_token.length(), 2, 0);
 }
 
 void ChatMessages::doPlayerStatusUpdate()
@@ -282,6 +280,7 @@ void ChatMessages::ParseCommand(const std::string &text)
                 else if (command.at(0) == "!tos")
                 {
                     cmList.Add("Amultios Terms Of Service", "Amultios", "SYSTEM", "HEADER");
+                    cmList.Add("Violation of TOS will cause your Amultios account banned and kicked!");
                     cmList.Add("Use International English languange on WORLD chatroom");
                     cmList.Add("Speak your languange in their respective channel!");
                     cmList.Add("Respect each other");
@@ -290,7 +289,6 @@ void ChatMessages::ParseCommand(const std::string &text)
                     cmList.Add("Do not use Cheat or Cheated Save Data (Passive Cheat)");
                     cmList.Add("Use Official Amultios Emulator to play in our network");
                     cmList.Add("Read Amultios Faqs in main website before asking how to in community");
-                    cmList.Add("Violation of TOS will cause your Amultios account banned and kicked!");
                 }
                 else if (command.at(0) == "!sub")
                 {
@@ -302,7 +300,7 @@ void ChatMessages::ParseCommand(const std::string &text)
                         auto subit = std::find(SubcriptionList.begin(), SubcriptionList.end(), selected);
                         if (subit == SubcriptionList.end())
                         {
-                            int rc = amultios_subscribe(("CHAT/" + selected + "/#").c_str(), 2);
+                            int rc = amultios_subscribe((Acl + "/" + selected + "/#").c_str(), 2);
                             if (rc == MOSQ_ERR_SUCCESS)
                             {
                                 SubcriptionList.push_back(selected);
@@ -326,7 +324,7 @@ void ChatMessages::ParseCommand(const std::string &text)
                     auto subit = std::find(SubcriptionList.begin(), SubcriptionList.end(), selected);
                     if (subit != SubcriptionList.end() && selected != "SYSTEM")
                     {
-                        int rc = amultios_unsubscribe(("CHAT/" + selected + "/#").c_str());
+                        int rc = amultios_unsubscribe((Acl + "/" + selected + "/#").c_str());
                         if (rc == MOSQ_ERR_SUCCESS)
                         {
                             SubcriptionList.erase(subit);
@@ -465,6 +463,11 @@ void ChatMessages::ParseCommand(const std::string &text)
                             {
                                 this->selectedRoom = selected;
                                 cmList.Add("Set channel into " + this->selectedRoom + " success", "Amultios", "SYSTEM", "HEADER");
+
+                                if (selected == "WORLD")
+                                {
+                                    cmList.Add("make sure to use english in world channel!", "Amultios", "SYSTEM", "TEXT");
+                                }
                             }
                             else
                             {
@@ -526,15 +529,15 @@ void ChatMessages::ParseCommand(const std::string &text)
 void ChatMessages::SendChat(const std::string &text)
 {
     auto amultios_mqtt = g_amultios_mqtt;
-    if (amultios_mqtt->connected)
+    if (amultios_mqtt->connected && trusted && Acl != "CHAT")
     {
         if (this->selectedRoom == "PRIVATE")
         {
-            std::string pubtopic = "CHAT/" + this->selectedRoom + this->privateMessageRoom + "/" + g_Config.sNickName;
+            std::string pubtopic = Acl + "/" + this->selectedRoom + this->privateMessageRoom + "/" + loginInfo.SceNetAdhocctlNickname;
             int rc = amultios_publish(pubtopic.c_str(), (void *)text.c_str(), (int)text.size(), 2, 0);
             if (rc == MOSQ_ERR_SUCCESS)
             {
-                cmList.Add(text, g_Config.sNickName, "PRIVATE");
+                cmList.Add(text, loginInfo.SceNetAdhocctlNickname, "PRIVATE");
             }
         }
         else if (this->selectedRoom == "PARTY")
@@ -547,7 +550,7 @@ void ChatMessages::SendChat(const std::string &text)
             }
             else
             {
-                std::string pubtopic = "CHAT/" + room + "/" + g_Config.sNickName;
+                std::string pubtopic = Acl + "/" + room + "/" + loginInfo.SceNetAdhocctlNickname;
                 amultios_publish(pubtopic.c_str(), (void *)text.c_str(), (int)text.size(), 2, 0);
             }
         }
@@ -556,12 +559,12 @@ void ChatMessages::SendChat(const std::string &text)
             auto subit = std::find(SubcriptionList.begin(), SubcriptionList.end(), this->selectedRoom);
             if (subit != SubcriptionList.end())
             {
-                std::string topic = "CHAT/" + this->selectedRoom + "/" + g_Config.sNickName;
+                std::string topic = Acl + "/" + this->selectedRoom + "/" + loginInfo.SceNetAdhocctlNickname;
                 amultios_publish(topic.c_str(), (void *)text.c_str(), (int)text.size(), 2, 0);
             }
             else
             {
-                cmList.Add("Channel " + this->selectedRoom + " is not in your subscription list !sub channelname to subscribe");
+                cmList.Add("Channel " + this->selectedRoom + " is not in your subscription list !sub channelname to listen the chat as subscriber");
                 cmList.Update();
             }
         }
@@ -799,7 +802,7 @@ int amultios_subscribe(const char *topic, int qos)
     int rc = MOSQ_ERR_CONN_PENDING;
     if (amultios_mqtt != nullptr && amultios_mqtt->connected && amultiosInited)
     {
-        NOTICE_LOG(AMULTIOS, "Amultios Game Info topic %s", topic);
+        //NOTICE_LOG(AMULTIOS, "Amultios Game Info topic %s", topic);
         {
             //std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
             amultios_mqtt->sub_topic_latest = topic;
@@ -850,7 +853,7 @@ void amultios_subscribe_callback(struct mosquitto *mosq, void *obj, int mid, int
     auto amultios_mqtt = g_amultios_mqtt;
     if (amultios_mqtt != nullptr && amultiosInited)
     {
-        INFO_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", amultios_mqtt->mqtt_id.c_str(), amultios_mqtt->sub_topic_latest.c_str(), amultios_mqtt->qos_latest);
+        //INFO_LOG(AMULTIOS, "[%s] Subscribe Success on topic [%s] qos [%d]", amultios_mqtt->mqtt_id.c_str(), amultios_mqtt->sub_topic_latest.c_str(), amultios_mqtt->qos_latest);
         {
             //std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
             amultios_mqtt->subscribed += 1;
@@ -876,14 +879,18 @@ void amultios_connect_callback(struct mosquitto *mosq, void *obj, int rc)
     auto amultios_mqtt = g_amultios_mqtt;
     if (amultios_mqtt != nullptr)
     {
-        cmList.Add("Connected into Amultios Network", "Amultios", "SYSTEM", "HEADER");
+        //cmList.Add("Connected into Amultios Network", "Amultios", "SYSTEM", "HEADER");
         NOTICE_LOG(AMULTIOS, "[%s] Connect Success", amultios_mqtt->mqtt_id.c_str());
         {
             //std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
             amultios_mqtt->connected = true;
             amultios_mqtt->reconnectInProgress = false;
         }
-        amultios_login();
+
+        if (!loginInfo.logedIn)
+        {
+            amultios_login();
+        }
     }
 };
 
@@ -915,7 +922,7 @@ void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct m
             else
             {
                 std::vector<std::string> topic_explode(explode(topic, '/'));
-                if (topic_explode.at(0) == "CHAT")
+                if (topic_explode.at(0) == Acl)
                 {
                     char *data = (char *)message->payload;
                     std::string chatMessage(data, data + message->payloadlen);
@@ -945,35 +952,80 @@ void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct m
                 {
                     char *data = (char *)message->payload;
                     std::string token(data, data + message->payloadlen);
-                    if (token.at(0) == OPCODE_AMULTIOS_LOGIN_PASS)
+                    json::JsonReader reader(token.c_str(), token.size());
+
+                    const json::JsonGet root = reader.root();
+                    loginInfo.SceNetAdhocctlNickname = root.getString("SceNetAdhocctlNickname", "NOT FOUND");
+                    loginInfo.SceNetEtherAddr = root.getString("SceNetEtherAddr", "00:00:00:00:00:00");
+                    loginInfo.Validate = root.getString("Validate", "");
+                    loginInfo.Roles = root.getInt("Roles", 4);
+                    loginInfo.Status = root.getString("Status", "Login Failed");
+                    loginInfo.Issuer = root.getString("Issuer", "");
+
+                    stateTransfer = root.getString("Validate", "");
+
+                    std::string message = root.getString("Message", "Failed To Contact Authentication Server");
+                    int expired = root.getInt("Expired", OPCODE_AMULTIOS_LOGOUT);
+
+                    if (expired == OPCODE_AMULTIOS_LOGOUT)
                     {
-                        trusted = true;
-                        cmList.Add(token.substr(1, 64), "Amultios", "SYSTEM", "HEADER");
-                        cmList.Add("Type !help for list of command", "Amultios", "SYSTEM", "TEXT");
-                        cmList.ParseCommand("!tos");
-                        cmList.ParseCommand("!sub world");
-                        std::string up = g_Config.sNickName;
-                        std::transform(up.begin(), up.end(), up.begin(), ::toupper);
-                        int rc = amultios_subscribe(("CHAT/PRIVATE" + up + "/#").c_str(), 2);
+                        trusted = false;
+                        cmList.Add(message, "Amultios", "SYSTEM", "HEADER");
+                        Acl = "CHAT";
+                        loginInfo.logedIn = false;
+                    }
+
+                    if (loginInfo.Validate != "")
+                    {
+                        int rc = amultios_subscribe(loginInfo.Validate.c_str(), 2);
                         if (rc == MOSQ_ERR_SUCCESS)
                         {
-                            cmList.Add("Private chatroom is " + g_Config.sNickName);
+                            if (expired == OPCODE_AMULTIOS_LOGIN_PASS)
+                            {
+                                loginInfo.logedIn = true;
+                                cmList.Add("Login Verified Synchronize Network", "Amultios", "SYSTEM", "HEADER");
+                                Acl = "CHAT";
+                            }
+                            amultios_sync();
+                        }
+                    }
+                }
+                else if (topic == stateTransfer)
+                {
+                    char *data = (char *)message->payload;
+                    std::string token(data, data + message->payloadlen);
+                    json::JsonReader reader(token.c_str(), token.size());
+
+                    const json::JsonGet root = reader.root();
+                    int state = root.getInt("State", OPCODE_AMULTIOS_LOGOUT);
+                    int counter = root.getInt("Counter", -1);
+                    std::string message = root.getString("Message", "");
+                    Acl = root.getString("Acl", "CHAT");
+                    INFO_LOG(AMULTIOS, "counter %d",counter);
+                    if (state == OPCODE_AMULTIOS_LOGIN_PASS)
+                    {
+                        trusted = true;
+                        loginInfo.AdhocSwitch = "ON (Loged In)";
+                        if (counter == 0)
+                        {
+                            cmList.ParseCommand("!tos");
+                            cmList.ParseCommand("!sub world");
+                            cmList.Add("Type !help for list of command");
                         }
                     }
                     else
                     {
+                        loginInfo.AdhocSwitch = "OFF (Failed Login)";
+                        if (counter == 0)
+                        {
+                            cmList.Add(message, "Amultios", "SYSTEM", "HEADER");
+                        }
                         trusted = false;
-                        cmList.Add("Disconnected From Network", "Amultios", "SYSTEM", "HEADER");
-                        cmList.Add(token.substr(1, 64), "Amultios", "SYSTEM", "HEADER");
-                        cmList.Update();
+                        //__AMULTIOS_SHUTDOWN();
+                        //__AMULTIOS_CTL_SHUTDOWN();
+                        //__AMULTIOS_PDP_SHUTDOWN();
+                        //__AMULTIOS_PTP_SHUTDOWN();
                     }
-                }
-                else if (topic_explode.at(0) == "TOKEN")
-                {
-                    char *data = (char *)message->payload;
-                    std::string token(data, data + message->payloadlen);
-                    g_token = token;
-                    amultios_sync();
                 }
             }
         }
@@ -1671,12 +1723,21 @@ int __AMULTIOS_INIT()
     int rc = MOSQ_ERR_CONN_PENDING;
     if (!amultiosInited)
     {
+        cmList.Clear();
+        loginInfo.counter = 0;
+        loginInfo.SceNetAdhocctlNickname.clear();
+        loginInfo.SceNetEtherAddr.clear();
+        loginInfo.Validate.clear();
+        loginInfo.Issuer.clear();
+        loginInfo.Roles = 4;
+        loginInfo.AdhocSwitch = "OFF (Failed Login)";
+
         amultiosInited = true;
         {
             //std::lock_guard<std::mutex> lk(amultios_mqtt_mutex);
             g_amultios_mqtt = std::make_shared<AmultiosMqtt>();
             g_amultios_mqtt->subscribed = 0;
-            g_amultios_mqtt->mqtt_id = "AMULTIOS/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
+            g_amultios_mqtt->mqtt_id = "AMULTIOS/" + g_Config.sNickName;
             amultios_client = mosquitto_new(g_amultios_mqtt->mqtt_id.c_str(), true, NULL);
         }
 
@@ -1721,6 +1782,8 @@ int __AMULTIOS_INIT()
         WARN_LOG(AMULTIOS, "[%s] Running own thread ", g_amultios_mqtt->mqtt_id.c_str());
         g_amultios_mqtt->ownThread = true;
         amultiosThread = std::thread(__AMULTIOS_START);
+
+        loginInfo.logedIn = false;
         //}
     }
     return rc;
@@ -1760,7 +1823,7 @@ int __AMULTIOS_CTL_INIT()
             //std::lock_guard<std::mutex> lk(ctl_mqtt_mutex);
             g_ctl_mqtt = std::make_shared<AmultiosMqtt>();
             g_ctl_mqtt->subscribed = 0;
-            g_ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
+            g_ctl_mqtt->mqtt_id = "CTL/" + g_Config.sNickName;
             ctl_client = mosquitto_new(g_ctl_mqtt->mqtt_id.c_str(), true, NULL);
         }
 
@@ -1845,7 +1908,7 @@ int __AMULTIOS_PDP_INIT()
             //std::lock_guard<std::mutex> lk(pdp_mqtt_mutex);
             g_pdp_mqtt.reset(new AmultiosMqtt());
             g_pdp_mqtt->subscribed = 0;
-            g_pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
+            g_pdp_mqtt->mqtt_id = "PDP/" + g_Config.sNickName;
             g_pdp_mqtt->reconnectInProgress = true;
             pdp_client = mosquitto_new(g_pdp_mqtt->mqtt_id.c_str(), true, NULL);
         }
@@ -1918,7 +1981,7 @@ int __AMULTIOS_PTP_INIT()
             //std::lock_guard<std::mutex> lk(ptp_mqtt_mutex);
             g_ptp_mqtt.reset(new AmultiosMqtt());
             g_ptp_mqtt->subscribed = 0;
-            g_ptp_mqtt->mqtt_id = "PTP/" + g_Config.sNickName + "/" + g_Config.sMACAddress;
+            g_ptp_mqtt->mqtt_id = "PTP/" + g_Config.sNickName;
             ptp_client = mosquitto_new(g_ptp_mqtt->mqtt_id.c_str(), true, NULL);
         }
 
@@ -2001,11 +2064,12 @@ int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
         SceNetEtherAddr addres;
         getLocalMac(&addres);
         packet.mac = addres;
-        strcpy((char *)packet.name.data, g_Config.sNickName.c_str());
+        strcpy((char *)packet.name.data, loginInfo.SceNetAdhocctlNickname.c_str());
         memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
         int rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
         if (rc == MOSQ_ERR_SUCCESS)
         {
+            amultios_sync();
             return 0;
         }
     }
@@ -2071,7 +2135,7 @@ int AmultiosNetAdhocctlCreate(const char *groupName)
                 std::string room = "PARTY" + getCurrentGroup();
                 if (room != "PARTY")
                 {
-                    std::string topic = "CHAT/PARTY" + getCurrentGroup() + "/#";
+                    std::string topic = Acl + "/PARTY" + getCurrentGroup() + "/#";
                     int rc = amultios_subscribe(topic.c_str(), 2);
                     if (rc == MOSQ_ERR_SUCCESS)
                     {
@@ -2152,7 +2216,7 @@ int AmultiosNetAdhocctlDisconnect()
         std::string room = "PARTY" + getCurrentGroup();
         if (room != "PARTY")
         {
-            std::string topic = "CHAT/PARTY" + getCurrentGroup() + "/#";
+            std::string topic = Acl + "/PARTY" + getCurrentGroup() + "/#";
             int rc = amultios_unsubscribe(topic.c_str());
             if (rc == MOSQ_ERR_SUCCESS)
             {
@@ -2210,7 +2274,7 @@ int AmultiosNetAdhocctlTerm()
     std::string room = "PARTY" + getCurrentGroup();
     if (room != "PARTY")
     {
-        std::string topic = "CHAT/PARTY" + getCurrentGroup() + "/#";
+        std::string topic = Acl + "/PARTY" + getCurrentGroup() + "/#";
         amultios_unsubscribe(topic.c_str());
         amultios_sync();
     }
@@ -2344,7 +2408,7 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                         }
 
                         // Free Memory for Internal Data
-                        ERROR_LOG(AMULTIOS,"PDP ADHOC PORT IN USE");
+                        ERROR_LOG(AMULTIOS, "PDP ADHOC PORT IN USE");
                         free(internal);
                         return retval;
                     }
@@ -2620,7 +2684,7 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
                 // free(sock);
 
                 // Free Translation Slot
-                
+
                 if (!pdp_topic.at(id - 1).empty())
                 {
                     int rc = pdp_unsubscribe(("PDP/S/" + getMacString(&sock->laddr) + pdp_topic.at(id - 1)).c_str());
@@ -2641,7 +2705,6 @@ int AmultiosNetAdhocPdpDelete(int id, int unknown)
                                        [sock](const PDPMessage &o) { return o.dport == sock->lport; }),
                         pdp_queue.end());
                 }
-                
 
                 pdp[id - 1] = NULL;
                 // Success
@@ -3054,7 +3117,7 @@ int AmultiosNetAdhocPtpConnect(int id, int timeout, int flag)
                         }
                     }
                 }
-                NOTICE_LOG(SCENET,"CONNECT RETURN REFUSED");
+                NOTICE_LOG(SCENET, "CONNECT RETURN REFUSED");
                 // Peer not found
                 return ERROR_NET_ADHOC_CONNECTION_REFUSED;
             }
@@ -3288,7 +3351,7 @@ int AmultiosNetAdhocPtpSend(int id, u32 dataAddr, u32 dataSizeAddr, int timeout,
                     if (rc == MOSQ_ERR_SUCCESS)
                     {
                         // Save Length
-                        INFO_LOG(AMULTIOS,"[%s] send message len [%d]",ptp_pub_topic.at(id-1).c_str(),*len);
+                        INFO_LOG(AMULTIOS, "[%s] send message len [%d]", ptp_pub_topic.at(id - 1).c_str(), *len);
                         *len = *len;
                         // Return Success
                         return 0;

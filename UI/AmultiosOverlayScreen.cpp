@@ -69,11 +69,39 @@ void AmultiosOverlayScreen::CreateViews()
 
 	ScrollView *scrollAccount = new ScrollView(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT));
 	scrollStatus->SetTag("AmultiosAccountInformation");
+	accountVert_ = scrollAccount->Add(new LinearLayout(ORIENT_VERTICAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
+	accountVert_->SetSpacing(0);
+
+	LinearLayout *line = accountVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, lineMargins)));
+	TextView *GroupView = line->Add(new TextView("Nickname", FLAG_DYNAMIC_ASCII, true));
+	GroupView->SetTextColor(0xFF000000 | 0x45BFCA);
+	TextView *nameView = line->Add(new TextView(loginInfo.SceNetAdhocctlNickname, FLAG_DYNAMIC_ASCII, true));
+	nameView->SetTextColor(0xFF000000 | 0xFFFFFF);
+
+	LinearLayout *line2 = accountVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, lineMargins)));
+	TextView *GroupView2 = line2->Add(new TextView("Mac", FLAG_DYNAMIC_ASCII, true));
+	GroupView2->SetTextColor(0xFF000000 | 0x45BFCA);
+	TextView *nameView2 = line2->Add(new TextView(loginInfo.SceNetEtherAddr, FLAG_DYNAMIC_ASCII, true));
+	nameView2->SetTextColor(0xFF000000 | 0xFFFFFF);
+
+	LinearLayout *line3 = accountVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, lineMargins)));
+	TextView *GroupView3 = line3->Add(new TextView("Status", FLAG_DYNAMIC_ASCII, true));
+	GroupView3->SetTextColor(0xFF000000 | 0x45BFCA);
+	TextView *nameView3 = line3->Add(new TextView(loginInfo.Status, FLAG_DYNAMIC_ASCII, true));
+	nameView3->SetTextColor(0xFF000000 | 0xFFFFFF);
+
+	LinearLayout *line4 = accountVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, lineMargins)));
+	TextView *GroupView4 = line4->Add(new TextView("Adhoc Switch", FLAG_DYNAMIC_ASCII, true));
+	GroupView4->SetTextColor(0xFF000000 | 0x45BFCA);
+	TextView *nameView4 = line4->Add(new TextView(loginInfo.AdhocSwitch, FLAG_DYNAMIC_ASCII, true));
+	nameView4->SetTextColor(0xFF000000 | 0xFFFFFF);
 
 	rightColumnItems->Add(new Spacer(50.0));
 	Choice *continueChoice = rightColumnItems->Add(new Choice(aa->T("Continue")));
 	continueChoice->OnClick.Handle<UIScreen>(this, &UIScreen::OnBack);
 
+	currentChannel_ = new TextView(cmList.getCurrentChannel(), FLAG_DYNAMIC_ASCII, true);
+	rightColumnItems->Add(currentChannel_);
 #if !defined(MOBILE_DEVICE)
 	chatEdit_ = box_->Add(new TextEdit("", aa->T("Type Something"), new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT)));
 	chatEdit_->SetMaxLen(144);
@@ -190,7 +218,7 @@ void AmultiosOverlayScreen::UpdateChat()
 			{
 				int start = 0;
 				size_t pos = maxLength - (iter->room.length() + iter->name.length());
-				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins)));
+				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, lineMargins)));
 				TextView *GroupView = line->Add(new TextView(" [" + iter->room + "]", FLAG_DYNAMIC_ASCII, true));
 				GroupView->SetTextColor(0xFF000000 | iter->roomcolor);
 				TextView *nameView = line->Add(new TextView(iter->name, FLAG_DYNAMIC_ASCII, true));
@@ -214,19 +242,19 @@ void AmultiosOverlayScreen::UpdateChat()
 				while (remain.length() > maxLength)
 				{
 					std::string part = remain.substr(0, maxLength);
-					LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins)));
+					LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, lineMargins)));
 					TextView *chatView = line->Add(new TextView(part, FLAG_DYNAMIC_ASCII, true));
 					chatView->SetTextColor(0xFF000000 | iter->textcolor);
 					remain = remain.substr(part.length(), remain.length());
 				}
 
-				LinearLayout *linelast = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins)));
+				LinearLayout *linelast = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, lineMargins)));
 				TextView *chatViewlast = linelast->Add(new TextView(remain, FLAG_DYNAMIC_ASCII, true));
 				chatViewlast->SetTextColor(0xFF000000 | iter->textcolor);
 			}
 			else
 			{
-				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT,lineMargins)));
+				LinearLayout *line = chatVert_->Add(new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(FILL_PARENT, WRAP_CONTENT, lineMargins)));
 				TextView *GroupView = line->Add(new TextView(" [" + iter->room + "]", FLAG_DYNAMIC_ASCII, true));
 				GroupView->SetTextColor(0xFF000000 | iter->roomcolor);
 
@@ -237,6 +265,11 @@ void AmultiosOverlayScreen::UpdateChat()
 			}
 		}
 		toBottom_ = true;
+	}
+
+	if (currentChannel_ != nullptr)
+	{
+		currentChannel_->SetText(cmList.getCurrentChannel());
 	}
 }
 
