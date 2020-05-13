@@ -45,6 +45,8 @@ bool netAdhocInited;
 bool netAdhocctlInited;
 bool networkInited;
 
+int netAdhocctlCounter = 0;
+
 static bool netAdhocMatchingInited;
 int netAdhocMatchingStarted = 0;
 
@@ -187,6 +189,7 @@ void __NetAdhocInit()
 	netAdhocInited = false;
 	netAdhocctlInited = false;
 	netAdhocMatchingInited = false;
+	netAdhocctlCounter = 0;
 	adhocctlHandlers.clear();
 	__AdhocServerInit();
 	dummyThreadCode[0] = MIPS_MAKE_SYSCALL("sceNetAdhoc", "__NetTriggerCallbacks");
@@ -252,22 +255,33 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 {
 	INFO_LOG(SCENET, "sceNetAdhocctlInit(%i, %i, %08x) at %08x", stackSize, prio, productAddr, currentMIPS->pc);
 
-	if (netAdhocctlInited)
-		return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
+
+		if (netAdhocctlCounter == 1){
+			return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
+		}
+
+		if(netAdhocctlCounter >= 1){
+			return ERROR_NET_ADHOCCTL_ID_NOT_FOUND;
+		}
+
 		if (AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MOSQ_ERR_SUCCESS)
 		{
 			networkInited = true;
 		}
 		else
 		{
+			ERROR_LOG(SCENET,"Failed To Send Adhoc Ctl Params to server");
 			networkInited = false;
 		}
 		netAdhocctlInited = true;
 		return 0;
 	}
+
+	if (netAdhocctlInited)
+		return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
 
 	if (g_Config.bEnableWlan)
 	{
@@ -693,14 +707,15 @@ static int sceNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int
 static int sceNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dataLength, u32 timeout, int flag)
 {
 	DEBUG_LOG(SCENET, "sceNetAdhocPdpRecv(%i, %p, %p, %p, %p, %i, %i) at %08x", id, addr, port, buf, dataLength, timeout, flag, currentMIPS->pc);
-	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
-	{
-		return -1;
-	}
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPdpRecv(id, addr, port, buf, dataLength, timeout, flag);
+	}
+
+	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
+	{
+		return -1;
 	}
 
 	SceNetEtherAddr *saddr = (SceNetEtherAddr *)addr;
@@ -1659,6 +1674,13 @@ int sceNetAdhocctlCreate(const char *groupName)
 
 static int sceNetAdhocctlConnect(u32 ptrToGroupName)
 {
+
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
+	{
+		INFO_LOG(SCENET, "sceNetAdhocctlConnect(groupName=%s) at %08x", Memory::GetCharPointer(ptrToGroupName), currentMIPS->pc);
+		return AmultiosNetAdhocctlCreate(Memory::GetCharPointer(ptrToGroupName));
+	}
+
 	if (Memory::IsValidAddress(ptrToGroupName))
 	{
 		INFO_LOG(SCENET, "sceNetAdhocctlConnect(groupName=%s) at %08x", Memory::GetCharPointer(ptrToGroupName), currentMIPS->pc);
