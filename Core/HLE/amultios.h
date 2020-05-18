@@ -1,5 +1,5 @@
 #include "Core/HLE/proAdhoc.h"
-
+#include "Core/HLE/sceNet.h"
 extern "C"
 {
 #include "mosquitto.h"
@@ -138,7 +138,10 @@ bool isSameMAC(const SceNetEtherAddr *addr, const SceNetEtherAddr *addr2);
 // library method
 std::string getModeAddress();
 void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet);
+SceNetAdhocctlPeerInfoAmultios * findAmultiosPeer(SceNetEtherAddr *MAC);
+int countActiveAmultiosPeer();
 void deleteAmultiosPeer(SceNetEtherAddr *mac);
+void freeAllActiveAmultiosPeer(SceNetAdhocctlPeerInfoAmultios * node);
 bool macInNetwork(const SceNetEtherAddr *mac);
 
 void amultios_login();
@@ -202,6 +205,8 @@ int AmultiosNetAdhocInit();
 int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id);
 int AmultiosNetAdhocctlScan();
 int AmultiosNetAdhocctlCreate(const char *groupName);
+int AmultiosNetAdhocctlGetPeerInfo(const char *mac, int size, u32 peerInfoAddr);
+int AmultiosNetAdhocctlGetPeerList(u32 sizeAddr, u32 bufAddr);
 int AmultiosNetAdhocctlDisconnect();
 int AmultiosNetAdhocctlTerm();
 int AmultiosNetAdhocTerm();

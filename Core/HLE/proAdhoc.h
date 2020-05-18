@@ -256,6 +256,15 @@ typedef struct SceNetAdhocctlPeerInfoEmu {
   u64_le last_recv; // Need to use the same method with sceKernelGetSystemTimeWide (ie. CoreTiming::GetGlobalTimeUsScaled) to prevent timing issue (ie. in game timeout)
 } PACK SceNetAdhocctlPeerInfoEmu;
 
+typedef struct SceNetAdhocctlPeerInfoAmultios{
+  SceNetAdhocctlPeerInfoAmultios * next;
+  SceNetAdhocctlNickname nickname;
+  SceNetEtherAddr mac_addr;
+  u32_le ip_addr; //jpcsp wrote 6bytes of 0x11 for this & padding
+  u16 padding; // Changed the padding to u16
+  u64_le last_recv;
+} PACK SceNetAdhocctlPeerInfoAmultios;
+
 // Member Information
 typedef struct SceNetAdhocMatchingMemberInfo {
 	SceNetAdhocMatchingMemberInfo * next;
@@ -543,7 +552,7 @@ enum {
 	ERROR_NET_ADHOC_MATCHING_DATA_BUSY				= 0x80410818,
 
 	ERROR_NET_ADHOCCTL_WLAN_SWITCH_OFF				= 0x80410b03,
-	ERROR_NET_ADHOCCTL_INVALID_ARG					= 0x80410B04,
+	ERROR_NET_ADHOCCTL_INVALID_ARG					= 0x80410b04,
 	ERROR_NET_ADHOCCTL_ID_NOT_FOUND					= 0x80410B06,
 	ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED			= 0x80410b07,
 	ERROR_NET_ADHOCCTL_NOT_INITIALIZED				= 0x80410b08,
@@ -738,6 +747,8 @@ typedef struct {
 typedef struct {
   SceNetAdhocctlPacketBase base;
   SceNetEtherAddr mac;
+  SceNetAdhocctlNickname nickname;
+  SceNetAdhocctlGroupName groupname;
 } PACK SceNetAdhocctlConnectBSSIDPacketS2C;
 
 // S2C Chat Packet

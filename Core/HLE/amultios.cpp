@@ -62,6 +62,8 @@ bool trusted = false;
 std::string stateTransfer;
 std::string Acl = "CHAT";
 
+SceNetAdhocctlPeerInfoAmultios * amultios_peer = NULL;
+
 void amultios_login()
 {
     int rc = MOSQ_ERR_CONN_PENDING;
@@ -133,7 +135,7 @@ void amultios_status()
     j.writeString("Issuer", loginInfo.Issuer);
     j.writeString("Group", getCurrentGroup());
     j.end();
-    
+
     std::string publish = j.str();
 
     int rc = amultios_publish("UPDATESTATUS", (void *)publish.c_str(), (int)publish.size(), 2, 0);
@@ -609,7 +611,6 @@ std::string getCurrentGroup()
 
 std::string getModeAddress()
 {
-
     std::string mode = "amultios.net";
     if (g_Config.iAdhocMode == DEV_MODE)
     {
@@ -677,7 +678,7 @@ void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet)
         return;
     // Multithreading Lock
     std::lock_guard<std::recursive_mutex> guard(peerlock);
-    SceNetAdhocctlPeerInfo *peer = findFriend(&packet->mac);
+    SceNetAdhocctlPeerInfoAmultios * peer = findAmultiosPeer(&packet->mac);
     // Already existed
 
     if (peer != NULL)
@@ -691,12 +692,12 @@ void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet)
     else
     {
         // Allocate Structure
-        peer = (SceNetAdhocctlPeerInfo *)malloc(sizeof(SceNetAdhocctlPeerInfo));
+        peer = (SceNetAdhocctlPeerInfoAmultios *)malloc(sizeof(SceNetAdhocctlPeerInfoAmultios));
         // Allocated Structure
         if (peer != NULL)
         {
             // Clear Memory
-            memset(peer, 0, sizeof(SceNetAdhocctlPeerInfo));
+            memset(peer, 0, sizeof(SceNetAdhocctlPeerInfoAmultios));
 
             // Save Nickname
             peer->nickname = packet->name;
@@ -708,22 +709,74 @@ void addAmultiosPeer(AmultiosNetAdhocctlConnectPacketS2C *packet)
             peer->last_recv = CoreTiming::GetGlobalTimeUsScaled();
 
             // Link to existing Peers
-            peer->next = friends;
+            peer->next = amultios_peer;
 
             // Link into Peerlist
-            friends = peer;
+            amultios_peer = peer;
             NOTICE_LOG(AMULTIOS, "Adding Peer [%s]", getMacString(&packet->mac).c_str());
         }
     }
 }
 
+int countActiveAmultiosPeer()
+{
+    int count = 0;
+
+    // #ifdef LOCALHOST_AS_PEER
+    // // Increase for Localhost
+    // count++;
+    // #endif
+
+    // Peer Reference
+    SceNetAdhocctlPeerInfoAmultios *peer = amultios_peer;
+
+    // Iterate Peers
+    for (; peer != NULL; peer = peer->next)
+    {
+        // Increase Counter
+        count++;
+    }
+
+    // Return Result
+    return count;
+}
+
+SceNetAdhocctlPeerInfoAmultios *findAmultiosPeer(SceNetEtherAddr *MAC)
+{
+    if (MAC == NULL)
+        return NULL;
+
+    // Friends Reference
+    SceNetAdhocctlPeerInfoAmultios *peer = amultios_peer;
+
+    // Iterate Friends
+    for (; peer != NULL; peer = peer->next)
+    {
+        if (IsMatch(peer->mac_addr, *MAC))
+            break;
+    }
+
+    // Return found friend
+    return peer;
+}
+
+void freeAllActiveAmultiosPeer(SceNetAdhocctlPeerInfoAmultios * node){
+    if (node == NULL) return;
+
+	// Increase Recursion Depth
+	freeAllActiveAmultiosPeer(node->next);
+
+	// Free Memory
+	free(node);
+}
+
 void deleteAmultiosPeer(SceNetEtherAddr *mac)
 {
     // Previous Peer Reference
-    SceNetAdhocctlPeerInfo *prev = NULL;
+    SceNetAdhocctlPeerInfoAmultios *prev = NULL;
 
     // Peer Pointer
-    SceNetAdhocctlPeerInfo *peer = friends;
+    SceNetAdhocctlPeerInfoAmultios *peer = amultios_peer;
 
     // Iterate Peers
     for (; peer != NULL; peer = peer->next)
@@ -739,7 +792,7 @@ void deleteAmultiosPeer(SceNetEtherAddr *mac)
 
             // Unlink Left (Beginning)
             if (prev == NULL)
-                friends = peer->next;
+                amultios_peer = peer->next;
 
             // Unlink Left (Other)
             else
@@ -778,7 +831,7 @@ bool macInNetwork(const SceNetEtherAddr *mac)
     std::lock_guard<std::recursive_mutex> guard(peerlock);
 
     // Peer Reference
-    SceNetAdhocctlPeerInfo *peer = friends;
+    SceNetAdhocctlPeerInfoAmultios *peer = amultios_peer;
 
     // Iterate Peers
     for (; peer != NULL; peer = peer->next)
@@ -796,7 +849,6 @@ bool macInNetwork(const SceNetEtherAddr *mac)
 }
 
 //start of amultios socket
-
 int amultios_publish(const char *topic, void *payload, int size, int qos, unsigned long timeout)
 {
     int rc = MOSQ_ERR_CONN_PENDING;
@@ -2237,6 +2289,161 @@ int AmultiosNetAdhocctlScan()
     return ERROR_NET_ADHOCCTL_NOT_INITIALIZED;
 }
 
+int AmultiosNetAdhocctlGetPeerInfo(const char *mac, int size, u32 peerInfoAddr)
+{
+	DEBUG_LOG(AMULTIOS, "AmultiosNetAdhocctlGetPeerInfo(%s, %i, %08x) at %08x", mac, size, peerInfoAddr, currentMIPS->pc);
+
+	SceNetEtherAddr *maddr = (SceNetEtherAddr *)mac;
+	SceNetAdhocctlPeerInfoEmu *buf = NULL;
+	if (Memory::IsValidAddress(peerInfoAddr))
+	{
+		buf = (SceNetAdhocctlPeerInfoEmu *)Memory::GetPointer(peerInfoAddr);
+	}
+	// Library initialized
+	if (netAdhocctlInited)
+	{
+		if ((size < (int)sizeof(SceNetAdhocctlPeerInfoEmu)) || (buf == NULL))
+			return ERROR_NET_ADHOCCTL_INVALID_ARG;
+
+		int retval = ERROR_NET_ADHOCCTL_INVALID_ARG; // -1;
+		// Local MAC
+		if (isLocalMAC(maddr))
+		{
+			//sockaddr_in addr;
+			SceNetAdhocctlNickname nickname;
+
+			//getLocalIp(&addr);
+			strcpy((char *)nickname.data, g_Config.sNickName.c_str());
+			//buf->next = 0;
+			buf->nickname = nickname;
+			buf->nickname.data[ADHOCCTL_NICKNAME_LEN - 1] = 0; // last char need to be null-terminated char
+			buf->mac_addr = *maddr;
+			buf->last_recv = CoreTiming::GetGlobalTimeUsScaled();
+
+			// Success
+			retval = 0;
+		}
+		// Find Peer by MAC
+		else
+		{
+			// Multithreading Lock
+			peerlock.lock();
+
+			SceNetAdhocctlPeerInfoAmultios * peer = findAmultiosPeer(maddr);
+			if (peer != NULL)
+			{
+				// Fake Receive Time
+				if (peer->last_recv != 0)
+					peer->last_recv = CoreTiming::GetGlobalTimeUsScaled();
+
+				//buf->next = 0;
+				buf->nickname = peer->nickname;
+				buf->nickname.data[ADHOCCTL_NICKNAME_LEN - 1] = 0; // last char need to be null-terminated char
+				buf->mac_addr = *maddr;
+				//buf->ip_addr = peer->ip_addr; // 0x11111111;
+				//buf->padding = /*0;*/ 0x1111;
+				buf->last_recv = peer->last_recv; //CoreTiming::GetGlobalTimeUsScaled(); //real_time_now()*1000000.0; //(uint64_t)time(NULL); //This timestamp is important issue on Dissidia 012
+
+				// Success
+				retval = 0;
+			}
+
+			// Multithreading Unlock
+			peerlock.unlock();
+		}
+		return retval;
+	}
+
+	// Library uninitialized
+	return ERROR_NET_ADHOCCTL_NOT_INITIALIZED;
+}
+
+int AmultiosNetAdhocctlGetPeerList(u32 sizeAddr, u32 bufAddr)
+{
+    s32_le *buflen = NULL;
+    if (Memory::IsValidAddress(sizeAddr))
+        buflen = (s32_le *)Memory::GetPointer(sizeAddr);
+    SceNetAdhocctlPeerInfoEmu *buf = NULL;
+    if (Memory::IsValidAddress(bufAddr))
+        buf = (SceNetAdhocctlPeerInfoEmu *)Memory::GetPointer(bufAddr);
+
+    //need to check module loaded first
+
+    //not initialized
+    if (!netAdhocctlInited)
+    {
+        return ERROR_NET_ADHOC_NOT_INITIALIZED;
+    }
+
+    // invalid argument
+    if (buflen == NULL)
+    {
+        return ERROR_NET_ADHOCCTL_INVALID_ARG;
+    }
+
+    //not connected into bssid yet
+    if (parameter.group_name.data[0] == 0)
+    {
+        return ERROR_NET_GROUP_NOT_AVAILABLE;
+    }
+
+    // return length
+    peerlock.lock();
+    if (buf == NULL)
+    {
+        *buflen = countActiveAmultiosPeer() * sizeof(SceNetAdhocctlPeerInfoEmu);
+    }
+
+    if (buf != NULL)
+    {
+        int request_count = *buflen / sizeof(SceNetAdhocctlPeerInfoEmu);
+        int remain_buff = *buflen;
+        memset(buf, 0, *buflen);
+        *buflen = 0;
+
+        DEBUG_LOG(AMULTIOS, "AmultiosNetGetPeerList reqcount %d , actual buff size %d ,struct size %lu", request_count, remain_buff, sizeof(SceNetAdhocctlPeerInfoEmu));
+        // minimum buffer >= 152
+        if (request_count > 0)
+        {
+            SceNetAdhocctlPeerInfoAmultios *peer = amultios_peer;
+            //iterate and fill the buff
+            int pushed = 0;
+            for (; peer != NULL && pushed < request_count; peer = peer->next)
+            {
+                // Fake Receive Time
+                if (peer->last_recv != 0)
+                    peer->last_recv = CoreTiming::GetGlobalTimeUsScaled();
+
+                // Copy Peer Info
+                buf[pushed].nickname = peer->nickname;
+                buf[pushed].mac_addr = peer->mac_addr;
+                buf[pushed].last_recv = peer->last_recv;
+                pushed++;
+            }
+
+            // Link List
+            int i = 0;
+            for (; i < pushed - 1; i++)
+            {
+                // Link Network
+                buf[i].next = bufAddr + (sizeof(SceNetAdhocctlPeerInfoEmu) * i) + sizeof(SceNetAdhocctlPeerInfoEmu);
+            }
+            // Fix Last Element
+            if (pushed > 0)
+            {
+                buf[pushed - 1].next = 0;
+            }
+
+            //give the actual buff size
+            *buflen = pushed * sizeof(SceNetAdhocctlPeerInfoEmu);
+        }
+    }
+
+    peerlock.unlock();
+    DEBUG_LOG(AMULTIOS, "AmultiosNetGetPeerList leaving with size %d", *buflen);
+    return 0;
+}
+
 int AmultiosNetAdhocctlDisconnect()
 {
 
@@ -2278,11 +2485,11 @@ int AmultiosNetAdhocctlDisconnect()
             iResult = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
         }
         // Clear Peer List
-        freeFriendsRecursive(friends);
-        INFO_LOG(AMULTIOS, "Cleared Peer List.");
+        freeAllActiveAmultiosPeer(amultios_peer);
+        INFO_LOG(AMULTIOS, "Cleared Active Peer List.");
 
         // Delete Peer Reference
-        friends = NULL;
+        amultios_peer = NULL;
     }
     return 0;
 }
@@ -2450,6 +2657,9 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
                 ERROR_LOG(AMULTIOS, "PDP_MQTT CREATE FAILED %d , topic %s ", rc, sub_topic.c_str());
                 return ERROR_NET_NO_SPACE;
             }
+
+            WARN_LOG(AMULTIOS, "AmultiosPdpCreate Returning Invalid Local Mac Address");
+            return ERROR_NET_ADHOC_INVALID_ADDR;
         }
         return ERROR_NET_ADHOC_INVALID_ARG;
     }
@@ -2459,9 +2669,10 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
 
 int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int len, int timeout, int flag)
 {
-    //INFO_LOG(AMULTIOS, "AmultiosNetAdhocPdpSend(%i, %s, %i, %p, %i, %i, %i)", id, mac, port, data, len, timeout, flag);
+
     SceNetEtherAddr *daddr = (SceNetEtherAddr *)mac;
     uint16_t dport = (uint16_t)port;
+    INFO_LOG(AMULTIOS, "AmultiosNetAdhocPdpSend(%i, %s, %i, %p, %i, %i, %i)", id, getMacString(daddr).c_str(), dport, data, len, timeout, flag);
 
     if (loginInfo.Character.empty() && loginInfo.CrossRegion == "ULUS10391" && len == 74)
     {
@@ -2618,7 +2829,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
                                 std::string payout;
                                 size_t payoutlen = snappy::Compress(payload, len, &payout);
 
-                                SceNetAdhocctlPeerInfo *peer = friends;
+                                SceNetAdhocctlPeerInfoAmultios *peer = amultios_peer;
                                 SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
                                 for (; peer != NULL; peer = peer->next)
                                 {
@@ -2667,6 +2878,8 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
     SceNetEtherAddr *saddr = (SceNetEtherAddr *)addr;
     uint16_t *sport = (uint16_t *)port; //Looking at Quake3 sourcecode (net_adhoc.c) this is an "int" (32bit) but changing here to 32bit will cause FF-Type0 to see duplicated Host (thinking it was from a different host)
     int *len = (int *)dataLength;
+
+    INFO_LOG(AMULTIOS,"AmultiosNetAdhocPdpRecv : %i,%s,%i,%p,%i,%i,%i",id,getMacString(saddr).c_str(),*sport,buf,*len,timeout,flag);
     if (netAdhocInited)
     {
         // Valid Socket ID
@@ -2705,21 +2918,51 @@ int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dat
                         *saddr = it->sourceMac;
                         *sport = (uint16_t)it->sport;
                         *len = it->payloadlen;
-                        DEBUG_LOG(AMULTIOS, "Got Pdp Message [%d]", it->payloadlen);
+                        //DEBUG_LOG(AMULTIOS, "Got Pdp Message [%d]", it->payloadlen);
                         pdp_queue.erase(it);
                         return 0;
                     }
-                    DEBUG_LOG(AMULTIOS, "Discarding Uknown Message");
+                    //DEBUG_LOG(AMULTIOS, "Discarding Uknown Message");
                     pdp_queue.erase(it);
                 }
 
-                DEBUG_LOG(AMULTIOS, "No Message Found");
                 if (flag)
+                {
+                    DEBUG_LOG(AMULTIOS, "No Message Found addr ");
                     return ERROR_NET_ADHOC_WOULD_BLOCK;
+                }
 
                 if (!flag)
                 {
-                    DEBUG_LOG(AMULTIOS, "Warning Receive Reached Timeout timeout [%d] len[%d]", timeout, *len);
+                    //wait and wake in the middle of timeout
+                    int sleep_time = timeout/2;
+
+                    if(sleep_time > 0){
+                        sleep_ms(sleep_time);
+                    }
+
+                    std::vector<PDPMessage>::iterator it = std::find_if(pdp_queue.begin(), pdp_queue.end(), [&socket](PDPMessage const &obj) {
+                        //INFO_LOG(AMULTIOS,"INSIDE QUEUE[%d] [%s]:[%d] data len [%d]",(int) pdp_queue.size(),getMacString(&obj.destinationMac).c_str(),obj.dport,obj.payloadlen);
+                        return /*isSameMAC(&obj.destinationMac, &socket->laddr) && macInNetwork(&obj.sourceMac) && */ obj.dport == socket->lport;
+                    });
+
+
+                    if (it != pdp_queue.end()){
+                        std::lock_guard<std::mutex> lk(pdp_queue_mutex);
+                        if (macInNetwork(&it->sourceMac))
+                        {
+                            memcpy(buf, it->payload.data(), it->payloadlen);
+                            *saddr = it->sourceMac;
+                            *sport = (uint16_t)it->sport;
+                            *len = it->payloadlen;
+                            //DEBUG_LOG(AMULTIOS, "Got Pdp Message [%d]", it->payloadlen);
+                            pdp_queue.erase(it);
+                            return 0;
+                        }
+                        //DEBUG_LOG(AMULTIOS, "Discarding Uknown Message");
+                        pdp_queue.erase(it);
+                    }
+                    DEBUG_LOG(AMULTIOS, "Warning Receive Reached  Timeout mac %s[%hu] timeout [%d] len[%d]", getMacString(saddr).c_str(), *sport, timeout, *len);
                 }
                 return ERROR_NET_ADHOC_TIMEOUT;
             }

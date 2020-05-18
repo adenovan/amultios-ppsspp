@@ -779,6 +779,7 @@ void connect_user(SceNetAdhocctlUserNode * user, SceNetAdhocctlGroupName * group
 
 			// Set BSSID Opcode
 			bssid.base.opcode = OPCODE_CONNECT_BSSID;
+			bssid.nickname = user->resolver.name;
 
 			// Set Default BSSID
 			bssid.mac = user->resolver.mac;
@@ -854,7 +855,10 @@ void connect_user(SceNetAdhocctlUserNode * user, SceNetAdhocctlGroupName * group
 					if (iResult < 0) ERROR_LOG(SCENET, "AdhocServer: connect_user[send user] (Socket error %d)", errno);
 
 					// Set BSSID
-					if(peer->group_next == NULL) bssid.mac = peer->resolver.mac;
+					if(peer->group_next == NULL){
+						bssid.mac = peer->resolver.mac;
+						bssid.nickname = peer->resolver.name;
+					} 
 
 					// Move Pointer
 					peer = peer->group_next;
@@ -872,6 +876,8 @@ void connect_user(SceNetAdhocctlUserNode * user, SceNetAdhocctlGroupName * group
 				g->playercount++;
 
 				// Send Network BSSID to User
+
+				bssid.groupname = user->group->group;
 				int iResult = send(user->stream, (const char*)&bssid, sizeof(bssid), 0);
 				if (iResult < 0) ERROR_LOG(SCENET, "AdhocServer: connect_user[send user bssid] (Socket error %d)", errno);
 

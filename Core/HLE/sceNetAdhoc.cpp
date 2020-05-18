@@ -233,9 +233,9 @@ u32 sceNetAdhocInit()
 		// Library initialized
 		netAdhocInited = true;
 
-// Create fake PSP Thread for callback
-// TODO: Should use a separated threads for friendFinder, matchingEvent, and matchingInput and created on AdhocctlInit & AdhocMatchingStart instead of here
-#define PSP_THREAD_ATTR_KERNEL 0x00001000 // PSP_THREAD_ATTR_KERNEL is located in sceKernelThread.cpp instead of sceKernelThread.h :(
+		// Create fake PSP Thread for callback
+		// TODO: Should use a separated threads for friendFinder, matchingEvent, and matchingInput and created on AdhocctlInit & AdhocMatchingStart instead of here
+		#define PSP_THREAD_ATTR_KERNEL 0x00001000 // PSP_THREAD_ATTR_KERNEL is located in sceKernelThread.cpp instead of sceKernelThread.h :(
 		//threadAdhocID = __KernelCreateThreadInternal("AdhocThread", __KernelGetCurThreadModuleId(), dummyThreadHackAddr, 0x30, 4096, PSP_THREAD_ATTR_KERNEL);
 		threadAdhocID = __KernelCreateThread("AdhocThread", __KernelGetCurThreadModuleId(), dummyThreadHackAddr, 0x10, 0x1000, 0, 0, false);
 		if (threadAdhocID > 0)
@@ -259,13 +259,13 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 
-		if (netAdhocctlCounter == 1){
+		if (netAdhocctlInited){
 			return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
 		}
 
-		if(netAdhocctlCounter >= 1){
-			return ERROR_NET_ADHOCCTL_ID_NOT_FOUND;
-		}
+		//if(netAdhocctlCounter >= 1){
+			//return ERROR_NET_ADHOCCTL_ID_NOT_FOUND;
+		//}
 
 		if (AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MOSQ_ERR_SUCCESS)
 		{
@@ -308,6 +308,7 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 static int sceNetAdhocctlGetState(u32 ptrToStatus)
 {
 	// Library initialized
+	DEBUG_LOG(SCENET,"sceNetAdhocctlGetState: %p",ptrToStatus);
 	if (netAdhocctlInited)
 	{
 		// Valid Arguments
@@ -338,7 +339,7 @@ static int sceNetAdhocctlGetState(u32 ptrToStatus)
 // When choosing AdHoc menu in Wipeout Pulse sometimes it's saying that "WLAN is turned off" on game screen and getting "kUnityCommandCode_MediaDisconnected" error in the Log Console when calling sceNetAdhocPdpCreate, probably it needed to wait something from the thread before calling this (ie. need to receives 7 bytes from adhoc server 1st?)
 static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unknown)
 {
-	INFO_LOG(SCENET, "sceNetAdhocPdpCreate(%s, %u, %u, %u) at %08x", mac, port, bufferSize, unknown, currentMIPS->pc);
+	INFO_LOG(SCENET, "sceNetAdhocPdpCreate(%s, %u, %u, %u) at %08x", getMacString((SceNetEtherAddr *)mac).c_str(), port, bufferSize, unknown, currentMIPS->pc);
 	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
 	{
 		return -1;
@@ -487,6 +488,7 @@ static int sceNetAdhocctlGetParameter(u32 paramAddr)
 		{
 			// Copy Parameter
 			Memory::WriteStruct(paramAddr, &parameter);
+			INFO_LOG(SCENET,"sceNetAdhocctlGetParameter Channel %d Nickname %s BSSID %s Groupname %s ",parameter.channel,(const char *)parameter.nickname.data, getMacString(&parameter.bssid.mac_addr).c_str(),(const char *)parameter.group_name.data);
 			// Return Success
 			return 0;
 		}
@@ -1503,6 +1505,12 @@ static int sceNetAdhocctlJoin(u32 scanInfoAddr)
 
 int sceNetAdhocctlGetPeerInfo(const char *mac, int size, u32 peerInfoAddr)
 {
+
+	if(g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE){
+		return AmultiosNetAdhocctlGetPeerInfo(mac,size,peerInfoAddr);
+	}
+
+
 	VERBOSE_LOG(SCENET, "sceNetAdhocctlGetPeerInfo(%s, %i, %08x) at %08x", mac, size, peerInfoAddr, currentMIPS->pc);
 	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
 	{
@@ -2505,7 +2513,7 @@ static int sceNetAdhocPtpClose(int id, int unknown)
  */
 static int sceNetAdhocPtpListen(const char *srcmac, int sport, int bufsize, int rexmt_int, int rexmt_cnt, int backlog, int unk)
 {
-	INFO_LOG(SCENET, "sceNetAdhocPtpListen(%s,%d,%d,%d,%d,%d,%d)", srcmac, sport, bufsize, rexmt_int, rexmt_cnt, backlog, unk);
+	INFO_LOG(SCENET, "sceNetAdhocPtpListen(%s,%d,%d,%d,%d,%d,%d)", getMacString((SceNetEtherAddr *)srcmac).c_str(), sport, bufsize, rexmt_int, rexmt_cnt, backlog, unk);
 	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
 	{
 		return 0;
@@ -4047,7 +4055,7 @@ void __NetTriggerCallbacks()
 		matchingEvents.clear();
 	}
 	//magically make this work
-	hleDelayResult(0, "Prevent Adhoc thread from blocking", 1000);
+	hleDelayResult(0, "Prevent Adhoc thread from blocking", 10000);
 }
 
 const HLEFunction sceNetAdhoc[] = {
@@ -4114,6 +4122,11 @@ static int sceNetAdhocctlGetGameModeInfo(u32 infoAddr)
 
 static int sceNetAdhocctlGetPeerList(u32 sizeAddr, u32 bufAddr)
 {
+
+	if(g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE){
+		return AmultiosNetAdhocctlGetPeerList(sizeAddr,bufAddr);
+	}
+
 	s32_le *buflen = NULL;
 	if (Memory::IsValidAddress(sizeAddr))
 		buflen = (s32_le *)Memory::GetPointer(sizeAddr);
@@ -4133,6 +4146,11 @@ static int sceNetAdhocctlGetPeerList(u32 sizeAddr, u32 bufAddr)
 		// Minimum Arguments
 		if (buflen != NULL)
 		{
+
+			if(parameter.group_name.data[0] == 0){
+				return ERROR_NET_GROUP_NOT_AVAILABLE;
+			}
+
 			// Multithreading Lock
 			peerlock.lock();
 

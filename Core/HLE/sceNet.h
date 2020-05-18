@@ -49,6 +49,13 @@ enum {
 	ERROR_NET_RESOLVER_INVALID_HOST			= 0x80410414,
 
 	ERROR_NET_APCTL_ALREADY_INITIALIZED		= 0x80410a01,
+
+	//guess
+	// on grabbing local ether addr	
+	ERROR_NET_NOT_CONNECTED_INTO_BSSID = 0x8041018,
+
+	// on grabbing peer list
+	ERROR_NET_GROUP_NOT_AVAILABLE = 0x80410682
 };
 
 enum {

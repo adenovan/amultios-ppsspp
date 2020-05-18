@@ -152,7 +152,12 @@ static u32 sceWlanGetEtherAddr(u32 addrAddr)
 
 static u32 sceNetGetLocalEtherAddr(u32 addrAddr)
 {
-	return sceWlanGetEtherAddr(addrAddr);
+	// connected into group
+	DEBUG_LOG(SCENET, "sceNetGetLocalEtherAddr(%08x)", addrAddr);
+	if(parameter.group_name.data[0] != 0){
+		return sceWlanGetEtherAddr(addrAddr);
+	}
+	return ERROR_NET_NOT_CONNECTED_INTO_BSSID;
 }
 
 static u32 sceWlanDevIsPowerOn()

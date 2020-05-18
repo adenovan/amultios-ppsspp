@@ -1057,6 +1057,9 @@ int friendFinder(){
 					// Cast Packet
 					SceNetAdhocctlConnectBSSIDPacketS2C * packet = (SceNetAdhocctlConnectBSSIDPacketS2C *)rx;
 					// Update BSSID
+					parameter.channel = 1;
+					parameter.nickname = packet->nickname;
+					parameter.group_name = packet->groupname;
 					parameter.bssid.mac_addr = packet->mac;
 					// Change State
 					threadStatus = ADHOCCTL_STATE_CONNECTED;
