@@ -106,7 +106,7 @@ enum WaitType
 	WAITTYPE_TLSPL        = 21,
 	WAITTYPE_VMEM         = 22,
 	WAITTYPE_ASYNCIO      = 23,
-
+	WAITTYPE_ADHOCNETWORK      = 24,
 	NUM_WAITTYPES
 };
 

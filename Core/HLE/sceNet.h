@@ -54,8 +54,8 @@ enum {
 	// on grabbing local ether addr	
 	ERROR_NET_NOT_CONNECTED_INTO_BSSID = 0x8041018,
 
-	// on grabbing peer list
-	ERROR_NET_GROUP_NOT_AVAILABLE = 0x80410682
+	// on grabbing peer list this happens if we not connected into the adhoc control yet
+	ERROR_NET_NO_MEDIUM = 0x80410682
 };
 
 enum {

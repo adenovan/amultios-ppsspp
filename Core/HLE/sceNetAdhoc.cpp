@@ -308,7 +308,7 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 static int sceNetAdhocctlGetState(u32 ptrToStatus)
 {
 	// Library initialized
-	DEBUG_LOG(SCENET,"sceNetAdhocctlGetState: %p",ptrToStatus);
+	//DEBUG_LOG(SCENET,"sceNetAdhocctlGetState: %p",ptrToStatus);
 	if (netAdhocctlInited)
 	{
 		// Valid Arguments
@@ -4148,7 +4148,7 @@ static int sceNetAdhocctlGetPeerList(u32 sizeAddr, u32 bufAddr)
 		{
 
 			if(parameter.group_name.data[0] == 0){
-				return ERROR_NET_GROUP_NOT_AVAILABLE;
+				return ERROR_NET_NO_MEDIUM;
 			}
 
 			// Multithreading Lock

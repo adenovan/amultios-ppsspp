@@ -459,5 +459,67 @@ private:
 	std::vector<std::string> Admin = {"LUCIS", "AMULTIOS", "TINTIN", "ADENOVAN", "B4120NE", "GATOT", "RADIS3D"};
 };
 
+
+enum class NetOperationType{
+	CONNECT,
+	DISCONNECT,
+	SENDTO,
+	RECVFROM,
+	ACCEPT,
+	SELECT
+};
+
+struct NetOperation{
+	NetOperationType type;
+	SceUID threadID;
+	uint64_t socket;
+	std::vector<uint8_t> data;
+	uint64_t timeoutUs;
+};
+
+struct NetOperationResult{
+
+	NetOperationResult() : result(0), finishTicks(0), invalidateAddr(0) {
+	};
+	s64 result;
+	u64 finishTicks;
+	u32 invalidateAddr;
+};
+
+class AdhocNetworkManager
+{
+	public:
+	int Recv(int id, uint8_t * buffer,size_t recvsize,SceUID threadID);
+	int Send(int id,uint8_t * data,size_t dataSize,SceUID threadID);
+
+	private:
+	void Read(u32 handle, u8 *buf, size_t bytes, u32 invalidateAddr);
+	void Write(u32 handle, u8 *buf, size_t bytes);
+	void EventResult(u32 handle, NetOperationResult result);
+
+	std::mutex resultsLock_;
+	std::condition_variable resultsWait_;
+	std::set<u32> resultsPending_;
+	std::map<u32, NetOperationResult> results_;
+};
+
+class AdhocControlManager
+{
+	SceNetAdhocctlScanInfo NewNetworkControl;
+	SceNetAdhocctlScanInfo CurrentNetworkControl;
+	std::vector<SceNetAdhocctlPeerInfoAmultios> ActivePeer;
+
+	void AddPeer();
+	void RemovePeer();
+
+};
+
+class AdhocMatchingManager
+{
+
+};
+
+
+extern AdhocNetworkManager adhocNetwork;
 extern ChatMessages cmList;
 extern LoginInfo loginInfo;
