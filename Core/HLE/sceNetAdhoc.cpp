@@ -70,36 +70,6 @@ int sceNetAdhocMatchingSetHelloOpt(int matchingId, int optLenAddr, u32 optDataAd
 
 void __NetAdhocShutdown()
 {
-	//Kill AdhocServer Thread
-	if (adhocServerRunning)
-	{
-		adhocServerRunning = false;
-		if (adhocServerThread.joinable())
-		{
-			adhocServerThread.join();
-		}
-	}
-	// Checks to avoid confusing logspam
-	if (netAdhocMatchingInited)
-	{
-		sceNetAdhocMatchingTerm();
-	}
-	if (netAdhocctlInited)
-	{
-		sceNetAdhocctlTerm();
-	}
-	if (netAdhocInited)
-	{
-		// Should not really call HLE funcs from shutdown.
-		// Prevent attempting to delete the thread, already deleted by shutdown.
-		threadAdhocID = 0;
-		sceNetAdhocTerm();
-	}
-	if (dummyThreadHackAddr)
-	{
-		kernelMemory.Free(dummyThreadHackAddr);
-		dummyThreadHackAddr = 0;
-	}
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
@@ -123,6 +93,39 @@ void __NetAdhocShutdown()
 			__AMULTIOS_CTL_SHUTDOWN();
 		}
 		mosquitto_lib_cleanup();
+	}
+	else
+	{
+		//Kill AdhocServer Thread
+		if (adhocServerRunning)
+		{
+			adhocServerRunning = false;
+			if (adhocServerThread.joinable())
+			{
+				adhocServerThread.join();
+			}
+		}
+		// Checks to avoid confusing logspam
+		if (netAdhocMatchingInited)
+		{
+			sceNetAdhocMatchingTerm();
+		}
+		if (netAdhocctlInited)
+		{
+			sceNetAdhocctlTerm();
+		}
+		if (netAdhocInited)
+		{
+			// Should not really call HLE funcs from shutdown.
+			// Prevent attempting to delete the thread, already deleted by shutdown.
+			threadAdhocID = 0;
+			sceNetAdhocTerm();
+		}
+		if (dummyThreadHackAddr)
+		{
+			kernelMemory.Free(dummyThreadHackAddr);
+			dummyThreadHackAddr = 0;
+		}
 	}
 }
 
@@ -185,31 +188,11 @@ static int getBlockingFlag(int id)
 void __NetAdhocInit()
 {
 
-	friendFinderRunning = false;
-	netAdhocInited = false;
-	netAdhocctlInited = false;
-	netAdhocMatchingInited = false;
-	netAdhocctlCounter = 0;
-	adhocctlHandlers.clear();
-	__AdhocServerInit();
-	dummyThreadCode[0] = MIPS_MAKE_SYSCALL("sceNetAdhoc", "__NetTriggerCallbacks");
-	dummyThreadCode[1] = MIPS_MAKE_B(-2);
-	dummyThreadCode[2] = MIPS_MAKE_NOP();
-	u32 blockSize = sizeof(dummyThreadCode);
-	dummyThreadHackAddr = kernelMemory.Alloc(blockSize, false, "dummythreadhack");
-	Memory::Memcpy(dummyThreadHackAddr, dummyThreadCode, sizeof(dummyThreadCode)); // This area will be cleared again after loading an old savestate :(
-	actionAfterMatchingMipsCall = __KernelRegisterActionType(AfterMatchingMipsCall::Create);
-	// Create built-in AdhocServer Thread
-	if (g_Config.bEnableWlan && g_Config.bEnableAdhocServer)
-	{
-		adhocServerRunning = true;
-		adhocServerThread = std::thread(proAdhocServerThread, SERVER_PORT);
-	}
-
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 
-		if(g_Config.iAdhocMode == AMULTIOS_MODE){
+		if (g_Config.iAdhocMode == AMULTIOS_MODE)
+		{
 			g_Config.iPtpQos = PTPQos::QOS_0;
 		}
 		mosquitto_lib_init();
@@ -218,10 +201,36 @@ void __NetAdhocInit()
 		__AMULTIOS_PDP_INIT();
 		__AMULTIOS_PTP_INIT();
 	}
+	else{
+
+		friendFinderRunning = false;
+		netAdhocInited = false;
+		netAdhocctlInited = false;
+		netAdhocMatchingInited = false;
+		adhocctlHandlers.clear();
+		__AdhocServerInit();
+		dummyThreadCode[0] = MIPS_MAKE_SYSCALL("sceNetAdhoc", "__NetTriggerCallbacks");
+		dummyThreadCode[1] = MIPS_MAKE_B(-2);
+		dummyThreadCode[2] = MIPS_MAKE_NOP();
+		u32 blockSize = sizeof(dummyThreadCode);
+		dummyThreadHackAddr = kernelMemory.Alloc(blockSize, false, "dummythreadhack");
+		Memory::Memcpy(dummyThreadHackAddr, dummyThreadCode, sizeof(dummyThreadCode)); // This area will be cleared again after loading an old savestate :(
+		actionAfterMatchingMipsCall = __KernelRegisterActionType(AfterMatchingMipsCall::Create);
+		// Create built-in AdhocServer Thread
+		if (g_Config.bEnableWlan && g_Config.bEnableAdhocServer)
+		{
+			adhocServerRunning = true;
+			adhocServerThread = std::thread(proAdhocServerThread, SERVER_PORT);
+		}
+	}
 }
 
 u32 sceNetAdhocInit()
 {
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
+	{
+
+	}
 	// Library uninitialized
 	INFO_LOG(SCENET, "sceNetAdhocInit() at %08x", currentMIPS->pc);
 	if (!netAdhocInited)
@@ -233,9 +242,9 @@ u32 sceNetAdhocInit()
 		// Library initialized
 		netAdhocInited = true;
 
-		// Create fake PSP Thread for callback
-		// TODO: Should use a separated threads for friendFinder, matchingEvent, and matchingInput and created on AdhocctlInit & AdhocMatchingStart instead of here
-		#define PSP_THREAD_ATTR_KERNEL 0x00001000 // PSP_THREAD_ATTR_KERNEL is located in sceKernelThread.cpp instead of sceKernelThread.h :(
+// Create fake PSP Thread for callback
+// TODO: Should use a separated threads for friendFinder, matchingEvent, and matchingInput and created on AdhocctlInit & AdhocMatchingStart instead of here
+#define PSP_THREAD_ATTR_KERNEL 0x00001000 // PSP_THREAD_ATTR_KERNEL is located in sceKernelThread.cpp instead of sceKernelThread.h :(
 		//threadAdhocID = __KernelCreateThreadInternal("AdhocThread", __KernelGetCurThreadModuleId(), dummyThreadHackAddr, 0x30, 4096, PSP_THREAD_ATTR_KERNEL);
 		threadAdhocID = __KernelCreateThread("AdhocThread", __KernelGetCurThreadModuleId(), dummyThreadHackAddr, 0x10, 0x1000, 0, 0, false);
 		if (threadAdhocID > 0)
@@ -255,16 +264,16 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 {
 	INFO_LOG(SCENET, "sceNetAdhocctlInit(%i, %i, %08x) at %08x", stackSize, prio, productAddr, currentMIPS->pc);
 
-
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 
-		if (netAdhocctlInited){
+		if (netAdhocctlInited)
+		{
 			return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
 		}
 
 		//if(netAdhocctlCounter >= 1){
-			//return ERROR_NET_ADHOCCTL_ID_NOT_FOUND;
+		//return ERROR_NET_ADHOCCTL_ID_NOT_FOUND;
 		//}
 
 		if (AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MOSQ_ERR_SUCCESS)
@@ -273,7 +282,7 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 		}
 		else
 		{
-			ERROR_LOG(SCENET,"Failed To Send Adhoc Ctl Params to server");
+			ERROR_LOG(SCENET, "Failed To Send Adhoc Ctl Params to server");
 			networkInited = false;
 		}
 		netAdhocctlInited = true;
@@ -488,7 +497,7 @@ static int sceNetAdhocctlGetParameter(u32 paramAddr)
 		{
 			// Copy Parameter
 			Memory::WriteStruct(paramAddr, &parameter);
-			INFO_LOG(SCENET,"sceNetAdhocctlGetParameter Channel %d Nickname %s BSSID %s Groupname %s ",parameter.channel,(const char *)parameter.nickname.data, getMacString(&parameter.bssid.mac_addr).c_str(),(const char *)parameter.group_name.data);
+			INFO_LOG(SCENET, "sceNetAdhocctlGetParameter Channel %d Nickname %s BSSID %s Groupname %s ", parameter.channel, (const char *)parameter.nickname.data, getMacString(&parameter.bssid.mac_addr).c_str(), (const char *)parameter.group_name.data);
 			// Return Success
 			return 0;
 		}
@@ -924,7 +933,7 @@ int sceNetAdhocPollSocket(u32 socketStructAddr, int count, int timeout, int nonb
 				FD_SET(fd, &exceptfds);
 			}
 			timeval tmout;
-			tmout.tv_sec = timeout / 1000000;	// seconds
+			tmout.tv_sec = timeout / 1000000;	 // seconds
 			tmout.tv_usec = (timeout % 1000000); // microseconds
 			affectedsockets = select(count, &readfds, &writefds, &exceptfds, &tmout);
 			if (affectedsockets > 0)
@@ -1506,10 +1515,10 @@ static int sceNetAdhocctlJoin(u32 scanInfoAddr)
 int sceNetAdhocctlGetPeerInfo(const char *mac, int size, u32 peerInfoAddr)
 {
 
-	if(g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE){
-		return AmultiosNetAdhocctlGetPeerInfo(mac,size,peerInfoAddr);
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
+	{
+		return AmultiosNetAdhocctlGetPeerInfo(mac, size, peerInfoAddr);
 	}
-
 
 	VERBOSE_LOG(SCENET, "sceNetAdhocctlGetPeerInfo(%s, %i, %08x) at %08x", mac, size, peerInfoAddr, currentMIPS->pc);
 	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
@@ -3167,7 +3176,7 @@ static int sceNetAdhocMatchingCreate(int mode, int maxnum, int port, int rxbufle
 								context->rxbuflen = rxbuflen;
 								context->resendcounter = init_count;
 								context->resend_int = rexmt_int; // used as ack timeout on lost packet (ie. not receiving anything after sending)?
-								context->hello_int = hello_int;  // client might set this to 0
+								context->hello_int = hello_int;	 // client might set this to 0
 								if (keepalive_int < 1)
 									context->keepalive_int = PSP_ADHOCCTL_PING_TIMEOUT;
 								else
@@ -4123,8 +4132,9 @@ static int sceNetAdhocctlGetGameModeInfo(u32 infoAddr)
 static int sceNetAdhocctlGetPeerList(u32 sizeAddr, u32 bufAddr)
 {
 
-	if(g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE){
-		return AmultiosNetAdhocctlGetPeerList(sizeAddr,bufAddr);
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
+	{
+		return AmultiosNetAdhocctlGetPeerList(sizeAddr, bufAddr);
 	}
 
 	s32_le *buflen = NULL;
@@ -4147,7 +4157,8 @@ static int sceNetAdhocctlGetPeerList(u32 sizeAddr, u32 bufAddr)
 		if (buflen != NULL)
 		{
 
-			if(parameter.group_name.data[0] == 0){
+			if (parameter.group_name.data[0] == 0)
+			{
 				return ERROR_NET_NO_MEDIUM;
 			}
 

@@ -722,7 +722,8 @@ static u32 sceUtilityGetSystemParamInt(u32 id, u32 destaddr)
 	u32 param = 0;
 	switch (id) {
 	case PSP_SYSTEMPARAM_ID_INT_ADHOC_CHANNEL:
-		param = g_Config.iWlanAdhocChannel;
+		//param = g_Config.iWlanAdhocChannel;
+		param = 1;
 		break;
 	case PSP_SYSTEMPARAM_ID_INT_WLAN_POWERSAVE:
 		param = g_Config.bWlanPowerSave?PSP_SYSTEMPARAM_WLAN_POWERSAVE_ON:PSP_SYSTEMPARAM_WLAN_POWERSAVE_OFF;

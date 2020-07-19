@@ -59,12 +59,35 @@ std::mutex ptp_peer_mutex;
 std::vector<PTPConnection> ptp_peer_connection;
 int bindOffset = 0;
 
+bool AdhocManagerInited = false;
 
 AdhocNetworkManager adhocNetwork;
+
+int AdhocNetworkManager::Init(){
+
+    if(AdhocManagerInited) return -1;
+    
+    NOTICE_LOG(AMULTIOS,"Network Multiplexer Started");
+    while(amultiosInited){
+
+    }
+    NOTICE_LOG(AMULTIOS,"Network Multiplexer Ended");
+    return 0;
+}
 
 int AdhocNetworkManager::Send(int id,uint8_t * data,size_t dataSize, SceUID threadID){
     NOTICE_LOG(AMULTIOS,"ID : %d , %i size",id,dataSize);
     return 0;
+}
+
+int AdhocNetworkManager::Recv(int id, uint8_t * data ,size_t dataSize, SceUID threadID){
+
+}
+
+int AdhocNetworkManager::Term(){
+    if(!AdhocManagerInited) return -1;
+    NOTICE_LOG(AMULTIOS,"Network Multiplexer Ended");
+
 }
 
 
@@ -1112,10 +1135,6 @@ void amultios_message_callback(struct mosquitto *mosq, void *obj, const struct m
                             cmList.Add(message, "Amultios", "SYSTEM", "HEADER");
                         }
                         trusted = false;
-                        //__AMULTIOS_SHUTDOWN();
-                        //__AMULTIOS_CTL_SHUTDOWN();
-                        //__AMULTIOS_PDP_SHUTDOWN();
-                        //__AMULTIOS_PTP_SHUTDOWN();
                     }
                 }
             }
@@ -2695,212 +2714,207 @@ int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unk
 int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int len, int timeout, int flag)
 {
 
-    if(!adhocNetwork.Send(id,(uint8_t *)data,len,__KernelGetCurThread())){
-        __KernelWaitCurThread(WAITTYPE_ADHOCNETWORK, id, 0, 0, false, "pdp send");
+    SceNetEtherAddr *daddr = (SceNetEtherAddr *)mac;
+    uint16_t dport = (uint16_t)port;
+    INFO_LOG(AMULTIOS, "AmultiosNetAdhocPdpSend(%i, %s, %i, %p, %i, %i, %i)", id, getMacString(daddr).c_str(), dport, data, len, timeout, flag);
+
+    if (loginInfo.Character.empty() && loginInfo.CrossRegion == "ULUS10391" && len == 74)
+    {
+        const char *un = static_cast<const char *>(data);
+
+        char charactername[9];
+
+        charactername[0] = un[26];
+        charactername[1] = un[28];
+        charactername[2] = un[30];
+        charactername[3] = un[32];
+        charactername[4] = un[34];
+        charactername[5] = un[36];
+        charactername[6] = un[38];
+        charactername[7] = un[40];
+        charactername[8] = 0;
+
+        loginInfo.Character = std::string(charactername);
+        amultios_status();
     }
 
-    return 0;
-//     SceNetEtherAddr *daddr = (SceNetEtherAddr *)mac;
-//     uint16_t dport = (uint16_t)port;
-//     INFO_LOG(AMULTIOS, "AmultiosNetAdhocPdpSend(%i, %s, %i, %p, %i, %i, %i)", id, getMacString(daddr).c_str(), dport, data, len, timeout, flag);
+    if (loginInfo.Character.empty() && loginInfo.CrossRegion == "ULJM05800" && len == 98)
+    {
+        const char *un = static_cast<const char *>(data);
 
-//     if (loginInfo.Character.empty() && loginInfo.CrossRegion == "ULUS10391" && len == 74)
-//     {
-//         const char *un = static_cast<const char *>(data);
+        char charactername[13];
 
-//         char charactername[9];
+        charactername[0] = un[42];
+        charactername[1] = un[44];
+        charactername[2] = un[46];
+        charactername[3] = un[48];
+        charactername[4] = un[50];
+        charactername[5] = un[52];
+        charactername[6] = un[54];
+        charactername[7] = un[56];
+        charactername[8] = un[58];
+        charactername[9] = un[60];
+        charactername[10] = un[62];
+        charactername[11] = un[64];
+        charactername[12] = 0;
 
-//         charactername[0] = un[26];
-//         charactername[1] = un[28];
-//         charactername[2] = un[30];
-//         charactername[3] = un[32];
-//         charactername[4] = un[34];
-//         charactername[5] = un[36];
-//         charactername[6] = un[38];
-//         charactername[7] = un[40];
-//         charactername[8] = 0;
+        loginInfo.Character = std::string(charactername);
+        amultios_status();
+    }
 
-//         loginInfo.Character = std::string(charactername);
-//         amultios_status();
-//     }
+    if (netAdhocInited)
+    {
+        // Valid Port
+        if (dport != 0)
+        {
+            // Valid Data Length
+            if (len >= 0)
+            { // should we allow 0 size packet (for ping) ?
+                // Valid Socket ID
+                if (id > 0 && id <= 255 && pdp[id - 1] != NULL)
+                {
+                    // Cast Socket
+                    SceNetAdhocPdpStat *socket = pdp[id - 1];
 
-//     if (loginInfo.Character.empty() && loginInfo.CrossRegion == "ULJM05800" && len == 98)
-//     {
-//         const char *un = static_cast<const char *>(data);
+                    // Valid Data Buffer
+                    if (data != NULL)
+                    {
+                        // Valid Destination Address
+                        if (daddr != NULL)
+                        {
 
-//         char charactername[13];
+                            // Single Target
+                            if (!isBroadcastMAC(daddr))
+                            {
+                                // Fill in Target Structure
 
-//         charactername[0] = un[42];
-//         charactername[1] = un[44];
-//         charactername[2] = un[46];
-//         charactername[3] = un[48];
-//         charactername[4] = un[50];
-//         charactername[5] = un[52];
-//         charactername[6] = un[54];
-//         charactername[7] = un[56];
-//         charactername[8] = un[58];
-//         charactername[9] = un[60];
-//         charactername[10] = un[62];
-//         charactername[11] = un[64];
-//         charactername[12] = 0;
+                                //const char test = "PDP/aabbccddeeff/65536/aabbccddeeff/65535";
+                                // Get Peer IP
+                                if (macInNetwork((SceNetEtherAddr *)daddr))
+                                {
+                                    // Acquire Network Lock
+                                    //_acquireNetworkLock();
+                                    int rc;
+                                    SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
+                                    std::string pdp_single_topic = "PDP/S/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                    const char *payload = static_cast<const char *>(data);
+                                    std::string payout;
+                                    size_t payoutlen = snappy::Compress(payload, len, &payout);
+                                    //NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic.c_str());
 
-//         loginInfo.Character = std::string(charactername);
-//         amultios_status();
-//     }
+                                    if (flag)
+                                    {
+                                        rc = pdp_publish(pdp_single_topic, payout, (int)payoutlen, g_Config.iPtpQos, 0);
+                                        if (rc == MOSQ_ERR_SUCCESS)
+                                        {
+                                            // auto pdp_mqtt = g_pdp_mqtt;
+                                            // if (pdp_mqtt->connected)
+                                            // {
+                                            //     mosquitto_loop(pdp_mqtt->mclient, timeout, 1);
+                                            // }
+                                            return 0;
+                                        }
+                                        return ERROR_NET_ADHOC_WOULD_BLOCK;
+                                    }
 
-//     if (netAdhocInited)
-//     {
-//         // Valid Port
-//         if (dport != 0)
-//         {
-//             // Valid Data Length
-//             if (len >= 0)
-//             { // should we allow 0 size packet (for ping) ?
-//                 // Valid Socket ID
-//                 if (id > 0 && id <= 255 && pdp[id - 1] != NULL)
-//                 {
-//                     // Cast Socket
-//                     SceNetAdhocPdpStat *socket = pdp[id - 1];
+                                    rc = pdp_publish(pdp_single_topic, payout, (int)payoutlen, g_Config.iPtpQos, timeout);
 
-//                     // Valid Data Buffer
-//                     if (data != NULL)
-//                     {
-//                         // Valid Destination Address
-//                         if (daddr != NULL)
-//                         {
+                                    // auto pdp_mqtt = g_pdp_mqtt;
+                                    // if (pdp_mqtt->connected)
+                                    // {
+                                    //     mosquitto_loop(pdp_mqtt->mclient, timeout, 1);
+                                    // }
 
-//                             // Single Target
-//                             if (!isBroadcastMAC(daddr))
-//                             {
-//                                 // Fill in Target Structure
+                                    if (rc == MOSQ_ERR_SUCCESS)
+                                    {
+                                        return 0;
+                                    }
 
-//                                 //const char test = "PDP/aabbccddeeff/65536/aabbccddeeff/65535";
-//                                 // Get Peer IP
-//                                 if (macInNetwork((SceNetEtherAddr *)daddr))
-//                                 {
-//                                     // Acquire Network Lock
-//                                     //_acquireNetworkLock();
-//                                     int rc;
-//                                     SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
-//                                     std::string pdp_single_topic = "PDP/S/" + getMacString(daddr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
-//                                     const char *payload = static_cast<const char *>(data);
-//                                     std::string payout;
-//                                     size_t payoutlen = snappy::Compress(payload, len, &payout);
-//                                     //NOTICE_LOG(AMULTIOS, "[PDP_NETWORK] PDP send topic single %s", pdp_single_topic.c_str());
+                                    if (!flag)
+                                    {
+                                        WARN_LOG(AMULTIOS, "Warning Send Reached Timeout timeout [%d] len[%d]", timeout, len);
+                                    }
+                                    return ERROR_NET_ADHOC_TIMEOUT;
+                                }
+                            }
 
-//                                     if (flag)
-//                                     {
-//                                         rc = pdp_publish(pdp_single_topic, payout, (int)payoutlen, g_Config.iPtpQos, 0);
-//                                         if (rc == MOSQ_ERR_SUCCESS)
-//                                         {
-//                                             // auto pdp_mqtt = g_pdp_mqtt;
-//                                             // if (pdp_mqtt->connected)
-//                                             // {
-//                                             //     mosquitto_loop(pdp_mqtt->mclient, timeout, 1);
-//                                             // }
-//                                             return 0;
-//                                         }
-//                                         return ERROR_NET_ADHOC_WOULD_BLOCK;
-//                                     }
+                            // Broadcast Target
+                            else
+                            {
 
-//                                     rc = pdp_publish(pdp_single_topic, payout, (int)payoutlen, g_Config.iPtpQos, timeout);
+                                //Group Broadcast overflow the socket
+                                /*SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
+                                int rc;
+                                std::string pdp_single_topic;
+                                std::string group_s = getCurrentGroup();
 
-//                                     // auto pdp_mqtt = g_pdp_mqtt;
-//                                     // if (pdp_mqtt->connected)
-//                                     // {
-//                                     //     mosquitto_loop(pdp_mqtt->mclient, timeout, 1);
-//                                     // }
+                                if (group_s.length() > 0)
+                                {
+                                    pdp_single_topic = "PDP/" + group_s + "/ff:ff:ff:ff:ff:ff/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                }
+                                else
+                                {
+                                    pdp_single_topic = "PDP/B/ff:ff:ff:ff:ff:ff/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
+                                }
 
-//                                     if (rc == MOSQ_ERR_SUCCESS)
-//                                     {
-//                                         return 0;
-//                                     }
+                                if (flag)
+                                {
+                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
+                                }
+                                else
+                                {
+                                    rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
+                                }*/
+                                // Iterate Peers
+                                peerlock.lock();
 
-//                                     if (!flag)
-//                                     {
-//                                         WARN_LOG(AMULTIOS, "Warning Send Reached Timeout timeout [%d] len[%d]", timeout, len);
-//                                     }
-//                                     return ERROR_NET_ADHOC_TIMEOUT;
-//                                 }
-//                             }
+                                int rc;
+                                const char *payload = static_cast<const char *>(data);
+                                std::string payout;
+                                size_t payoutlen = snappy::Compress(payload, len, &payout);
 
-//                             // Broadcast Target
-//                             else
-//                             {
+                                SceNetAdhocctlPeerInfoAmultios *peer = amultios_peer;
+                                SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
+                                for (; peer != NULL; peer = peer->next)
+                                {
+                                    if (flag)
+                                    {
+                                        rc = pdp_publish("PDP/S/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport), payout, (int)payoutlen, g_Config.iPtpQos, 0);
+                                    }
+                                    else
+                                    {
+                                        rc = pdp_publish("PDP/S/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport), payout, (int)payoutlen, g_Config.iPtpQos, timeout);
+                                    }
+                                }
+                                // Free Peer Lock
+                                peerlock.unlock();
 
-//                                 //Group Broadcast overflow the socket
-//                                 /*SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
-//                                 int rc;
-//                                 std::string pdp_single_topic;
-//                                 std::string group_s = getCurrentGroup();
+                                return 0;
+                            }
+                        }
 
-//                                 if (group_s.length() > 0)
-//                                 {
-//                                     pdp_single_topic = "PDP/" + group_s + "/ff:ff:ff:ff:ff:ff/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
-//                                 }
-//                                 else
-//                                 {
-//                                     pdp_single_topic = "PDP/B/ff:ff:ff:ff:ff:ff/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport);
-//                                 }
+                        // Invalid Destination Address
+                        return ERROR_NET_ADHOC_INVALID_ADDR;
+                    }
 
-//                                 if (flag)
-//                                 {
-//                                     rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, 0);
-//                                 }
-//                                 else
-//                                 {
-//                                     rc = pdp_publish(pdp_single_topic.c_str(), data, len, g_Config.iPtpQos, timeout);
-//                                 }*/
-//                                 // Iterate Peers
-//                                 peerlock.lock();
+                    // Invalid Argument
+                    return ERROR_NET_ADHOC_INVALID_ARG;
+                }
 
-//                                 int rc;
-//                                 const char *payload = static_cast<const char *>(data);
-//                                 std::string payout;
-//                                 size_t payoutlen = snappy::Compress(payload, len, &payout);
+                // Invalid Socket ID
+                return ERROR_NET_ADHOC_INVALID_SOCKET_ID;
+            }
 
-//                                 SceNetAdhocctlPeerInfoAmultios *peer = amultios_peer;
-//                                 SceNetEtherAddr *saddr = (SceNetEtherAddr *)socket->laddr.data;
-//                                 for (; peer != NULL; peer = peer->next)
-//                                 {
-//                                     if (flag)
-//                                     {
-//                                         rc = pdp_publish("PDP/S/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport), payout, (int)payoutlen, g_Config.iPtpQos, 0);
-//                                     }
-//                                     else
-//                                     {
-//                                         rc = pdp_publish("PDP/S/" + getMacString(&peer->mac_addr) + "/" + std::to_string(dport) + "/" + getMacString(saddr) + "/" + std::to_string(socket->lport), payout, (int)payoutlen, g_Config.iPtpQos, timeout);
-//                                     }
-//                                 }
-//                                 // Free Peer Lock
-//                                 peerlock.unlock();
+            // Invalid Data Length
+            return ERROR_NET_ADHOC_INVALID_DATALEN;
+        }
 
-//                                 return 0;
-//                             }
-//                         }
+        // Invalid Destination Port
+        return ERROR_NET_ADHOC_INVALID_PORT;
+    }
 
-//                         // Invalid Destination Address
-//                         return ERROR_NET_ADHOC_INVALID_ADDR;
-//                     }
-
-//                     // Invalid Argument
-//                     return ERROR_NET_ADHOC_INVALID_ARG;
-//                 }
-
-//                 // Invalid Socket ID
-//                 return ERROR_NET_ADHOC_INVALID_SOCKET_ID;
-//             }
-
-//             // Invalid Data Length
-//             return ERROR_NET_ADHOC_INVALID_DATALEN;
-//         }
-
-//         // Invalid Destination Port
-//         return ERROR_NET_ADHOC_INVALID_PORT;
-//     }
-
-//     // Library is uninitialized
-//     return ERROR_NET_ADHOC_NOT_INITIALIZED;
+    // Library is uninitialized
+    return ERROR_NET_ADHOC_NOT_INITIALIZED;
 
 
 }

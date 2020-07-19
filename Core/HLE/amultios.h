@@ -489,9 +489,10 @@ struct NetOperationResult{
 class AdhocNetworkManager
 {
 	public:
+	int Init();
 	int Recv(int id, uint8_t * buffer,size_t recvsize,SceUID threadID);
 	int Send(int id,uint8_t * data,size_t dataSize,SceUID threadID);
-
+	int Term();
 	private:
 	void Read(u32 handle, u8 *buf, size_t bytes, u32 invalidateAddr);
 	void Write(u32 handle, u8 *buf, size_t bytes);
