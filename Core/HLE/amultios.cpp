@@ -62,6 +62,7 @@ int bindOffset = 0;
 bool AdhocManagerInited = false;
 
 AdhocNetworkManager adhocNetwork;
+AdhocControlManager adhocControl;
 
 int AdhocNetworkManager::Init(){
 
@@ -76,7 +77,7 @@ int AdhocNetworkManager::Init(){
 }
 
 int AdhocNetworkManager::Send(int id,uint8_t * data,size_t dataSize, SceUID threadID){
-    NOTICE_LOG(AMULTIOS,"ID : %d , %i size",id,dataSize);
+    //NOTICE_LOG(AMULTIOS,"ID : %d , %i size",id,dataSize);
     return 0;
 }
 
@@ -2162,44 +2163,93 @@ int __AMULTIOS_PTP_SHUTDOWN()
     return rc;
 }
 
-
-
-
 // REAL HLE SIMULATION
 int AmultiosNetAdhocInit()
 {
+    if(!sceNetCommonModuleLoaded && !sceNetAdhocModuleLoaded){
+        return hleLogError(SCENET,SCE_KERNEL_ERROR_LIBRARY_NOT_YET_LINKED,"sceNetCommonModule and sceNetAdhocModule Not Loaded");
+    }
+
     int rc = MOSQ_ERR_CONN_PENDING;
     auto ctl_mqtt = g_ctl_mqtt;
     if (ctl_mqtt != nullptr && ctl_mqtt->connected)
     {
         rc = ctl_subscribe(ctl_mqtt->sub_topic.c_str(), 2);
     }
-    return rc;
+    
+    if(rc != MOSQ_ERR_SUCCESS){
+        return hleLogError(SCENET,ERROR_NET_POWER_INTERRUPT,"Adhoc Network Relay Topic Subscription Failed");
+    }
+    
+    return hleLogSuccessI(SCENET,0,"Net Adhoc init successfully");
 }
 
-int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id)
+int AmultiosNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 {
-    auto ctl_mqtt = g_ctl_mqtt;
-    if (ctl_mqtt != nullptr && ctl_mqtt->connected)
-    {
-        loginInfo.CrossRegion.clear();
-        loginInfo.Character.clear();
 
-        SceNetAdhocctlLoginPacketC2S packet;
-        packet.base.opcode = OPCODE_LOGIN;
-        SceNetEtherAddr addres;
-        getLocalMac(&addres);
-        packet.mac = addres;
-        strcpy((char *)packet.name.data, loginInfo.SceNetAdhocctlNickname.c_str());
-        memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
-        int rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
-        if (rc == MOSQ_ERR_SUCCESS)
-        {
-            amultios_sync();
-            return 0;
-        }
+    if(!sceNetCommonModuleLoaded && !sceNetAdhocModuleLoaded){
+        return hleLogError(SCENET,SCE_KERNEL_ERROR_LIBRARY_NOT_YET_LINKED,"sceNetCommonModule and sceNetAdhocModule Not Loaded");
     }
-    return MOSQ_ERR_CONN_PENDING;
+
+    if(adhocControl.inited){
+        return hleLogError(SCENET,ERROR_NET_ADHOC_ALREADY_INITIALIZED,"Net Adhoc Control Already Initialized");
+    }
+
+    auto ctl_mqtt = g_ctl_mqtt;
+
+    if (ctl_mqtt == nullptr && !ctl_mqtt->connected)
+    {
+        return ERROR_NET_POWER_INTERRUPT;
+    }
+
+    loginInfo.CrossRegion.clear();
+    loginInfo.Character.clear();
+
+    SceNetAdhocctlAdhocId * adhoc_id = (SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr);
+
+    SceNetAdhocctlLoginPacketC2S packet;
+    packet.base.opcode = OPCODE_LOGIN;
+    SceNetEtherAddr addres;
+    getLocalMac(&addres);
+    packet.mac = addres;
+    strcpy((char *)packet.name.data, loginInfo.SceNetAdhocctlNickname.c_str());
+    memcpy(packet.game.data, adhoc_id->data, ADHOCCTL_ADHOCID_LEN);
+
+    int rc = ctl_publish(ctl_mqtt->pub_topic.c_str(), &packet, sizeof(packet), 2, 0);
+    
+    if (rc != MOSQ_ERR_SUCCESS)
+    {
+        return ERROR_NET_POWER_INTERRUPT;
+    }
+
+    adhocControl.inited = true;
+    //sync user data
+    amultios_sync();
+    return 0;
+}
+
+int AmultiosNetAdhocctlGetState(u32 ptrToStatus){
+
+    int result = ERROR_NET_POWER_INTERRUPT;
+
+
+    if (netAdhocctlInited)
+	{
+		// Valid Arguments
+		if (Memory::IsValidAddress(ptrToStatus))
+		{
+			// Return Thread Status
+			Memory::Write_U32(threadStatus, ptrToStatus);
+			// Return Success
+			return 0;
+		}
+
+		// Invalid Arguments
+		return ERROR_NET_ADHOCCTL_INVALID_ARG;
+	}
+
+	// Library uninitialized
+	return ERROR_NET_ADHOCCTL_NOT_INITIALIZED;
 }
 
 int AmultiosNetAdhocctlCreate(const char *groupName)
@@ -2758,7 +2808,7 @@ int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int l
         charactername[11] = un[64];
         charactername[12] = 0;
 
-        loginInfo.Character = std::string(charactername);
+        loginInfo.Character = std::string(un,un+len);
         amultios_status();
     }
 

@@ -200,10 +200,10 @@ int __AMULTIOS_PTP_INIT();
 int __AMULTIOS_PTP_START();
 int __AMULTIOS_PTP_SHUTDOWN();
 
-//HLE FUNCTION
-int AmultiosNetAdhocInit();
-int AmultiosNetAdhocctlInit(SceNetAdhocctlAdhocId *adhoc_id);
+//HLE FUNCTION Control Module
+int AmultiosNetAdhocctlInit(int stackSize, int prio, u32 productAddr);
 int AmultiosNetAdhocctlScan();
+int AmultiosNetAdhocctlGetState(u32 ptrToStatus);
 int AmultiosNetAdhocctlCreate(const char *groupName);
 int AmultiosNetAdhocctlGetPeerInfo(const char *mac, int size, u32 peerInfoAddr);
 int AmultiosNetAdhocctlGetPeerList(u32 sizeAddr, u32 bufAddr);
@@ -211,6 +211,8 @@ int AmultiosNetAdhocctlDisconnect();
 int AmultiosNetAdhocctlTerm();
 int AmultiosNetAdhocTerm();
 
+// HLE FUNCTION Adhoc Module
+int AmultiosNetAdhocInit();
 int AmultiosNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unknown);
 int AmultiosNetAdhocPdpSend(int id, const char *mac, u32 port, void *data, int len, int timeout, int flag);
 int AmultiosNetAdhocPdpRecv(int id, void *addr, void *port, void *buf, void *dataLength, u32 timeout, int flag);
@@ -261,7 +263,7 @@ public:
 		chatMutex_.unlock();
 	}
 
-	void setStatus(const std::string &status)
+	void setStatus(std::string status)
 	{
 		std::lock_guard<std::mutex> lk(playerStatusMutex);
 		this->PlayerStatus = status;
@@ -506,13 +508,13 @@ class AdhocNetworkManager
 
 class AdhocControlManager
 {
+	public:
 	SceNetAdhocctlScanInfo NewNetworkControl;
 	SceNetAdhocctlScanInfo CurrentNetworkControl;
 	std::vector<SceNetAdhocctlPeerInfoAmultios> ActivePeer;
-
-	void AddPeer();
-	void RemovePeer();
-
+	bool inited = false; 
+	bool connected = false;
+	int state = ADHOCCTL_STATE_DISCONNECTED;
 };
 
 class AdhocMatchingManager

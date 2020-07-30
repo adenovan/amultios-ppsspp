@@ -45,6 +45,9 @@ bool netAdhocInited;
 bool netAdhocctlInited;
 bool networkInited;
 
+bool sceNetCommonModuleLoaded;
+bool sceNetAdhocModuleLoaded;
+
 int netAdhocctlCounter = 0;
 
 static bool netAdhocMatchingInited;
@@ -175,6 +178,20 @@ void __UpdateMatchingHandler(u64 ArgsPtr)
 	matchingEvents.push_back(ArgsPtr);
 }
 
+
+void __UpdateNetModule(u32 moduleId, bool flag){
+
+	if(moduleId == 0x0100){
+		NOTICE_LOG(SCENET,"sceNetCommonModuleLoaded = [%i] ",flag );
+		sceNetCommonModuleLoaded = flag;
+	}
+
+	if(moduleId == 0x0101){
+		NOTICE_LOG(SCENET,"sceNetAdhocModuleLoaded = [%i] ",flag );
+		sceNetAdhocModuleLoaded = flag;
+	}
+}
+
 static int getBlockingFlag(int id)
 {
 #ifdef _WIN32
@@ -190,7 +207,6 @@ void __NetAdhocInit()
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
-
 		if (g_Config.iAdhocMode == AMULTIOS_MODE)
 		{
 			g_Config.iPtpQos = PTPQos::QOS_0;
@@ -229,7 +245,7 @@ u32 sceNetAdhocInit()
 {
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
-
+		return AmultiosNetAdhocInit();
 	}
 	// Library uninitialized
 	INFO_LOG(SCENET, "sceNetAdhocInit() at %08x", currentMIPS->pc);
@@ -251,8 +267,6 @@ u32 sceNetAdhocInit()
 		{
 			__KernelStartThread(threadAdhocID, 0, 0);
 		}
-
-		AmultiosNetAdhocInit();
 		// Return Success
 		return 0;
 	}
@@ -262,32 +276,12 @@ u32 sceNetAdhocInit()
 
 static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 {
-	INFO_LOG(SCENET, "sceNetAdhocctlInit(%i, %i, %08x) at %08x", stackSize, prio, productAddr, currentMIPS->pc);
-
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
-
-		if (netAdhocctlInited)
-		{
-			return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
-		}
-
-		//if(netAdhocctlCounter >= 1){
-		//return ERROR_NET_ADHOCCTL_ID_NOT_FOUND;
-		//}
-
-		if (AmultiosNetAdhocctlInit((SceNetAdhocctlAdhocId *)Memory::GetPointer(productAddr)) == MOSQ_ERR_SUCCESS)
-		{
-			networkInited = true;
-		}
-		else
-		{
-			ERROR_LOG(SCENET, "Failed To Send Adhoc Ctl Params to server");
-			networkInited = false;
-		}
-		netAdhocctlInited = true;
-		return 0;
+		return AmultiosNetAdhocctlInit(stackSize,prio,productAddr);
 	}
+
+	INFO_LOG(SCENET, "sceNetAdhocctlInit(%i, %i, %08x) at %08x", stackSize, prio, productAddr, currentMIPS->pc);
 
 	if (netAdhocctlInited)
 		return ERROR_NET_ADHOCCTL_ALREADY_INITIALIZED;
@@ -316,6 +310,12 @@ static u32 sceNetAdhocctlInit(int stackSize, int prio, u32 productAddr)
 
 static int sceNetAdhocctlGetState(u32 ptrToStatus)
 {
+
+
+	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
+	{
+		return AmultiosNetAdhocctlGetState(ptrToStatus);
+	}
 	// Library initialized
 	//DEBUG_LOG(SCENET,"sceNetAdhocctlGetState: %p",ptrToStatus);
 	if (netAdhocctlInited)
@@ -349,14 +349,15 @@ static int sceNetAdhocctlGetState(u32 ptrToStatus)
 static int sceNetAdhocPdpCreate(const char *mac, u32 port, int bufferSize, u32 unknown)
 {
 	INFO_LOG(SCENET, "sceNetAdhocPdpCreate(%s, %u, %u, %u) at %08x", getMacString((SceNetEtherAddr *)mac).c_str(), port, bufferSize, unknown, currentMIPS->pc);
-	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
-	{
-		return -1;
-	}
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPdpCreate(mac, port, bufferSize, unknown);
+	}
+
+	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
+	{
+		return -1;
 	}
 
 	int retval = ERROR_NET_ADHOC_NOT_INITIALIZED;
@@ -2320,14 +2321,15 @@ static int sceNetAdhocPtpAccept(int id, u32 peerMacAddrPtr, u32 peerPortPtr, int
 static int sceNetAdhocPtpConnect(int id, int timeout, int flag)
 {
 	INFO_LOG(SCENET, "sceNetAdhocPtpConnect(%i, %i, %08x) at %08x", id, timeout, flag, currentMIPS->pc);
-	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
-	{
-		return 0;
-	}
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPtpConnect(id, timeout, flag);
+	}
+
+	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
+	{
+		return 0;
 	}
 
 	// Library is initialized
@@ -2464,15 +2466,16 @@ static int sceNetAdhocPtpConnect(int id, int timeout, int flag)
  */
 static int sceNetAdhocPtpClose(int id, int unknown)
 {
-	INFO_LOG(SCENET, "sceNetAdhocPtpClose(%d,%d) at %08x", id, unknown, currentMIPS->pc);
-	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
-	{
-		return 0;
-	}
 
 	if (g_Config.iAdhocMode == AMULTIOS_MODE || g_Config.iAdhocMode == DEV_MODE)
 	{
 		return AmultiosNetAdhocPtpClose(id, unknown);
+	}
+
+	INFO_LOG(SCENET, "sceNetAdhocPtpClose(%d,%d) at %08x", id, unknown, currentMIPS->pc);
+	if (!g_Config.bEnableWlan && g_Config.iAdhocMode == PRO_ADHOC_MODE)
+	{
+		return 0;
 	}
 
 	// Library is initialized

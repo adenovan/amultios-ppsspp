@@ -276,7 +276,9 @@ void AmultiosOverlayScreen::UpdateChat()
 void AmultiosOverlayScreen::UpdateStatus()
 {
 	using namespace UI;
-	json::JsonReader reader(cmList.getPlayerStatus().c_str(), cmList.getPlayerStatus().size());
+
+
+	json::JsonReader reader(cmList.getPlayerStatus().data(),cmList.getPlayerStatus().size());
 	const json::JsonGet root = reader.root();
 	if (!root)
 	{

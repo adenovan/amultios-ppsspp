@@ -21,16 +21,22 @@ class PointerWrap;
 
 void Register_sceNetAdhoc();
 
+
 void __NetAdhocInit();
 void __NetAdhocShutdown();
 void __NetAdhocDoState(PointerWrap &p);
 void __UpdateAdhocctlHandlers(u32 flags, u32 error);
 void __UpdateMatchingHandler(u64 params);
+void __UpdateNetModule(u32 moduleId, bool flag);
 
 // I have to call this from netdialog
 int sceNetAdhocctlCreate(const char * groupName);
 
 // May need to use these from sceNet.cpp
+extern bool sceNetCommonModuleLoaded;
+extern bool sceNetAdhocModuleLoaded;
+extern bool sceNetInetModuleLoaded;
+
 extern bool netAdhocInited;
 extern bool netAdhocctlInited;
 int sceNetAdhocctlTerm();

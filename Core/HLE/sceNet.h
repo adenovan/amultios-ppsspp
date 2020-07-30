@@ -55,7 +55,10 @@ enum {
 	ERROR_NET_NOT_CONNECTED_INTO_BSSID = 0x8041018,
 
 	// on grabbing peer list this happens if we not connected into the adhoc control yet
-	ERROR_NET_NO_MEDIUM = 0x80410682
+	ERROR_NET_NO_MEDIUM = 0x80410682,
+
+	// guess every call on net after sleep
+	ERROR_NET_POWER_INTERRUPT = 0x80410005
 };
 
 enum {

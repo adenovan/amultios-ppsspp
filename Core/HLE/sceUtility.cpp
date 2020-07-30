@@ -32,6 +32,7 @@
 #include "Core/HLE/sceKernelMemory.h"
 #include "Core/HLE/sceKernelThread.h"
 #include "Core/HLE/sceUtility.h"
+#include "Core/HLE/sceNetAdhoc.h"
 
 #include "Core/HLE/sceCtrl.h"
 #include "Core/Util/PPGeDraw.h"
@@ -285,6 +286,7 @@ static u32 sceUtilityLoadModule(u32 module) {
 	if (!info) {
 		return hleReportError(SCEUTILITY, SCE_ERROR_MODULE_BAD_ID, "invalid module id");
 	}
+
 	if (currentlyLoadedModules.find(module) != currentlyLoadedModules.end()) {
 		return hleLogError(SCEUTILITY, SCE_ERROR_MODULE_ALREADY_LOADED, "already loaded");
 	}
@@ -306,6 +308,8 @@ static u32 sceUtilityLoadModule(u32 module) {
 		currentlyLoadedModules[module] = 0;
 	}
 
+	__UpdateNetModule(info->mod,true);
+
 	// TODO: Each module has its own timing, technically, but this is a low-end.
 	if (module == 0x3FF)
 		return hleDelayResult(hleLogSuccessInfoI(SCEUTILITY, 0), "utility module loaded", 130);
@@ -322,10 +326,13 @@ static u32 sceUtilityUnloadModule(u32 module) {
 	if (currentlyLoadedModules.find(module) == currentlyLoadedModules.end()) {
 		return hleLogWarning(SCEUTILITY, SCE_ERROR_MODULE_NOT_LOADED, "not yet loaded");
 	}
+
 	if (currentlyLoadedModules[module] != 0) {
 		userMemory.Free(currentlyLoadedModules[module]);
 	}
 	currentlyLoadedModules.erase(module);
+
+	__UpdateNetModule(info->mod,false);
 
 	// TODO: Each module has its own timing, technically, but this is a low-end.
 	if (module == 0x3FF)
@@ -760,13 +767,23 @@ static u32 sceUtilityGetSystemParamInt(u32 id, u32 destaddr)
 
 static u32 sceUtilityLoadNetModule(u32 module)
 {
-	DEBUG_LOG(SCEUTILITY,"FAKE: sceUtilityLoadNetModule(%i)", module);
+	DEBUG_LOG(SCEUTILITY,"sceUtilityLoadNetModule(%i)", module);
+	const ModuleLoadInfo *info = __UtilityModuleInfo(module);
+	if(!info){
+		return 0;
+	}
+	__UpdateNetModule(info->mod,true);
 	return 0;
 }
 
 static u32 sceUtilityUnloadNetModule(u32 module)
 {
-	DEBUG_LOG(SCEUTILITY,"FAKE: sceUtilityUnloadNetModule(%i)", module);
+	DEBUG_LOG(SCEUTILITY,"sceUtilityUnloadNetModule(%i)", module);
+	const ModuleLoadInfo *info = __UtilityModuleInfo(module);
+	if(!info){
+		return 0;
+	}
+	__UpdateNetModule(info->mod,false);
 	return 0;
 }
 
